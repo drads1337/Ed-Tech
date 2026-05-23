@@ -1,17 +1,12 @@
 import fs from 'node:fs/promises';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as THREE from 'three';
+import { CHAISE_POSE } from '../src/casePoses.js';
 
 globalThis.ProgressEvent ||= class ProgressEvent extends Event {};
 globalThis.self ||= globalThis;
 
-const POSE_PATH = new URL('../mono-chaise-pose-2026-05-22T08-15-45-619Z.json', import.meta.url);
 const MODEL_PATH = new URL('../ordinary.glb', import.meta.url);
-
-const REST_POSE_ADJUSTMENTS = {
-  Neck_024: { x: 3, y: 0, z: 0 },
-  Head_025: { x: 8, y: 0, z: 0 },
-};
 
 function createChaiseGeometry() {
   const shape = new THREE.Shape();
@@ -123,12 +118,12 @@ function percentile(sortedValues, percent) {
   return sortedValues[index];
 }
 
-const pose = JSON.parse(await fs.readFile(POSE_PATH, 'utf8'));
+const pose = CHAISE_POSE;
 const gltf = await loadGLB(MODEL_PATH);
 const modelScene = gltf.scene;
 const modelTransform = pose.modelTransform;
 const chaiseTransform = pose.chaiseTransform;
-const restPoseAdjustments = { ...REST_POSE_ADJUSTMENTS, ...pose.restPoseAdjustments };
+const restPoseAdjustments = pose.restPoseAdjustments ?? {};
 
 centerScene(modelScene);
 applyPose(modelScene, pose.boneRotations || {}, restPoseAdjustments);
