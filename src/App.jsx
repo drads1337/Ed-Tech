@@ -1,6 +1,6 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserRouter, Navigate, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { ContactShadows, Environment, OrbitControls, useGLTF } from '@react-three/drei';
 import {
   ArrowLeft,
@@ -597,6 +597,699 @@ function SideMonitor({ position, rotationY }) {
   );
 }
 
+const DEFAULT_SCENE_PROPS = {
+  chaise: [
+    { id: 'chaise-rug', type: 'roundRug', label: 'Ковер', x: 1.97, y: -1.17, z: 3.36, scale: 1.38, rotationY: -18 },
+    { id: 'chaise-table', type: 'lowTable', label: 'Столик', x: 3.3, y: -1.15, z: 3.52, scale: 1.87, rotationY: -14 },
+    { id: 'chaise-books', type: 'bookStack', label: 'Стопка книг', x: 3.06, y: -0.65, z: 3.59, scale: 1.32, rotationY: 7 },
+    { id: 'chaise-sax', type: 'saxophone', label: 'Саксофон', x: -1.27, y: -5, z: 4.53, scale: 1.5, rotationY: -24 },
+    { id: 'chaise-dvd', type: 'dvdStack', label: 'DVD', x: -1.45, y: -1.15, z: 1.67, scale: 1.72, rotationY: 16 },
+    { id: 'chaise-magazines', type: 'magazines', label: 'Журналы', x: 0.51, y: -1.2, z: 2.77, scale: 1.48, rotationY: -8 },
+    { id: 'chaise-records', type: 'vinylCrate', label: 'Пластинки', x: 3.33, y: -1.16, z: 0.28, scale: 1.06, rotationY: -34 },
+    { id: 'chaise-speaker', type: 'speaker', label: 'Колонка', x: -3.04, y: -1.16, z: 1.98, scale: 2.76, rotationY: 67 },
+    { id: 'chaise-floor-lamp', type: 'floorLamp', label: 'Торшер', x: 2.7, y: -1.19, z: -0.32, scale: 0.93, rotationY: 24 },
+    { id: 'chaise-pillow', type: 'pillow', label: 'Подушка', x: 1.59, y: -0.97, z: 3.99, scale: 1.77, rotationY: 12 },
+    { id: 'chaise-cup', type: 'coffeeCup', label: 'Чашка', x: 3.66, y: -0.67, z: 3.64, scale: 1.31, rotationY: 0 },
+  ],
+  standing: [
+    { id: 'standing-ground', type: 'grassGround', label: 'Земля', x: 0, y: -1.175, z: 0, scale: 20, rotationY: 0 },
+    { id: 'standing-path', type: 'curvedPath', label: 'Тропинка', x: 0.08, y: -1.165, z: 0.1, scale: 1.71, rotationY: -4 },
+    { id: 'standing-forest', type: 'forest', label: 'Лес', x: 0, y: -1.16, z: 0, scale: 17.37, rotationY: 0 },
+    { id: 'standing-birds', type: 'birdFlock', label: 'Птички сверху', x: 0.2, y: 3.88, z: -1.35, scale: 1, rotationY: -8 },
+    { id: 'standing-city', type: 'cityBackdrop', label: 'Город сзади', x: 0.1, y: -1.16, z: -40, scale: 20, rotationY: 0 },
+    { id: 'standing-bench', type: 'parkBench', label: 'Лавка', x: -1.92, y: -1.16, z: 1.1, scale: 2.44, rotationY: -122 },
+  ],
+  desk: [
+    { id: 'desk-office-room', type: 'officeRoom', label: 'Офисная комната', x: 0, y: -1.18, z: 0, scale: 3.12, rotationY: -44 },
+    { id: 'desk-shelf', type: 'bookShelf', label: 'Полка', x: 0.92, y: 2.68, z: -10, scale: 1.05, rotationY: 138 },
+    { id: 'desk-board', type: 'whiteboard', label: 'План на доске', x: -6, y: 0.23, z: -4.78, scale: 2.13, rotationY: 31 },
+    { id: 'desk-books', type: 'bookStack', label: 'Книги на столе', x: 5.78, y: 0.2, z: -2.9, scale: 1.63, rotationY: 16 },
+    { id: 'desk-dvd', type: 'dvdStack', label: 'Диски/кейсы', x: 3.55, y: -1.2, z: 0.34, scale: 1.81, rotationY: -10 },
+    { id: 'desk-magazines', type: 'magazines', label: 'Журналы', x: -0.64, y: 0.38, z: 0.47, scale: 1.16, rotationY: -18 },
+    { id: 'desk-plant', type: 'deskPlant', label: 'Растение', x: 4.89, y: 0.3, z: -2.63, scale: 2.27, rotationY: 0 },
+    { id: 'desk-file-cabinet', type: 'fileCabinet', label: 'Тумба', x: 5.34, y: -1.16, z: -2.8, scale: 1.81, rotationY: -37 },
+    { id: 'desk-office-lamp', type: 'floorLamp', label: 'Офисный свет', x: 1.09, y: -1.16, z: 0.95, scale: 1.18, rotationY: 18 },
+  ],
+};
+
+function LowTableProp() {
+  return (
+    <group>
+      <mesh position={[0, 0.22, 0]} castShadow receiveShadow>
+        <boxGeometry args={[1, 0.07, 0.62]} />
+        <meshStandardMaterial color="#9a7557" roughness={0.82} />
+      </mesh>
+      {[
+        [-0.4, 0.09, -0.23],
+        [0.4, 0.09, -0.23],
+        [-0.4, 0.09, 0.23],
+        [0.4, 0.09, 0.23],
+      ].map((leg, index) => (
+        <mesh key={index} position={leg} castShadow receiveShadow>
+          <boxGeometry args={[0.055, 0.2, 0.055]} />
+          <meshStandardMaterial color="#765940" roughness={0.86} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function BookStackProp() {
+  const books = [
+    [0, 0.025, 0, 0.44, 0.05, 0.31, '#bf5f53'],
+    [0.015, 0.08, -0.01, 0.39, 0.055, 0.29, '#456f8f'],
+    [-0.02, 0.137, 0.012, 0.42, 0.052, 0.28, '#d8ab4f'],
+    [0.02, 0.19, -0.005, 0.36, 0.05, 0.26, '#6f8b5a'],
+  ];
+
+  return (
+    <group>
+      {books.map(([x, y, z, width, height, depth, color], index) => (
+        <mesh key={index} position={[x, y, z]} rotation={[0, THREE.MathUtils.degToRad(index % 2 ? -5 : 4), 0]} castShadow receiveShadow>
+          <boxGeometry args={[width, height, depth]} />
+          <meshStandardMaterial color={color} roughness={0.78} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function DvdStackProp() {
+  return (
+    <group>
+      {[0, 1, 2].map((index) => (
+        <mesh key={index} position={[0, 0.015 + index * 0.035, 0]} rotation={[0, THREE.MathUtils.degToRad(index * 7), 0]} castShadow receiveShadow>
+          <boxGeometry args={[0.36, 0.03, 0.36]} />
+          <meshStandardMaterial color={index === 1 ? '#d8d3c6' : '#252b31'} roughness={0.62} metalness={0.08} />
+        </mesh>
+      ))}
+      <mesh position={[0.02, 0.12, 0.01]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.085, 0.15, 36]} />
+        <meshStandardMaterial color="#bac3c8" roughness={0.42} metalness={0.35} side={THREE.DoubleSide} />
+      </mesh>
+    </group>
+  );
+}
+
+function MagazinesProp() {
+  const pages = [
+    [-0.08, 0.018, -0.02, -9, '#f0e7d4'],
+    [0.04, 0.036, 0.01, 4, '#c95f58'],
+    [0.13, 0.054, 0.025, 12, '#6789a8'],
+  ];
+
+  return (
+    <group>
+      {pages.map(([x, y, z, angle, color], index) => (
+        <mesh key={index} position={[x, y, z]} rotation={[-Math.PI / 2, 0, THREE.MathUtils.degToRad(angle)]} castShadow receiveShadow>
+          <boxGeometry args={[0.46, 0.31, 0.018]} />
+          <meshStandardMaterial color={color} roughness={0.86} />
+        </mesh>
+      ))}
+      {[-0.05, 0.08].map((x) => (
+        <mesh key={x} position={[x, 0.066, 0.05]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[0.28, 0.012]} />
+          <meshStandardMaterial color="#6f7f85" roughness={0.9} side={THREE.DoubleSide} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function SaxophoneProp() {
+  return (
+    <group rotation={[0, 0, THREE.MathUtils.degToRad(-14)]}>
+      <mesh position={[0, 0.15, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
+        <torusGeometry args={[0.18, 0.035, 12, 36, Math.PI * 1.45]} />
+        <meshStandardMaterial color="#c7953d" roughness={0.34} metalness={0.62} />
+      </mesh>
+      <mesh position={[0.18, 0.12, 0]} rotation={[0, 0, THREE.MathUtils.degToRad(-28)]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.034, 0.04, 0.42, 18]} />
+        <meshStandardMaterial color="#c7953d" roughness={0.34} metalness={0.62} />
+      </mesh>
+      <mesh position={[0.33, 0.22, 0]} rotation={[0, 0, THREE.MathUtils.degToRad(-28)]} castShadow receiveShadow>
+        <coneGeometry args={[0.13, 0.18, 26, 1, true]} />
+        <meshStandardMaterial color="#d5a64f" roughness={0.32} metalness={0.65} side={THREE.DoubleSide} />
+      </mesh>
+      {[0.06, 0.15, 0.24].map((x) => (
+        <mesh key={x} position={[x, 0.23, 0.034]} castShadow receiveShadow>
+          <sphereGeometry args={[0.028, 14, 8]} />
+          <meshStandardMaterial color="#f1d16b" roughness={0.3} metalness={0.72} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function WhiteboardProp() {
+  return (
+    <group>
+      <mesh position={[0, 0.82, 0]} castShadow receiveShadow>
+        <boxGeometry args={[1.55, 0.82, 0.045]} />
+        <meshStandardMaterial color="#eef1ed" roughness={0.42} metalness={0.03} />
+      </mesh>
+      <mesh position={[0, 1.285, 0.03]} castShadow receiveShadow>
+        <boxGeometry args={[1.72, 0.06, 0.07]} />
+        <meshStandardMaterial color="#52606a" roughness={0.5} metalness={0.12} />
+      </mesh>
+      <mesh position={[0, 0.355, 0.03]} castShadow receiveShadow>
+        <boxGeometry args={[1.72, 0.06, 0.07]} />
+        <meshStandardMaterial color="#52606a" roughness={0.5} metalness={0.12} />
+      </mesh>
+      {[-0.84, 0.84].map((x) => (
+        <mesh key={x} position={[x, 0.82, 0.03]} castShadow receiveShadow>
+          <boxGeometry args={[0.06, 0.94, 0.07]} />
+          <meshStandardMaterial color="#52606a" roughness={0.5} metalness={0.12} />
+        </mesh>
+      ))}
+      {[-0.42, 0.05, 0.38].map((x, index) => (
+        <mesh key={x} position={[x, 0.78 + index * 0.1, 0.055]} rotation={[0, 0, THREE.MathUtils.degToRad(index % 2 ? -6 : 7)]}>
+          <boxGeometry args={[0.42, 0.018, 0.012]} />
+          <meshStandardMaterial color={index === 1 ? '#6e8fa9' : '#dd735f'} roughness={0.65} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function MarkerStandProp() {
+  return (
+    <group>
+      <mesh position={[0, 0.42, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.035, 0.045, 0.84, 12]} />
+        <meshStandardMaterial color="#5b6570" roughness={0.64} />
+      </mesh>
+      <mesh position={[0, 0.9, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.54, 0.26, 0.035]} />
+        <meshStandardMaterial color="#d18959" roughness={0.7} />
+      </mesh>
+    </group>
+  );
+}
+
+function BookShelfProp() {
+  const books = [
+    [-0.42, 0.34, '#d15f55'],
+    [-0.28, 0.31, '#457f9f'],
+    [-0.12, 0.38, '#e1b65d'],
+    [0.05, 0.29, '#6b8f62'],
+    [0.22, 0.36, '#936ca7'],
+    [0.38, 0.32, '#c88755'],
+  ];
+
+  return (
+    <group>
+      <mesh position={[0, 0.55, 0]} castShadow receiveShadow>
+        <boxGeometry args={[1.15, 1.1, 0.16]} />
+        <meshStandardMaterial color="#7f6048" roughness={0.82} />
+      </mesh>
+      {[0.24, 0.55, 0.86].map((y) => (
+        <mesh key={y} position={[0, y, -0.09]} castShadow receiveShadow>
+          <boxGeometry args={[1.22, 0.055, 0.24]} />
+          <meshStandardMaterial color="#604836" roughness={0.84} />
+        </mesh>
+      ))}
+      {books.map(([x, height, color], index) => (
+        <mesh key={index} position={[x, 0.21 + height / 2, -0.21]} castShadow receiveShadow>
+          <boxGeometry args={[0.1, height, 0.08]} />
+          <meshStandardMaterial color={color} roughness={0.78} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function DeskPlantProp() {
+  return (
+    <group>
+      <Cactus position={[0, 0, 0]} />
+    </group>
+  );
+}
+
+function RoundRugProp() {
+  return (
+    <group>
+      <mesh position={[0, 0.012, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <circleGeometry args={[1.05, 48]} />
+        <meshStandardMaterial color="#96746e" roughness={0.96} />
+      </mesh>
+      <mesh position={[0, 0.014, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.72, 0.75, 48]} />
+        <meshStandardMaterial color="#e1cfad" roughness={0.96} side={THREE.DoubleSide} />
+      </mesh>
+    </group>
+  );
+}
+
+function FloorLampProp() {
+  return (
+    <group>
+      <mesh position={[0, 0.04, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.22, 0.28, 0.04, 28]} />
+        <meshStandardMaterial color="#5a5147" roughness={0.62} metalness={0.18} />
+      </mesh>
+      <mesh position={[0, 0.62, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.025, 0.032, 1.16, 16]} />
+        <meshStandardMaterial color="#5a5147" roughness={0.48} metalness={0.25} />
+      </mesh>
+      <mesh position={[0, 1.22, 0]} castShadow receiveShadow>
+        <coneGeometry args={[0.34, 0.36, 28, 1, true]} />
+        <meshStandardMaterial color="#f0d9a2" roughness={0.78} side={THREE.DoubleSide} />
+      </mesh>
+      <pointLight position={[0, 1.08, 0]} intensity={0.55} distance={3.2} color="#ffdba2" />
+    </group>
+  );
+}
+
+function PillowProp() {
+  return (
+    <mesh rotation={[THREE.MathUtils.degToRad(8), 0, THREE.MathUtils.degToRad(-4)]} castShadow receiveShadow>
+      <boxGeometry args={[0.52, 0.16, 0.38]} />
+      <meshStandardMaterial color="#d8aa94" roughness={0.9} />
+    </mesh>
+  );
+}
+
+function CoffeeCupProp() {
+  return (
+    <group>
+      <mesh position={[0, 0.07, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.085, 0.07, 0.14, 24]} />
+        <meshStandardMaterial color="#fff5df" roughness={0.62} />
+      </mesh>
+      <mesh position={[0.09, 0.075, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
+        <torusGeometry args={[0.055, 0.012, 8, 18, Math.PI * 1.45]} />
+        <meshStandardMaterial color="#fff5df" roughness={0.62} />
+      </mesh>
+      <mesh position={[0, 0.145, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.064, 24]} />
+        <meshStandardMaterial color="#4a2d22" roughness={0.7} />
+      </mesh>
+    </group>
+  );
+}
+
+function VinylCrateProp() {
+  const records = [-0.18, -0.1, -0.02, 0.06, 0.14, 0.22];
+
+  return (
+    <group>
+      <mesh position={[0, 0.16, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.64, 0.32, 0.34]} />
+        <meshStandardMaterial color="#8a6549" roughness={0.82} transparent opacity={0.86} />
+      </mesh>
+      {records.map((x, index) => (
+        <mesh key={x} position={[x, 0.28, 0]} rotation={[0, THREE.MathUtils.degToRad(index % 2 ? -3 : 4), 0]} castShadow receiveShadow>
+          <boxGeometry args={[0.035, 0.42, 0.31]} />
+          <meshStandardMaterial color={index % 2 ? '#293441' : '#d7c9a8'} roughness={0.7} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function SpeakerProp() {
+  return (
+    <group>
+      <mesh position={[0, 0.34, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.44, 0.68, 0.32]} />
+        <meshStandardMaterial color="#24282c" roughness={0.62} />
+      </mesh>
+      {[0.18, 0.46].map((y, index) => (
+        <mesh key={y} position={[0, y, 0.17]} castShadow receiveShadow>
+          <cylinderGeometry args={[index ? 0.13 : 0.09, index ? 0.13 : 0.09, 0.025, 28]} />
+          <meshStandardMaterial color="#48515a" roughness={0.58} metalness={0.14} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function GrassGroundProp() {
+  return (
+    <group>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[16, 16]} />
+        <meshStandardMaterial color="#6f8b55" roughness={0.96} />
+      </mesh>
+      {[-5.5, -3.2, -1.2, 1.8, 4.7].map((x, index) => (
+        <mesh key={x} position={[x, 0.012, -2.6 + index * 0.36]} rotation={[-Math.PI / 2, 0, THREE.MathUtils.degToRad(index * 18)]}>
+          <planeGeometry args={[0.7, 0.035]} />
+          <meshStandardMaterial color="#78965e" roughness={1} side={THREE.DoubleSide} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function CurvedPathProp() {
+  return (
+    <group>
+      {[
+        [0, 0, 0, 1.3, 0.55, 0],
+        [-0.22, 0.01, -0.9, 1.08, 0.5, -10],
+        [0.28, 0.02, -1.75, 0.9, 0.45, 12],
+        [-0.32, 0.03, 0.92, 1.12, 0.5, 14],
+        [0.42, 0.04, -2.55, 0.72, 0.36, -8],
+        [-0.08, 0.05, -3.18, 0.58, 0.32, 10],
+        [0.18, 0.06, 1.72, 0.98, 0.46, -8],
+        [-0.22, 0.07, 2.42, 0.74, 0.38, 12],
+      ].map(([x, y, z, width, depth, angle], index) => (
+        <mesh key={index} position={[x, y, z]} rotation={[-Math.PI / 2, 0, THREE.MathUtils.degToRad(angle)]} receiveShadow>
+          <planeGeometry args={[width, depth]} />
+          <meshStandardMaterial color="#c1a87d" roughness={0.98} side={THREE.DoubleSide} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function CityBackdropProp() {
+  const buildings = [
+    [-3.1, 0.62, 0, 0.62, 1.24, '#a9b2b6'],
+    [-2.35, 0.82, 0, 0.5, 1.64, '#8998a0'],
+    [-1.72, 0.54, 0, 0.64, 1.08, '#b8b0a2'],
+    [-0.92, 0.94, 0, 0.58, 1.88, '#7f9199'],
+    [-0.2, 0.7, 0, 0.48, 1.4, '#b7a68f'],
+    [0.52, 0.98, 0, 0.7, 1.96, '#8ea0a8'],
+    [1.36, 0.62, 0, 0.52, 1.24, '#a8a093'],
+    [2.1, 0.82, 0, 0.62, 1.64, '#9aa8ad'],
+    [2.92, 0.56, 0, 0.58, 1.12, '#b9b4a7'],
+  ];
+
+  return (
+    <group>
+      <mesh position={[0, 0.42, -0.08]} receiveShadow>
+        <boxGeometry args={[7.2, 0.08, 0.16]} />
+        <meshStandardMaterial color="#7e806f" roughness={0.9} />
+      </mesh>
+      {buildings.map(([x, y, z, width, height, color], index) => (
+        <group key={index} position={[x, y, z]}>
+          <mesh castShadow receiveShadow>
+            <boxGeometry args={[width, height, 0.28]} />
+            <meshStandardMaterial color={color} roughness={0.82} />
+          </mesh>
+          {[-0.16, 0.16].map((windowX) =>
+            [0.18, 0.48, 0.78].map((windowY) => (
+              <mesh key={`${windowX}-${windowY}`} position={[windowX * width, windowY * height - height / 2, 0.145]}>
+                <boxGeometry args={[0.08, 0.08, 0.012]} />
+                <meshStandardMaterial color="#f1d68a" emissive="#8c6a2a" emissiveIntensity={0.18} roughness={0.5} />
+              </mesh>
+            )),
+          )}
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function PineTreeProp() {
+  return (
+    <group>
+      <mesh position={[0, 0.34, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.07, 0.11, 0.68, 8]} />
+        <meshStandardMaterial color="#735338" roughness={0.88} />
+      </mesh>
+      {[0.78, 1.08, 1.34].map((y, index) => (
+        <mesh key={y} position={[0, y, 0]} castShadow receiveShadow>
+          <coneGeometry args={[0.62 - index * 0.14, 0.62, 9]} />
+          <meshStandardMaterial color={index === 1 ? '#4f744b' : '#456a43'} roughness={0.88} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function RoundTreeProp() {
+  return (
+    <group>
+      <mesh position={[0, 0.42, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.08, 0.12, 0.84, 8]} />
+        <meshStandardMaterial color="#76553a" roughness={0.88} />
+      </mesh>
+      <mesh position={[0, 1.12, 0]} castShadow receiveShadow>
+        <sphereGeometry args={[0.46, 18, 12]} />
+        <meshStandardMaterial color="#6f965c" roughness={0.9} />
+      </mesh>
+      <mesh position={[0.28, 1.04, -0.06]} castShadow receiveShadow>
+        <sphereGeometry args={[0.32, 16, 10]} />
+        <meshStandardMaterial color="#789f64" roughness={0.9} />
+      </mesh>
+    </group>
+  );
+}
+
+function ForestProp() {
+  const trees = [
+    ['pine', -2.9, 0.65, 0.98, 12],
+    ['pine', 2.78, 0.54, 0.82, -8],
+    ['pine', 0.95, -2.05, 0.72, 18],
+    ['pine', -4.1, -1.35, 0.68, -12],
+    ['pine', 4.0, -1.12, 0.7, 20],
+    ['pine', -3.8, 2.1, 1.08, 8],
+    ['pine', 3.55, 1.95, 0.96, -18],
+    ['pine', -4.85, 0.45, 0.82, 22],
+    ['pine', 4.72, 0.32, 0.78, -24],
+    ['round', -1.6, -1.92, 0.78, -16],
+    ['round', -2.55, -0.35, 0.72, 12],
+    ['round', 2.35, -0.48, 0.68, -14],
+    ['round', -3.15, 1.2, 0.62, 8],
+    ['round', 3.05, 1.12, 0.58, -10],
+  ];
+
+  return (
+    <group>
+      {trees.map(([kind, x, z, scale, rotationY], index) => (
+        <group key={index} position={[x, 0, z]} rotation={[0, THREE.MathUtils.degToRad(rotationY), 0]} scale={scale}>
+          {kind === 'pine' ? <PineTreeProp /> : <RoundTreeProp />}
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function BirdFlockProp() {
+  const birds = [
+    [-0.8, 0.05, 0, 0],
+    [-0.25, 0.22, -0.1, 12],
+    [0.34, 0.06, 0.05, -8],
+    [0.92, 0.28, -0.06, 16],
+  ];
+
+  return (
+    <group>
+      {birds.map(([x, y, z, angle], index) => (
+        <group key={index} position={[x, y, z]} rotation={[0, THREE.MathUtils.degToRad(angle), 0]}>
+          <mesh position={[-0.055, 0, 0]} rotation={[0, 0, THREE.MathUtils.degToRad(20)]}>
+            <boxGeometry args={[0.16, 0.018, 0.018]} />
+            <meshStandardMaterial color="#252525" roughness={0.7} />
+          </mesh>
+          <mesh position={[0.055, 0, 0]} rotation={[0, 0, THREE.MathUtils.degToRad(-20)]}>
+            <boxGeometry args={[0.16, 0.018, 0.018]} />
+            <meshStandardMaterial color="#252525" roughness={0.7} />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function ParkBenchProp() {
+  return (
+    <group>
+      {[-0.18, 0.02, 0.22].map((y) => (
+        <mesh key={y} position={[0, 0.42 + y, 0]} castShadow receiveShadow>
+          <boxGeometry args={[1.1, 0.06, 0.09]} />
+          <meshStandardMaterial color="#8a6042" roughness={0.86} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0.22, -0.18]} castShadow receiveShadow>
+        <boxGeometry args={[1.1, 0.08, 0.32]} />
+        <meshStandardMaterial color="#8a6042" roughness={0.86} />
+      </mesh>
+      {[-0.42, 0.42].map((x) => (
+        <mesh key={x} position={[x, 0.08, -0.08]} castShadow receiveShadow>
+          <boxGeometry args={[0.06, 0.22, 0.35]} />
+          <meshStandardMaterial color="#4d555a" roughness={0.55} metalness={0.2} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function OfficeRoomProp() {
+  return (
+    <group>
+      <mesh position={[0, 1.35, -2.55]} receiveShadow>
+        <boxGeometry args={[6.1, 5, 0.08]} />
+        <meshStandardMaterial color="#ece5d8" roughness={0.9} />
+      </mesh>
+      <mesh position={[-3.05, 1.35, 0]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
+        <boxGeometry args={[5.1, 5, 0.08]} />
+        <meshStandardMaterial color="#e3ddd3" roughness={0.92} />
+      </mesh>
+      <mesh position={[1.55, 1.25, -2.49]} castShadow receiveShadow>
+        <boxGeometry args={[1.2, 0.85, 0.05]} />
+        <meshStandardMaterial color="#9fb6bf" roughness={0.42} metalness={0.04} />
+      </mesh>
+      {[-0.6, 0, 0.6].map((x) => (
+        <mesh key={x} position={[1.55 + x, 1.25, -2.45]} castShadow receiveShadow>
+          <boxGeometry args={[0.025, 0.92, 0.065]} />
+          <meshStandardMaterial color="#6c7276" roughness={0.56} metalness={0.14} />
+        </mesh>
+      ))}
+      <mesh position={[1.55, 1.25, -2.44]} castShadow receiveShadow>
+        <boxGeometry args={[1.28, 0.025, 0.065]} />
+        <meshStandardMaterial color="#6c7276" roughness={0.56} metalness={0.14} />
+      </mesh>
+    </group>
+  );
+}
+
+function FileCabinetProp() {
+  return (
+    <group>
+      <mesh position={[0, 0.38, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.6, 0.76, 0.48]} />
+        <meshStandardMaterial color="#7f8a90" roughness={0.62} metalness={0.08} />
+      </mesh>
+      {[0.18, 0.4, 0.62].map((y) => (
+        <mesh key={y} position={[0, y, 0.245]} castShadow receiveShadow>
+          <boxGeometry args={[0.48, 0.035, 0.035]} />
+          <meshStandardMaterial color="#c6ccd0" roughness={0.42} metalness={0.22} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function ScenePropMesh({ type }) {
+  switch (type) {
+    case 'roundRug':
+      return <RoundRugProp />;
+    case 'floorLamp':
+      return <FloorLampProp />;
+    case 'pillow':
+      return <PillowProp />;
+    case 'coffeeCup':
+      return <CoffeeCupProp />;
+    case 'vinylCrate':
+      return <VinylCrateProp />;
+    case 'speaker':
+      return <SpeakerProp />;
+    case 'grassGround':
+      return <GrassGroundProp />;
+    case 'curvedPath':
+      return <CurvedPathProp />;
+    case 'pineTree':
+      return <PineTreeProp />;
+    case 'roundTree':
+      return <RoundTreeProp />;
+    case 'forest':
+      return <ForestProp />;
+    case 'birdFlock':
+      return <BirdFlockProp />;
+    case 'parkBench':
+      return <ParkBenchProp />;
+    case 'cityBackdrop':
+      return <CityBackdropProp />;
+    case 'officeRoom':
+      return <OfficeRoomProp />;
+    case 'fileCabinet':
+      return <FileCabinetProp />;
+    case 'bookStack':
+      return <BookStackProp />;
+    case 'saxophone':
+      return <SaxophoneProp />;
+    case 'dvdStack':
+      return <DvdStackProp />;
+    case 'magazines':
+      return <MagazinesProp />;
+    case 'whiteboard':
+      return <WhiteboardProp />;
+    case 'markerStand':
+      return <MarkerStandProp />;
+    case 'bookShelf':
+      return <BookShelfProp />;
+    case 'deskPlant':
+      return <DeskPlantProp />;
+    case 'lowTable':
+    default:
+      return <LowTableProp />;
+  }
+}
+
+function SceneDressing({ propsLayout }) {
+  return (
+    <group>
+      {propsLayout.map((prop) => (
+        <group
+          key={prop.id}
+          position={[prop.x, prop.y, prop.z]}
+          rotation={[0, THREE.MathUtils.degToRad(prop.rotationY), 0]}
+          scale={prop.scale}
+        >
+          <ScenePropMesh type={prop.type} />
+        </group>
+      ))}
+    </group>
+  );
+}
+
+const LIVE_MOTION_MODES = [
+  { id: 'idle', label: 'Покой' },
+  { id: 'listening', label: 'Слушает' },
+  { id: 'thinking', label: 'Думает' },
+  { id: 'talking', label: 'Говорит' },
+  { id: 'gesture', label: 'Жест рукой' },
+];
+
+const EMOTION_MODES = [
+  { id: 'neutral', label: 'Нейтрально' },
+  { id: 'happy', label: 'Радостный' },
+  { id: 'angry', label: 'Злой' },
+  { id: 'sad', label: 'Расстроенный' },
+];
+
+function LiveMotionPanel({ activeMode, activeEmotion, onChangeMode, onChangeEmotion }) {
+  return (
+    <aside className="motion-panel" aria-label="Live motion controls">
+      <div className="panel-heading">
+        <Sparkles size={16} />
+        <h2>Живость модели</h2>
+      </div>
+      <div className="motion-buttons">
+        {LIVE_MOTION_MODES.map((mode) => (
+          <button
+            key={mode.id}
+            type="button"
+            className={`motion-button ${activeMode === mode.id ? 'is-active' : ''}`}
+            onClick={() => onChangeMode(mode.id)}
+          >
+            {mode.label}
+          </button>
+        ))}
+      </div>
+      <div className="motion-section">
+        <strong>Эмоция</strong>
+        <div className="motion-buttons">
+          {EMOTION_MODES.map((emotion) => (
+            <button
+              key={emotion.id}
+              type="button"
+              className={`motion-button ${activeEmotion === emotion.id ? 'is-active' : ''}`}
+              onClick={() => onChangeEmotion(emotion.id)}
+            >
+              {emotion.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
 function StoneChaise({
   activeCase,
   modelTransform,
@@ -605,6 +1298,8 @@ function StoneChaise({
   deskTransform,
   boneRotations,
   resetToken,
+  liveMotion,
+  emotionMode,
   onBonesReady,
 }) {
   const geometry = useMemo(() => createChaiseGeometry(chaiseShape), [chaiseShape]);
@@ -647,6 +1342,8 @@ function StoneChaise({
           modelTransform={modelTransform}
           boneRotations={boneRotations}
           resetToken={resetToken}
+          liveMotion={liveMotion}
+          emotionMode={emotionMode}
           onBonesReady={onBonesReady}
         />
       </Suspense>
@@ -706,6 +1403,178 @@ function prepareLoadedScene(scene, { preserveModelOrigin, centerOnObject, alignT
   return copiedScene;
 }
 
+function getLiveMotionAdjustments(boneName, motionMode, time) {
+  const name = String(boneName || '').toLowerCase();
+  const wave = Math.sin(time * 2.4);
+  const fastWave = Math.sin(time * 7.2);
+  const slowWave = Math.sin(time * 1.35);
+  const isHead = name.includes('head');
+  const isNeck = name.includes('neck');
+  const isSpine = name.includes('spine') || name.includes('torso') || name.includes('chest');
+  const isLeftArm = name.includes('left') || name.endsWith('l') || name.includes('_l');
+  const isRightArm = name.includes('right') || name.endsWith('r') || name.includes('_r');
+  const isArm =
+    name.includes('arm') ||
+    name.includes('shoulder') ||
+    name.includes('forearm') ||
+    name.includes('hand') ||
+    name.includes('wrist');
+  const isMouth =
+    name.includes('jaw') ||
+    name.includes('mouth') ||
+    name.includes('lip') ||
+    name.includes('chin') ||
+    name.includes('brow');
+
+  switch (motionMode) {
+    case 'idle':
+      if (isHead) {
+        return { x: THREE.MathUtils.degToRad(wave * 0.9), y: THREE.MathUtils.degToRad(slowWave * 1.2), z: THREE.MathUtils.degToRad(slowWave * 0.7) };
+      }
+      if (isNeck) {
+        return { x: THREE.MathUtils.degToRad(wave * 0.7), y: THREE.MathUtils.degToRad(slowWave * 0.9), z: 0 };
+      }
+      if (isSpine) {
+        return { x: THREE.MathUtils.degToRad(slowWave * 1.2), y: THREE.MathUtils.degToRad(wave * 0.45), z: THREE.MathUtils.degToRad(slowWave * 0.55) };
+      }
+      if (isArm && (isLeftArm || isRightArm)) {
+        const side = isLeftArm ? -1 : 1;
+        return { x: THREE.MathUtils.degToRad(slowWave * 1.1), y: 0, z: THREE.MathUtils.degToRad(side * slowWave * 0.9) };
+      }
+      break;
+    case 'listening':
+      if (isHead) {
+        return { x: THREE.MathUtils.degToRad(5 + wave * 3.8), y: THREE.MathUtils.degToRad(slowWave * 3.4), z: THREE.MathUtils.degToRad(slowWave * 1.4) };
+      }
+      if (isNeck) {
+        return { x: THREE.MathUtils.degToRad(3 + wave * 2.4), y: THREE.MathUtils.degToRad(slowWave * 2), z: 0 };
+      }
+      if (isSpine) {
+        return { x: THREE.MathUtils.degToRad(slowWave * 1.7), y: THREE.MathUtils.degToRad(wave * 0.8), z: 0 };
+      }
+      break;
+    case 'thinking':
+      if (isHead || isNeck) {
+        return { x: THREE.MathUtils.degToRad(-4.5 + slowWave * 2.6), y: THREE.MathUtils.degToRad(3.8), z: THREE.MathUtils.degToRad(slowWave * 2.8) };
+      }
+      if (isArm && isRightArm) {
+        return { x: THREE.MathUtils.degToRad(-10 + wave * 4.8), y: THREE.MathUtils.degToRad(7.5), z: THREE.MathUtils.degToRad(4.2) };
+      }
+      if (isSpine) {
+        return { x: THREE.MathUtils.degToRad(1.8 + slowWave * 1.2), y: 0, z: THREE.MathUtils.degToRad(slowWave * 0.9) };
+      }
+      break;
+    case 'talking':
+      if (isMouth) {
+        return { x: THREE.MathUtils.degToRad(Math.max(0, fastWave) * 12), y: 0, z: 0 };
+      }
+      if (isHead || isNeck) {
+        return { x: THREE.MathUtils.degToRad(wave * 3), y: THREE.MathUtils.degToRad(slowWave * 2.8), z: THREE.MathUtils.degToRad(slowWave * 1.1) };
+      }
+      if (isArm && (isLeftArm || isRightArm)) {
+        const side = isLeftArm ? -1 : 1;
+        return { x: THREE.MathUtils.degToRad(wave * 6.2), y: THREE.MathUtils.degToRad(side * 3.2), z: THREE.MathUtils.degToRad(side * slowWave * 3.4) };
+      }
+      if (isSpine) {
+        return { x: THREE.MathUtils.degToRad(wave * 1.8), y: THREE.MathUtils.degToRad(slowWave * 1.2), z: 0 };
+      }
+      break;
+    case 'gesture':
+      if (isArm && isRightArm) {
+        return { x: THREE.MathUtils.degToRad(Math.sin(time * 3.4) * 20), y: THREE.MathUtils.degToRad(11), z: THREE.MathUtils.degToRad(Math.cos(time * 3.4) * 14) };
+      }
+      if (isArm && isLeftArm) {
+        return { x: THREE.MathUtils.degToRad(Math.sin(time * 2.1) * 4.5), y: 0, z: THREE.MathUtils.degToRad(-4.6) };
+      }
+      if (isHead || isNeck) {
+        return { x: THREE.MathUtils.degToRad(wave * 2.7), y: THREE.MathUtils.degToRad(slowWave * 2.6), z: THREE.MathUtils.degToRad(slowWave * 1.1) };
+      }
+      if (isSpine) {
+        return { x: THREE.MathUtils.degToRad(slowWave * 2), y: THREE.MathUtils.degToRad(wave * 1.2), z: 0 };
+      }
+      break;
+    default:
+      break;
+  }
+
+  return null;
+}
+
+function getEmotionAdjustments(boneName, emotionMode, time) {
+  const name = String(boneName || '').toLowerCase();
+  const softWave = Math.sin(time * 1.4);
+  const isHead = name.includes('head');
+  const isNeck = name.includes('neck');
+  const isSpine = name.includes('spine') || name.includes('torso') || name.includes('chest');
+  const isLeft = name.includes('left') || name.endsWith('l') || name.includes('_l');
+  const isRight = name.includes('right') || name.endsWith('r') || name.includes('_r');
+  const isShoulder = name.includes('shoulder') || name.includes('clavicle');
+  const isArm = name.includes('arm') || name.includes('forearm') || name.includes('hand') || name.includes('wrist');
+  const isMouth = name.includes('jaw') || name.includes('mouth') || name.includes('lip') || name.includes('chin');
+  const isBrow = name.includes('brow') || name.includes('eyebrow');
+
+  switch (emotionMode) {
+    case 'happy':
+      if (isHead || isNeck) {
+        return { x: THREE.MathUtils.degToRad(-2 + softWave * 0.8), y: THREE.MathUtils.degToRad(softWave * 0.7), z: 0 };
+      }
+      if (isSpine) {
+        return { x: THREE.MathUtils.degToRad(-1.8), y: 0, z: 0 };
+      }
+      if (isShoulder || isArm) {
+        const side = isLeft ? -1 : isRight ? 1 : 0;
+        return { x: THREE.MathUtils.degToRad(-2.4), y: THREE.MathUtils.degToRad(side * 1.5), z: THREE.MathUtils.degToRad(side * 1.2) };
+      }
+      if (isMouth) {
+        return { x: THREE.MathUtils.degToRad(2.8), y: 0, z: 0 };
+      }
+      if (isBrow) {
+        return { x: THREE.MathUtils.degToRad(-2), y: 0, z: 0 };
+      }
+      break;
+    case 'angry':
+      if (isHead || isNeck) {
+        return { x: THREE.MathUtils.degToRad(3.8), y: THREE.MathUtils.degToRad(softWave * 0.35), z: THREE.MathUtils.degToRad(isLeft ? -0.8 : 0.8) };
+      }
+      if (isSpine) {
+        return { x: THREE.MathUtils.degToRad(2.4), y: 0, z: 0 };
+      }
+      if (isShoulder || isArm) {
+        const side = isLeft ? -1 : isRight ? 1 : 0;
+        return { x: THREE.MathUtils.degToRad(2.6), y: THREE.MathUtils.degToRad(side * -2), z: THREE.MathUtils.degToRad(side * -2.8) };
+      }
+      if (isMouth) {
+        return { x: THREE.MathUtils.degToRad(-1.4), y: 0, z: 0 };
+      }
+      if (isBrow) {
+        return { x: THREE.MathUtils.degToRad(4.6), y: 0, z: THREE.MathUtils.degToRad(isLeft ? 2 : -2) };
+      }
+      break;
+    case 'sad':
+      if (isHead || isNeck) {
+        return { x: THREE.MathUtils.degToRad(5.4 + softWave * 0.5), y: THREE.MathUtils.degToRad(-0.7), z: 0 };
+      }
+      if (isSpine) {
+        return { x: THREE.MathUtils.degToRad(3.2), y: 0, z: 0 };
+      }
+      if (isShoulder || isArm) {
+        const side = isLeft ? -1 : isRight ? 1 : 0;
+        return { x: THREE.MathUtils.degToRad(3.8), y: 0, z: THREE.MathUtils.degToRad(side * -1.5) };
+      }
+      if (isMouth) {
+        return { x: THREE.MathUtils.degToRad(-2.2), y: 0, z: 0 };
+      }
+      if (isBrow) {
+        return { x: THREE.MathUtils.degToRad(2.8), y: 0, z: 0 };
+      }
+      break;
+    default:
+      break;
+  }
+
+  return null;
+}
+
 function RigModel({
   modelUrl,
   modelRotation,
@@ -716,6 +1585,8 @@ function RigModel({
   modelTransform,
   boneRotations,
   resetToken,
+  liveMotion,
+  emotionMode,
   onBonesReady,
 }) {
   const { scene } = useGLTF(modelUrl);
@@ -768,7 +1639,8 @@ function RigModel({
     );
   }, [model, onBonesReady]);
 
-  useEffect(() => {
+  const applyCurrentPose = useCallback(
+    (time = 0) => {
     const baseRotations = initialBoneRotationsRef.current;
 
     model.traverse((object) => {
@@ -796,8 +1668,32 @@ function RigModel({
         object.rotation.y += THREE.MathUtils.degToRad(userRotation.y);
         object.rotation.z += THREE.MathUtils.degToRad(userRotation.z);
       }
+
+      const liveAdjustment = getLiveMotionAdjustments(object.name, liveMotion, time);
+      if (liveAdjustment) {
+        object.rotation.x += liveAdjustment.x || 0;
+        object.rotation.y += liveAdjustment.y || 0;
+        object.rotation.z += liveAdjustment.z || 0;
+      }
+
+      const emotionAdjustment = getEmotionAdjustments(object.name, emotionMode, time);
+      if (emotionAdjustment) {
+        object.rotation.x += emotionAdjustment.x || 0;
+        object.rotation.y += emotionAdjustment.y || 0;
+        object.rotation.z += emotionAdjustment.z || 0;
+      }
     });
-  }, [boneRotations, model, resetToken, restPoseAdjustments]);
+    },
+    [boneRotations, emotionMode, liveMotion, model, restPoseAdjustments],
+  );
+
+  useEffect(() => {
+    applyCurrentPose(0);
+  }, [applyCurrentPose, resetToken]);
+
+  useFrame(({ clock }) => {
+    applyCurrentPose(clock.getElapsedTime());
+  });
 
   return (
     <group
@@ -1374,6 +2270,8 @@ function SimulationScene({
   const [chaiseShape, setChaiseShape] = useState(() => sanitizeChaiseShape(CHAISE_POSE.chaiseShape));
   const [deskTransform, setDeskTransform] = useState(() => ({ ...DEFAULT_DESK_TRANSFORM }));
   const [boneRotations, setBoneRotations] = useState(() => cloneBoneRotations(CHAISE_POSE.boneRotations));
+  const [liveMotion, setLiveMotion] = useState('idle');
+  const [emotionMode, setEmotionMode] = useState('neutral');
   const [resetToken, setResetToken] = useState(0);
   const pendingCaseRef = useRef(null);
   const activeCase = useMemo(
@@ -1382,6 +2280,7 @@ function SimulationScene({
   );
   const activeCameraSettings = useMemo(() => getCameraPreset(activeCase.id), [activeCase.id]);
   const activeAuroraSettings = useMemo(() => getAuroraPreset(activeCase.id), [activeCase.id]);
+  const activePropsLayout = DEFAULT_SCENE_PROPS[activeCase.scene] || [];
 
   const poseSetters = useMemo(
     () => ({
@@ -1473,6 +2372,7 @@ function SimulationScene({
           rotation={activeAuroraSettings.rotation}
         />
         <Room />
+        <SceneDressing propsLayout={activePropsLayout} />
         <StoneChaise
           activeCase={activeCase}
           modelTransform={modelTransform}
@@ -1481,12 +2381,20 @@ function SimulationScene({
           deskTransform={deskTransform}
           boneRotations={boneRotations}
           resetToken={resetToken}
+          liveMotion={liveMotion}
+          emotionMode={emotionMode}
           onBonesReady={handleBonesReady}
         />
         <ContactShadows position={[0, -1.16, 0]} opacity={0.34} blur={2.8} scale={7} far={3} />
         <Environment preset="apartment" />
         <SceneCameraControls settings={activeCameraSettings} />
       </Canvas>
+      <LiveMotionPanel
+        activeMode={liveMotion}
+        activeEmotion={emotionMode}
+        onChangeMode={setLiveMotion}
+        onChangeEmotion={setEmotionMode}
+      />
     </main>
   );
 }
