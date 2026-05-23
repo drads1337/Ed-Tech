@@ -1528,7 +1528,7 @@ function ProfilePage({ progress, setProgress }) {
   );
 }
 
-function TrainerApp() {
+export function CommTrainerExperience() {
   const [progress, setProgressState] = useState(loadProgress);
 
   useEffect(() => {
@@ -1540,31 +1540,37 @@ function TrainerApp() {
   }
 
   return (
-    <BrowserRouter>
-      <div className="trainer-app paper dots-bg">
-        <BackgroundMusic />
-        <TrainerFloatingDecor />
-        <div className="bg-shapes" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-          <span />
-        </div>
-        <main className="trainer-main">
-          <Routes>
-            <Route path="/" element={<Navigate to="/home" replace />} />
-            <Route path="/home" element={<HomePage progress={progress} />} />
-            <Route path="/plan" element={<PlanPage progress={progress} />} />
-            <Route path="/scenario/:id" element={<ScenarioPage progress={progress} setProgress={setProgress} />} />
-            <Route path="/results/:id" element={<ResultsPage progress={progress} />} />
-            <Route path="/library" element={<LibraryPage progress={progress} />} />
-            <Route path="/progress" element={<ProgressPage progress={progress} />} />
-            <Route path="/practice" element={<PracticePage progress={progress} />} />
-            <Route path="/profile" element={<ProfilePage progress={progress} setProgress={setProgress} />} />
-            <Route path="*" element={<Navigate to="/home" replace />} />
-          </Routes>
-        </main>
+    <div className="trainer-app paper dots-bg">
+      <BackgroundMusic />
+      <TrainerFloatingDecor />
+      <div className="bg-shapes" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+        <span />
       </div>
+      <main className="trainer-main">
+        <Routes>
+          <Route path="/" element={<Navigate to="/home" replace />} />
+          <Route path="/home" element={<HomePage progress={progress} />} />
+          <Route path="/plan" element={<PlanPage progress={progress} />} />
+          <Route path="/scenario/:id" element={<ScenarioPage progress={progress} setProgress={setProgress} />} />
+          <Route path="/results/:id" element={<ResultsPage progress={progress} />} />
+          <Route path="/library" element={<LibraryPage progress={progress} />} />
+          <Route path="/progress" element={<ProgressPage progress={progress} />} />
+          <Route path="/practice" element={<PracticePage progress={progress} />} />
+          <Route path="/profile" element={<ProfilePage progress={progress} setProgress={setProgress} />} />
+          <Route path="*" element={<Navigate to="/home" replace />} />
+        </Routes>
+      </main>
+    </div>
+  );
+}
+
+function TrainerApp() {
+  return (
+    <BrowserRouter>
+      <CommTrainerExperience />
     </BrowserRouter>
   );
 }

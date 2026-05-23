@@ -17,6 +17,7 @@ import {
 import * as THREE from 'three';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { apiRequest, getSessionToken, supabase } from './backendApi.js';
+import { CommTrainerExperience } from './CommTrainerApp.jsx';
 import { assignments as mockAssignments, organization as mockOrganization, scenarios as mockScenarios } from './mockData.js';
 import ordinaryModelUrl from '../ordinary.glb?url';
 import beardedModelUrl from '../bearded.glb?url';
@@ -2294,12 +2295,12 @@ function LoginPage() {
       const appUser = mergeBackendProfileWithLocalState(profile, getMockUser());
       saveMockUser(appUser);
       setMockSession(appUser.email);
-      navigate(hasCompletedOnboarding(appUser) ? '/dashboard' : '/onboarding');
+      navigate(hasCompletedOnboarding(appUser) ? '/home' : '/onboarding');
     } catch (authError) {
       const storedUser = getMockUser();
       if (storedUser?.email === normalizedEmail) {
         setMockSession(storedUser.email);
-        navigate(hasCompletedOnboarding(storedUser) ? '/dashboard' : '/onboarding');
+        navigate(hasCompletedOnboarding(storedUser) ? '/home' : '/onboarding');
         return;
       }
 
@@ -2822,7 +2823,7 @@ function OnboardingPage() {
     }
 
     if (hasCompletedOnboarding(user)) {
-      navigate('/dashboard', { replace: true });
+      navigate('/home', { replace: true });
       return;
     }
 
@@ -3032,7 +3033,7 @@ function OnboardingPage() {
 
     saveOnboardingMemory(memory);
     saveOnboardingDraft(completedDraft);
-    navigate('/dashboard', { replace: true });
+    navigate('/home', { replace: true });
   };
 
   const renderHeader = (eyebrow, title, subtitle) => (
@@ -3434,20 +3435,50 @@ function EmployeeDashboardView({ dashboard }) {
 
 function SimulationPage() {
   const navigate = useNavigate();
-  return <SimulationScene onBackToDashboard={() => navigate('/dashboard', { replace: true })} />;
+  return <SimulationScene onBackToDashboard={() => navigate('/home', { replace: true })} />;
+}
+
+function RootRedirect() {
+  const user = getMockUser();
+  if (hasMockSession() && user) {
+    return <Navigate to={hasCompletedOnboarding(user) ? '/home' : '/onboarding'} replace />;
+  }
+  return <Navigate to="/signin" replace />;
+}
+
+function TrainerSessionGate() {
+  const user = getMockUser();
+  if (!hasMockSession() || !user) {
+    return <Navigate to="/signin" replace />;
+  }
+  if (!hasCompletedOnboarding(user)) {
+    return <Navigate to="/onboarding" replace />;
+  }
+  return <CommTrainerExperience />;
+}
+
+function SimulationGate() {
+  const user = getMockUser();
+  if (!hasMockSession() || !user) {
+    return <Navigate to="/signin" replace />;
+  }
+  if (!hasCompletedOnboarding(user)) {
+    return <Navigate to="/onboarding" replace />;
+  }
+  return <SimulationPage />;
 }
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/signin" replace />} />
+        <Route path="/" element={<RootRedirect />} />
         <Route path="/signin" element={<LoginPage />} />
         <Route path="/signup" element={<RegisterPage />} />
         <Route path="/onboarding" element={<OnboardingPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/simulation" element={<SimulationPage />} />
-        <Route path="*" element={<Navigate to="/signin" replace />} />
+        <Route path="/dashboard" element={<Navigate to="/home" replace />} />
+        <Route path="/simulation" element={<SimulationGate />} />
+        <Route path="*" element={<TrainerSessionGate />} />
       </Routes>
     </BrowserRouter>
   );
