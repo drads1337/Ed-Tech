@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Vite
+.vite/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+*~
+
+# Cache
+.cache/
+*.tsbuildinfo
+
+# Optional local overrides
+*.local

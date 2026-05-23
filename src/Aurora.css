@@ -1,0 +1,19 @@
+.veil-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 62%, rgba(255, 252, 247, 0.34), transparent 34%),
+    linear-gradient(180deg, #8f887c 0%, #c6beb0 42%, #f2eee6 100%);
+}
+
+.veil-background::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background:
+    linear-gradient(180deg, rgba(247, 243, 236, 0.02), rgba(242, 238, 230, 0.2)),
+    radial-gradient(circle at 50% 100%, rgba(23, 20, 18, 0.1), transparent 56%);
+}

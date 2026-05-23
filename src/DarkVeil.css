@@ -1,0 +1,36 @@
+.veil-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.veil-background::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background:
+    linear-gradient(180deg, rgba(247, 243, 236, 0.18), rgba(242, 238, 230, 0.52)),
+    radial-gradient(circle at 50% 52%, rgba(255, 252, 247, 0.3), transparent 48%),
+    radial-gradient(circle at 50% 100%, rgba(23, 20, 18, 0.12), transparent 54%);
+}
+
+.darkveil-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.darkveil-fallback {
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(ellipse at 42% 30%, rgba(160, 177, 153, 0.26), transparent 42%),
+    linear-gradient(166deg, transparent 18%, rgba(122, 151, 132, 0.24) 27%, transparent 38%),
+    linear-gradient(154deg, transparent 24%, rgba(132, 147, 158, 0.2) 33%, transparent 45%),
+    radial-gradient(circle at 30% 28%, rgba(160, 177, 153, 0.4), transparent 42%),
+    radial-gradient(circle at 68% 52%, rgba(126, 142, 151, 0.28), transparent 40%),
+    radial-gradient(circle at 50% 92%, rgba(255, 252, 247, 0.38), transparent 46%),
+    linear-gradient(135deg, #807466 0%, #cfc6b8 48%, #f2eee6 100%);
+}

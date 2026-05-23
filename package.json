@@ -1,0 +1,23 @@
+{
+  "name": "block-chaise-3d",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "check:pose": "node scripts/check-pose-config.mjs"
+  },
+  "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
+    "@vitejs/plugin-react": "^6.0.2",
+    "lucide-react": "^1.16.0",
+    "ogl": "^1.0.11",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "three": "^0.184.0",
+    "vite": "^8.0.14"
+  }
+}
