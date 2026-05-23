@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BrowserRouter, Navigate, Routes, Route, Link, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Navigate, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Canvas, useThree } from '@react-three/fiber';
 import { ContactShadows, Environment, OrbitControls, useGLTF } from '@react-three/drei';
 import {
@@ -18,6 +18,7 @@ import * as THREE from 'three';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { apiRequest, getSessionToken, supabase } from './backendApi.js';
 import { CommTrainerExperience } from './CommTrainerApp.jsx';
+import { QUICK_CASE_IDS } from './quickPractice.js';
 import { assignments as mockAssignments, organization as mockOrganization, scenarios as mockScenarios } from './mockData.js';
 import ordinaryModelUrl from '../ordinary.glb?url';
 import beardedModelUrl from '../bearded.glb?url';
@@ -1354,8 +1355,19 @@ function applyPoseState(caseItem, loadedBones, setters) {
   setters.setResetToken((currentToken) => currentToken + 1);
 }
 
-function SimulationScene({ onBackToDashboard }) {
-  const [activeCaseId, setActiveCaseId] = useState('desk');
+function resolveInitialCaseId(caseId) {
+  return QUICK_CASE_IDS.includes(caseId) ? caseId : 'chaise';
+}
+
+function SimulationScene({
+  onBackToDashboard,
+  initialCaseId,
+  scenarioTitle,
+  industryName,
+  industryIcon,
+  quickPractice,
+}) {
+  const [activeCaseId, setActiveCaseId] = useState(() => resolveInitialCaseId(initialCaseId));
   const [bones, setBones] = useState([]);
   const [modelTransform, setModelTransform] = useState(() => ({ ...CHAISE_POSE.modelTransform }));
   const [chaiseTransform, setChaiseTransform] = useState(() => ({ ...CHAISE_POSE.chaiseTransform }));
@@ -1406,41 +1418,25 @@ function SimulationScene({ onBackToDashboard }) {
     applyPoseState(activeCase, bones, poseSetters);
   }, [activeCase, bones, poseSetters, CHAISE_POSE_REVISION, STANDING_POSE_REVISION, DESK_POSE_REVISION]);
 
-  const switchCase = useCallback(
-    (caseId) => {
-      const nextCase = CASES.find((caseItem) => caseItem.id === caseId);
-      if (!nextCase || nextCase.id === activeCaseId) {
-        return;
-      }
-
-      setActiveCaseId(nextCase.id);
-      setBones([]);
-      pendingCaseRef.current = nextCase;
-      setResetToken((currentToken) => currentToken + 1);
-    },
-    [activeCaseId],
-  );
-
   const emotionTone = EMOTION_TONES[activeCase.scene] || EMOTION_TONES.chaise;
 
   return (
     <main className={`app app--${activeCase.scene}`}>
       <div className="veil-background" aria-hidden="true" />
       <div className="toolbar">
-        <div className="case-tabs" role="tablist" aria-label="Сцены">
-          {CASES.map((caseItem) => (
-            <button
-              key={caseItem.id}
-              type="button"
-              role="tab"
-              aria-selected={caseItem.id === activeCaseId}
-              className={caseItem.id === activeCaseId ? 'is-active' : ''}
-              onClick={() => switchCase(caseItem.id)}
-            >
-              {caseItem.label}
-            </button>
-          ))}
-        </div>
+        {scenarioTitle || industryName ? (
+          <div className="simulation-context-banner">
+            {quickPractice ? <span className="chip butter">⚡ Быстрая практика</span> : null}
+            {industryName ? (
+              <span className="chip peach">
+                {industryIcon ? `${industryIcon} ` : ''}
+                {industryName}
+              </span>
+            ) : null}
+            {scenarioTitle ? <strong className="simulation-context-title">{scenarioTitle}</strong> : null}
+            <span className="simulation-scene-label">{activeCase.label}</span>
+          </div>
+        ) : null}
         {onBackToDashboard && (
           <button
             type="button"
@@ -1448,7 +1444,7 @@ function SimulationScene({ onBackToDashboard }) {
             style={{ background: 'var(--rose)', marginLeft: 'auto' }}
             onClick={onBackToDashboard}
           >
-            <ArrowLeft size={16} /> Назад в кабинет
+            <ArrowLeft size={16} /> Назад в меню
           </button>
         )}
       </div>
@@ -3435,7 +3431,19 @@ function EmployeeDashboardView({ dashboard }) {
 
 function SimulationPage() {
   const navigate = useNavigate();
-  return <SimulationScene onBackToDashboard={() => navigate('/home', { replace: true })} />;
+  const location = useLocation();
+  const { caseId, scenarioTitle, industryName, industryIcon, quickPractice } = location.state || {};
+
+  return (
+    <SimulationScene
+      initialCaseId={caseId}
+      scenarioTitle={scenarioTitle}
+      industryName={industryName}
+      industryIcon={industryIcon}
+      quickPractice={quickPractice}
+      onBackToDashboard={() => navigate('/home', { replace: true })}
+    />
+  );
 }
 
 function RootRedirect() {

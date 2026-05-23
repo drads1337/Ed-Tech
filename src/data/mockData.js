@@ -19,6 +19,7 @@ export const scenarios = [
     xpReward: 15,
     coinReward: 8,
     aiPersona: 'Тревожный пациент 55 лет',
+    patientType: 'angry',
     script: [
       { role: 'ai', text: 'У меня здесь колет... уже третий день. Что это может быть?', delay: 1200 },
       {
@@ -67,6 +68,7 @@ export const scenarios = [
     xpReward: 16,
     coinReward: 9,
     aiPersona: 'Мама ребёнка с высокой температурой',
+    patientType: 'sad',
     script: [
       { role: 'ai', text: 'У ребёнка 39,5, я уже не знаю, что делать. Почему нас не принимают сразу?', delay: 1100 },
       {
@@ -115,6 +117,7 @@ export const scenarios = [
     xpReward: 12,
     coinReward: 7,
     aiPersona: 'Клиент, обиженный на коллегу',
+    patientType: 'neutral',
     script: [
       { role: 'ai', text: 'Я сорвался на коллегу. Теперь стыдно, но он тоже перегнул.', delay: 1200 },
       {
@@ -163,6 +166,7 @@ export const scenarios = [
     xpReward: 22,
     coinReward: 12,
     aiPersona: 'Замкнутый подросток 16 лет',
+    patientType: 'sad',
     script: [
       { role: 'ai', text: 'Мне всё равно. Никто всё равно не поймёт.', delay: 1200 },
       {
@@ -211,6 +215,7 @@ export const scenarios = [
     xpReward: 14,
     coinReward: 8,
     aiPersona: 'Раздражённый студент',
+    patientType: 'angry',
     script: [
       { role: 'ai', text: 'Вы занизили оценку. Я потратил на проект всю неделю.', delay: 1000 },
       {
@@ -259,6 +264,7 @@ export const scenarios = [
     xpReward: 15,
     coinReward: 9,
     aiPersona: 'Уставший сотрудник на курсе',
+    patientType: 'neutral',
     script: [
       { role: 'ai', text: 'Я опять не успел пройти модуль. Честно, не вижу смысла.', delay: 1200 },
       {
@@ -307,6 +313,7 @@ export const scenarios = [
     xpReward: 15,
     coinReward: 8,
     aiPersona: 'Клиент банка, сравнивающий тарифы',
+    patientType: 'vip',
     script: [
       { role: 'ai', text: 'У конкурентов обслуживание дешевле. Почему я должен платить больше?', delay: 1000 },
       {
@@ -355,6 +362,7 @@ export const scenarios = [
     xpReward: 21,
     coinReward: 12,
     aiPersona: 'Начинающий инвестор',
+    patientType: 'good',
     script: [
       { role: 'ai', text: 'Портфель просел на 8%. Это всё, я потерял деньги?', delay: 1000 },
       {
@@ -403,6 +411,7 @@ export const scenarios = [
     xpReward: 14,
     coinReward: 8,
     aiPersona: 'Раздражённый гость отеля',
+    patientType: 'angry',
     script: [
       { role: 'ai', text: 'В номере шумно и пахнет краской. Я не собираюсь за это платить!', delay: 1000 },
       {
@@ -451,6 +460,7 @@ export const scenarios = [
     xpReward: 20,
     coinReward: 11,
     aiPersona: 'Клиент, у которого сорвалась доставка',
+    patientType: 'angry',
     script: [
       { role: 'ai', text: 'Вы испортили мне весь день! Где мой заказ? Я требую ответ сейчас!', delay: 900 },
       {
@@ -499,6 +509,7 @@ export const scenarios = [
     xpReward: 12,
     coinReward: 7,
     aiPersona: 'Пожилой посетитель МФЦ',
+    patientType: 'good',
     script: [
       { role: 'ai', text: 'Я уже третий раз прихожу. Опять чего-то не хватает?', delay: 1100 },
       {
@@ -547,6 +558,7 @@ export const scenarios = [
     xpReward: 21,
     coinReward: 12,
     aiPersona: 'Заявитель после отказа',
+    patientType: 'neutral',
     script: [
       { role: 'ai', text: 'Вы специально всё отклоняете. У вас тут круговая порука!', delay: 1000 },
       {
@@ -595,6 +607,7 @@ export const scenarios = [
     xpReward: 16,
     coinReward: 9,
     aiPersona: 'Коллега, который избегает ответственности',
+    patientType: 'neutral',
     script: [
       { role: 'ai', text: 'Я не успел свою часть. У меня и так задач выше крыши.', delay: 1000 },
       {
@@ -643,6 +656,7 @@ export const scenarios = [
     xpReward: 22,
     coinReward: 12,
     aiPersona: 'Руководитель с срочной задачей',
+    patientType: 'vip',
     script: [
       { role: 'ai', text: 'Нужно подготовить полный отчёт к вечеру. Это приоритет номер один.', delay: 1000 },
       {
@@ -708,3 +722,216 @@ export const mockXpHistory = [
   { day: 'Сб', xp: 30 },
   { day: 'Вс', xp: 65 },
 ];
+
+/** Шаблоны кейсов для витрины «Предложения дня» */
+export const dailySuggestionPool = [
+  {
+    id: 'offer_med_conflict',
+    industry: 'medicine',
+    skill: 'Деэскалация',
+    title: 'Сложный конфликт в приёмной',
+    description: 'Пациент отказывается ждать и требует немедленного приёма. Отработайте спокойный тон и границы.',
+    price: 0,
+    emoji: '⚡',
+    difficulty: 2,
+    durationMin: 5,
+    patientType: 'angry',
+  },
+  {
+    id: 'offer_med_chest',
+    industry: 'medicine',
+    skill: 'Сбор анамнеза',
+    title: 'Боль в груди под давлением',
+    description: 'Срочный сбор симптомов при тревоге пациента. Уточните красные флаги и следующий шаг.',
+    price: 5,
+    emoji: '🫀',
+    difficulty: 2,
+    durationMin: 4,
+    patientType: 'vip',
+  },
+  {
+    id: 'offer_med_parent',
+    industry: 'medicine',
+    skill: 'Эмпатия',
+    title: 'Родитель в панике',
+    description: 'Мама ребёнка с высокой температурой. Снизьте тревогу и соберите ключевые симптомы.',
+    price: 3,
+    emoji: '👶',
+    difficulty: 2,
+    durationMin: 5,
+    patientType: 'sad',
+  },
+  {
+    id: 'offer_psy_crisis',
+    industry: 'psychology',
+    skill: 'Кризисная коммуникация',
+    title: 'Звонок в кризисной линии',
+    description: 'Клиент в остром стрессе. Поддержите, уточните безопасность и предложите план на ближайший час.',
+    price: 8,
+    emoji: '📞',
+    difficulty: 3,
+    durationMin: 6,
+    patientType: 'sad',
+  },
+  {
+    id: 'offer_psy_boundaries',
+    industry: 'psychology',
+    skill: 'Границы',
+    title: 'Клиент нарушает границы',
+    description: 'Собеседник давит на личный контакт. Отработайте вежливый отказ и возврат к теме сессии.',
+    price: 5,
+    emoji: '🛡️',
+    difficulty: 2,
+    durationMin: 4,
+    patientType: 'angry',
+  },
+  {
+    id: 'offer_edu_parent',
+    industry: 'education',
+    skill: 'Обратная связь',
+    title: 'Разговор с недовольным родителем',
+    description: 'Родитель жалуется на оценки. Дайте конструктивную обратную связь без обороны.',
+    price: 4,
+    emoji: '📋',
+    difficulty: 2,
+    durationMin: 5,
+    patientType: 'angry',
+  },
+  {
+    id: 'offer_edu_motivation',
+    industry: 'education',
+    skill: 'Мотивация',
+    title: 'Студент выгорел',
+    description: 'Учащийся потерял интерес. Найдите барьер и согласуйте один маленький шаг.',
+    price: 0,
+    emoji: '🌱',
+    difficulty: 1,
+    durationMin: 4,
+    patientType: 'neutral',
+  },
+  {
+    id: 'offer_fin_negotiation',
+    industry: 'finance',
+    skill: 'Переговоры',
+    title: 'Клиент требует скидку',
+    description: 'Лояльный клиент недоволен тарифом. Сохраните отношения и предложите варианты без давления.',
+    price: 6,
+    emoji: '💳',
+    difficulty: 2,
+    durationMin: 5,
+    patientType: 'vip',
+  },
+  {
+    id: 'offer_hosp_complaint',
+    industry: 'hospitality',
+    skill: 'Работа с жалобой',
+    title: 'Гость недоволен номером',
+    description: 'Жалоба на шум и сервис. Признайте эмоцию, уточните факты и предложите решение.',
+    price: 3,
+    emoji: '🛎️',
+    difficulty: 2,
+    durationMin: 4,
+    patientType: 'angry',
+  },
+  {
+    id: 'offer_hosp_vip',
+    industry: 'hospitality',
+    skill: 'VIP-сервис',
+    title: 'VIP-гость с особыми запросами',
+    description: 'Постоянный клиент просит невозможное. Баланс ожиданий и реальных возможностей отеля.',
+    price: 10,
+    emoji: '⭐',
+    difficulty: 3,
+    durationMin: 6,
+    patientType: 'vip',
+  },
+  {
+    id: 'offer_gov_queue',
+    industry: 'public_service',
+    skill: 'Ясные инструкции',
+    title: 'Очередь в МФЦ',
+    description: 'Гражданин не понимает список документов. Объясните простыми словами и зафиксируйте шаги.',
+    price: 0,
+    emoji: '🏛️',
+    difficulty: 1,
+    durationMin: 4,
+    patientType: 'neutral',
+  },
+  {
+    id: 'offer_gov_refusal',
+    industry: 'public_service',
+    skill: 'Объяснение отказа',
+    title: 'Отказ в услуге',
+    description: 'Заявитель злится из-за отказа. Объясните причину, документы и путь повторной подачи.',
+    price: 5,
+    emoji: '📄',
+    difficulty: 2,
+    durationMin: 5,
+    patientType: 'angry',
+  },
+  {
+    id: 'offer_med_ethics',
+    industry: 'medicine',
+    skill: 'Этика',
+    title: 'Вопрос о диагнозе соседа',
+    description: 'Родственник просит информацию о другом пациенте. Сохраните конфиденциальность и эмпатию.',
+    price: 7,
+    emoji: '🔒',
+    difficulty: 3,
+    durationMin: 5,
+    patientType: 'neutral',
+  },
+  {
+    id: 'offer_psy_silence',
+    industry: 'psychology',
+    skill: 'Активное слушание',
+    title: 'Долгое молчание клиента',
+    description: 'Клиент не отвечает на вопросы. Мягко вовлеките без давления и уточняющих «почему».',
+    price: 4,
+    emoji: '🤫',
+    difficulty: 2,
+    durationMin: 5,
+    patientType: 'neutral',
+  },
+];
+
+function hashSeed(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i += 1) {
+    h = (h << 5) - h + str.charCodeAt(i);
+    h |= 0;
+  }
+  return Math.abs(h);
+}
+
+/** 10 предложений дня — стабильный набор на дату и отрасли пользователя */
+export function getDailySuggestions(industryIds, dateKey) {
+  const ids = industryIds?.length ? industryIds : ['medicine'];
+  const relevant = dailySuggestionPool.filter((item) => ids.includes(item.industry));
+  const pool = relevant.length >= 10 ? relevant : [...relevant, ...dailySuggestionPool.filter((item) => !ids.includes(item.industry))];
+
+  const seed = hashSeed(`${dateKey}:${ids.sort().join(',')}`);
+  const shuffled = [...pool].sort((a, b) => {
+    const ha = hashSeed(`${seed}:${a.id}`);
+    const hb = hashSeed(`${seed}:${b.id}`);
+    return ha - hb;
+  });
+
+  const unique = [];
+  const seen = new Set();
+  for (const item of shuffled) {
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+    unique.push(item);
+    if (unique.length >= 10) break;
+  }
+
+  while (unique.length < 10) {
+    const extra = dailySuggestionPool.find((item) => !seen.has(item.id));
+    if (!extra) break;
+    seen.add(extra.id);
+    unique.push(extra);
+  }
+
+  return unique;
+}

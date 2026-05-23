@@ -10,22 +10,40 @@ import {
   useNavigate,
   useParams,
 } from 'react-router-dom';
-import { ArrowLeft, BarChart3, Languages, LogOut, Play, RefreshCw, Send, Sparkles } from 'lucide-react';
+import { ArrowLeft, BarChart3, BookOpen, ChevronRight, Clock, Languages, LogOut, Play, Plus, RefreshCw, Smile, Sparkles, Target, Trash2, User, UserCheck, UserMinus, UserPlus, X, Zap } from 'lucide-react';
 import { supabase } from './backendApi.js';
-import { achievements, industries, mockXpHistory, quests, scenarios } from './data/mockData.js';
+import { achievements, getDailySuggestions, industries, mockXpHistory, quests, scenarios } from './data/mockData.js';
+import {
+  buildQuickScenario,
+  consumeQuickPractice,
+  getQuickPracticeUsage,
+  pickQuickCaseId,
+} from './quickPractice.js';
 
 const STORAGE_KEY = 'pro-communication-trainer:v1';
 const LANG_KEY = 'app_lang';
 const MOCK_SESSION_KEY = 'training_loop_mock_session';
 const todayKey = () => new Date().toISOString().slice(0, 10);
+const DAILY_FOCUS_COIN_REWARD = 15;
 
 const DEFAULT_PROGRESS = {
+  name: 'Александр',
+  primaryIndustry: 'medicine',
+  role: 'Врач',
+  goal: 'Сбор анамнеза',
+  additionalIndustries: [],
   streak: 6,
   xp: 320,
   coins: 42,
   notifications: 3,
   mode: 'keyboard',
   questDoneDate: '',
+  focusDoneDate: '',
+  aiGeneratedScenarios: [],
+  purchasedSuggestionIds: [],
+  lastDailyGeneration: '',
+  quickPracticeDate: '',
+  quickPracticeUsed: 0,
   completed: {
     med_01: { rating: 2, xp: 15, coins: 8, date: '2026-05-21' },
   },
@@ -52,110 +70,6 @@ const DEFAULT_PROGRESS = {
   },
 };
 
-const aliasMap = {
-  локализация: ['где', 'мест', 'покаж', 'локализац'],
-  'характер боли': ['характер', 'какая боль', 'колет', 'жжет', 'давит'],
-  иррадиация: ['отда', 'плеч', 'рук', 'челюст'],
-  одышка: ['одыш', 'дыш'],
-  тошнота: ['тошн'],
-  пот: ['пот', 'вспот'],
-  скорая: ['скор', 'сроч'],
-  безопасность: ['безопас', 'сяд', 'не нагруж'],
-  спокойно: ['спокой', 'без паник'],
-  понимаю: ['понима', 'вижу', 'слышу'],
-  тревогу: ['тревог', 'боит', 'страш'],
-  осмотр: ['осмотр', 'врач', 'прием'],
-  пьёт: ['пьет', 'пил', 'пить'],
-  мочился: ['моч', 'подгуз'],
-  сыпь: ['сып'],
-  передам: ['передам', 'сообщу'],
-  врач: ['врач', 'доктор'],
-  рядом: ['рядом', 'с вами'],
-  стыд: ['стыд'],
-  злость: ['зл', 'серд'],
-  слышится: ['слыш', 'похоже'],
-  страх: ['страх', 'пуга'],
-  последствия: ['последств'],
-  важно: ['важн'],
-  варианты: ['вариант'],
-  контакт: ['контакт', 'отношен'],
-  границы: ['границ'],
-  безопасность: ['безопас'],
-  навредить: ['навред', 'себе'],
-  план: ['план'],
-  взрослый: ['взросл', 'родител', 'учител'],
-  таблетки: ['таблет'],
-  связь: ['связ', 'звон'],
-  усилия: ['усили', 'влож'],
-  критерии: ['критер'],
-  'не сравнивать': ['не срав', 'чуж'],
-  'ваша работа': ['ваш'],
-  пример: ['пример'],
-  доработка: ['доработ'],
-  срок: ['срок', 'когда'],
-  смысл: ['смысл'],
-  мешает: ['меша', 'барьер'],
-  расскажите: ['расскаж'],
-  работа: ['работ'],
-  'маленький шаг': ['маленьк', '15 минут', 'шаг'],
-  напоминание: ['напомин'],
-  время: ['время'],
-  договоримся: ['договор'],
-  сравнить: ['сравн'],
-  задачи: ['задач'],
-  платежи: ['платеж'],
-  поддержка: ['поддерж'],
-  выгода: ['выгод'],
-  период: ['период', 'срок'],
-  пересмотр: ['пересмотр'],
-  'без давления': ['без давл'],
-  просадка: ['просад'],
-  'не зафиксировали': ['не зафикс', 'не продали'],
-  риск: ['риск'],
-  горизонт: ['горизонт'],
-  диверсификация: ['диверсиф'],
-  цель: ['цель'],
-  порог: ['порог'],
-  неприятно: ['неприят'],
-  проверю: ['провер'],
-  тихий: ['тих'],
-  сегодня: ['сегодня'],
-  компенсация: ['компенсац'],
-  правила: ['правил'],
-  менеджер: ['менеджер'],
-  'номер заказа': ['номер', 'заказ'],
-  '4821': ['4821'],
-  минуту: ['минут'],
-  решение: ['решен'],
-  жалоба: ['жалоб'],
-  проверим: ['провер'],
-  список: ['список'],
-  паспорт: ['паспорт'],
-  заявление: ['заявлен'],
-  выписка: ['выписк'],
-  окно: ['окно'],
-  вернуться: ['верн'],
-  'причина отказа': ['причин', 'отказ'],
-  'простыми словами': ['прост'],
-  подтверждение: ['подтвержд'],
-  документ: ['документ'],
-  перечень: ['переч'],
-  'повторная подача': ['повтор', 'подать'],
-  дедлайн: ['дедлайн', 'срок'],
-  влияние: ['влия'],
-  ресурсы: ['ресурс'],
-  приоритет: ['приоритет'],
-  фиксируем: ['фиксир'],
-  черновик: ['чернов'],
-  завтра: ['завтра'],
-  объём: ['объем', 'объём'],
-  минимум: ['минимум'],
-  качество: ['качеств'],
-  данные: ['данн'],
-  проверка: ['провер'],
-  согласуем: ['соглас'],
-};
-
 const languages = [
   { code: 'ru', label: 'Рус' },
   { code: 'uz', label: 'Uzb' },
@@ -176,6 +90,8 @@ const text = {
     start: 'Выполнить',
     focusToday: 'Фокус сегодня',
     focusCopy: 'Сохранять ровный тон, уточнять факты и закрывать разговор понятной договорённостью.',
+    dailyReward: 'Награда за день',
+    focusCompleted: 'Фокус выполнен ✓',
     coins: 'Монеты',
     unlocked: 'Открыто',
     language: 'Язык',
@@ -197,8 +113,32 @@ const text = {
     modeLibraryDesc: 'Полный каталог сценариев для всех отраслей. Выбирайте темы, изучайте теорию и подсказки.',
     modePracticeBadge: '⚡ БЫСТРО',
     modePracticeTitle: 'Быстрая практика',
-    modePracticeDesc: 'Случайный сценарий, звонок до 4 минут или отработка допущенных ошибок.',
+    modePracticeDesc: 'Случайный ИИ-кейс — сразу в 3D-сцену. До 3 раз в день.',
+    quickPracticeLimit: 'Быстрая практика: лимит 3 раза в день. Загляните завтра!',
+    quickPracticeLeft: 'осталось сегодня',
     back: 'Назад',
+    generateWithAI: 'Сгенерировать с ИИ',
+    dailyAISuggestion: 'Предложение дня от ИИ',
+    generateWish: 'Ваши пожелания (необязательно)',
+    generateCost: 'Стоимость: 5 🪙',
+    generateButton: 'Создать новый кейс',
+    aiGenerating: 'ИИ создает сценарий...',
+    addToAccount: 'Добавить в аккаунт',
+    myIndustries: 'Мои отрасли',
+    libraryPageTitle: 'Библиотека',
+    libraryPageSubtitle: 'Сценарии по вашим отраслям',
+    librarySectionsLabel: 'Разделы библиотеки',
+    libraryTabMine: 'Мои',
+    libraryTabOffers: 'Предложения',
+    dailyOffersTitle: 'Предложения дня',
+    dailyOffersSubtitle: '10 кейсов на сегодня — выберите и добавьте в библиотеку',
+    buyFor: 'Купить',
+    free: 'Бесплатно',
+    purchased: 'В библиотеке',
+    openCase: 'Открыть',
+    yourCoins: 'Ваш баланс',
+    updatesDaily: 'Обновляется ежедневно',
+    generateCase: 'Создать свой кейс',
   },
   uz: {
     appName: 'Trenajyor',
@@ -213,6 +153,8 @@ const text = {
     start: 'Boshlash',
     focusToday: 'Bugungi fokus',
     focusCopy: 'Ohangni sokin saqlash, faktlarni aniqlashtirish va suhbatni aniq kelishuv bilan yakunlash.',
+    dailyReward: 'Kunlik mukofot',
+    focusCompleted: 'Fokus bajarildi ✓',
     coins: 'Tangalar',
     unlocked: 'Ochildi',
     language: 'Til',
@@ -234,8 +176,25 @@ const text = {
     modeLibraryDesc: 'Barcha sohalar uchun ssenariylar katalogi. Mavzu, nazariya va maslahatlarni tanlang.',
     modePracticeBadge: '⚡ TEZKOR',
     modePracticeTitle: 'Tezkor amaliyot',
-    modePracticeDesc: 'Tasodifiy ssenariy, 4 daqiqagacha qo‘ng‘iroq yoki xatolar ustida ishlash.',
+    modePracticeDesc: 'Tasodifiy AI-keys — darhol 3D-sahna. Kuniga 3 marta.',
+    quickPracticeLimit: 'Tezkor amaliyot: kuniga 3 marta. Ertaga qayting!',
+    quickPracticeLeft: 'bugun qoldi',
     back: 'Orqaga',
+    generateWithAI: 'AI bilan yaratish',
+    generateButton: 'Yangi keys yaratish',
+    libraryPageTitle: 'Kutubxona',
+    libraryPageSubtitle: 'Sohalaringiz bo‘yicha ssenariylar',
+    librarySectionsLabel: 'Kutubxona bo‘limlari',
+    libraryTabMine: 'Mening',
+    libraryTabOffers: 'Takliflar',
+    dailyOffersTitle: 'Kun takliflari',
+    dailyOffersSubtitle: 'Bugun 10 ta keys — tanlang va kutubxonaga qo‘shing',
+    buyFor: 'Sotib olish',
+    free: 'Bepul',
+    openCase: 'Ochish',
+    yourCoins: 'Balansingiz',
+    updatesDaily: 'Har kuni yangilanadi',
+    generateCase: 'O‘z keysingizni yarating',
   },
   en: {
     appName: 'Trainer',
@@ -250,6 +209,8 @@ const text = {
     start: 'Start',
     focusToday: 'Today’s focus',
     focusCopy: 'Keep an even tone, clarify facts, and close the conversation with a clear agreement.',
+    dailyReward: 'Daily reward',
+    focusCompleted: 'Focus done ✓',
     coins: 'Coins',
     unlocked: 'Unlocked',
     language: 'Language',
@@ -271,16 +232,38 @@ const text = {
     modeLibraryDesc: 'A full catalog of scenarios for every industry. Pick topics, theory, and hints.',
     modePracticeBadge: '⚡ QUICK',
     modePracticeTitle: 'Quick practice',
-    modePracticeDesc: 'A random scenario, a call up to 4 minutes, or focused work on mistakes.',
+    modePracticeDesc: 'Random AI case — straight into the 3D scene. Up to 3 times per day.',
+    quickPracticeLimit: 'Quick practice limit: 3 times per day. Come back tomorrow!',
+    quickPracticeLeft: 'left today',
     back: 'Back',
+    generateWithAI: 'Generate with AI',
+    generateButton: 'Create new case',
+    libraryPageTitle: 'Library',
+    libraryPageSubtitle: 'Scenarios for your industries',
+    librarySectionsLabel: 'Library sections',
+    libraryTabMine: 'Mine',
+    libraryTabOffers: 'Offers',
+    dailyOffersTitle: 'Today’s offers',
+    dailyOffersSubtitle: '10 cases for today — pick one and add it to your library',
+    buyFor: 'Buy for',
+    free: 'Free',
+    openCase: 'Open',
+    yourCoins: 'Your balance',
+    updatesDaily: 'Updates daily',
+    generateCase: 'Create your own case',
   },
 };
+
+function getText(langCode) {
+  const safeLang = text[langCode] ? langCode : 'ru';
+  return { ...text.ru, ...text[safeLang] };
+}
 
 const navItems = [
   { to: '/home', labelKey: 'navHome', icon: '🏠' },
   { to: '/plan', labelKey: 'navPlan', icon: '🗺️' },
   { to: '/library', labelKey: 'navLibrary', icon: '📚' },
-  { to: '/progress', labelKey: 'navProgress', icon: '📊' },
+  { to: '/results-page', labelKey: 'navProgress', icon: '📊' },
   { to: '/practice', labelKey: 'navPractice', icon: '🎮' },
   { to: '/profile', labelKey: 'navProfile', icon: '👤' },
 ];
@@ -528,6 +511,10 @@ function loadProgress() {
       completed: { ...DEFAULT_PROGRESS.completed, ...(parsed.completed || {}) },
       attempts: Array.isArray(parsed.attempts) ? parsed.attempts : DEFAULT_PROGRESS.attempts,
       settings: { ...DEFAULT_PROGRESS.settings, ...(parsed.settings || {}) },
+      aiGeneratedScenarios: Array.isArray(parsed.aiGeneratedScenarios) ? parsed.aiGeneratedScenarios : DEFAULT_PROGRESS.aiGeneratedScenarios,
+      purchasedSuggestionIds: Array.isArray(parsed.purchasedSuggestionIds)
+        ? parsed.purchasedSuggestionIds
+        : DEFAULT_PROGRESS.purchasedSuggestionIds,
     };
   } catch {
     return DEFAULT_PROGRESS;
@@ -538,21 +525,91 @@ function getIndustry(industryId) {
   return industries.find((industry) => industry.id === industryId) || industries[0];
 }
 
-function normalizeText(text) {
-  return String(text || '')
-    .toLowerCase()
-    .replaceAll('ё', 'е');
+function startQuickPractice(progress, setProgress, navigate, t) {
+  const { remaining } = getQuickPracticeUsage(progress);
+  if (remaining <= 0) {
+    window.alert(t.quickPracticeLimit);
+    return;
+  }
+
+  const usagePatch = consumeQuickPractice(progress);
+  if (!usagePatch) {
+    window.alert(t.quickPracticeLimit);
+    return;
+  }
+
+  const scenario = buildQuickScenario(progress, getIndustry);
+  const caseId = pickQuickCaseId(scenario);
+
+  setProgress((current) => ({
+    ...current,
+    ...usagePatch,
+    aiGeneratedScenarios: [scenario, ...(current.aiGeneratedScenarios || [])],
+  }));
+
+  navigate('/simulation', {
+    state: buildSimulationState(scenario, caseId, { quickPractice: true }),
+  });
 }
 
-function getMatchedTerms(text, expected = []) {
-  const normalized = normalizeText(text);
+function buildSimulationState(scenario, caseId, { quickPractice = false } = {}) {
+  const industry = getIndustry(scenario.industry);
 
-  return expected.filter((term) => {
-    const normalizedTerm = normalizeText(term);
-    const root = normalizedTerm.length > 5 ? normalizedTerm.slice(0, 5) : normalizedTerm;
-    const aliases = aliasMap[normalizedTerm] || [];
-    return [normalizedTerm, root, ...aliases].some((candidate) => candidate && normalized.includes(candidate));
+  return {
+    caseId,
+    scenarioId: scenario.id,
+    scenarioTitle: scenario.title,
+    industryName: industry.name,
+    industryIcon: industry.icon,
+    quickPractice,
+  };
+}
+
+function startScenarioSimulation(scenario, navigate) {
+  const caseId = pickQuickCaseId(scenario);
+  navigate('/simulation', {
+    state: buildSimulationState(scenario, caseId),
   });
+}
+
+function findScenarioById(id, progress) {
+  return (
+    scenarios.find((item) => item.id === id) ||
+    (progress.aiGeneratedScenarios || []).find((item) => item.id === id)
+  );
+}
+
+function suggestionToScenario(offer) {
+  const industry = getIndustry(offer.industry);
+  return {
+    id: `shop_${offer.id}`,
+    industry: offer.industry,
+    skill: offer.skill,
+    title: offer.title,
+    goal: offer.description,
+    difficulty: offer.difficulty,
+    durationMin: offer.durationMin,
+    xpReward: 15 + offer.difficulty * 3,
+    coinReward: 8,
+    aiPersona: `Персонаж: ${offer.title}`,
+    patientType: offer.patientType || 'neutral',
+    isPurchased: true,
+    shopOfferId: offer.id,
+    script: [
+      { role: 'ai', text: 'Здравствуйте. У меня к вам непростой вопрос…', delay: 1200 },
+      {
+        role: 'user',
+        expected: ['понимаю', 'спокойно'],
+        hint: 'Признайте эмоцию и задайте уточняющий вопрос.',
+        quickReplies: ['Понимаю, давайте разберёмся по шагам.', 'Расскажите, что произошло?'],
+      },
+    ],
+    feedback: {
+      good: [`Отработан навык: ${offer.skill}`],
+      improve: ['Попробуйте уточнить факты перед выводами'],
+    },
+    _offerEmoji: offer.emoji,
+  };
 }
 
 function getDifficultyLabel(level) {
@@ -572,23 +629,6 @@ function getScenarioStatus(scenario, index, progress) {
   const previousScenario = scenarios[index - 1];
   const isOpen = index <= 1 || !previousScenario || progress.completed[previousScenario.id];
   return isOpen ? { label: 'open', icon: '🔓', rating: 0 } : { label: 'locked', icon: '🔒', rating: 0 };
-}
-
-function calculateRating(checks, early) {
-  const total = checks.reduce((sum, check) => sum + check.expected.length, 0);
-  const hits = checks.reduce((sum, check) => sum + check.matched.length, 0);
-  const ratio = total > 0 ? hits / total : 0.4;
-  const adjustedRatio = early ? ratio * 0.65 : ratio;
-
-  if (adjustedRatio >= 0.74) {
-    return 3;
-  }
-
-  if (adjustedRatio >= 0.42) {
-    return 2;
-  }
-
-  return 1;
 }
 
 function RatingStars({ rating = 0 }) {
@@ -696,7 +736,7 @@ function LearningPathMap({ progress }) {
             <button
               className="snake-node"
               type="button"
-              onClick={() => !disabled && navigate(`/scenario/${scenario.id}`)}
+              onClick={() => !disabled && startScenarioSimulation(scenario, navigate)}
               disabled={disabled}
               aria-label={`${scenario.title}: ${status.label}`}
             >
@@ -745,6 +785,7 @@ function TrainerToolbar({ progress, lang, setLang, t, onLogout }) {
         <div className="home-metrics">
           <StatPill icon="🔥" label={`${progress.streak} ${t.streakDays}`} />
           <StatPill icon="⭐" label={`${progress.xp} XP`} />
+          <StatPill icon="🪙" label={`${progress.coins} ${t.coins}`} />
         </div>
         <LanguageControl lang={lang} setLang={setLang} t={t} />
         <button type="button" className="logout-button tap" onClick={onLogout}>
@@ -756,10 +797,12 @@ function TrainerToolbar({ progress, lang, setLang, t, onLogout }) {
   );
 }
 
-function HomePage({ progress, t }) {
+function HomePage({ progress, setProgress, t }) {
   const navigate = useNavigate();
+  const quickUsage = getQuickPracticeUsage(progress);
   const quest = quests[0];
   const questDone = progress.questDoneDate === todayKey();
+  const focusDone = progress.focusDoneDate === todayKey();
   const questTarget = scenarios.find((scenario) => scenario.skill === quest.targetSkill) || scenarios[0];
   const dailyQuestText = quest.text === 'Пройти 1 сценарий на стрессоустойчивость' ? t.questText : quest.text;
 
@@ -805,7 +848,10 @@ function HomePage({ progress, t }) {
                 <Play size={15} aria-hidden="true" />
                 {questDone ? t.done : t.start}
               </button>
-              <span className="reward-badge">+{quest.reward} XP</span>
+              <div className="daily-task-reward">
+                <span className="daily-reward-label">{t.dailyReward}</span>
+                <span className="reward-badge reward-badge--compact">+{quest.reward} XP</span>
+              </div>
             </div>
           </article>
 
@@ -817,6 +863,16 @@ function HomePage({ progress, t }) {
               <span className="chip sky">{t.focusToday}</span>
             </header>
             <p className="daily-tile-copy">{t.focusCopy}</p>
+            <div className="daily-tile-foot daily-coach-foot">
+              {focusDone ? (
+                <span className="chip mint">{t.focusCompleted}</span>
+              ) : (
+                <div className="daily-task-reward">
+                  <span className="daily-reward-label">{t.dailyReward}</span>
+                  <span className="reward-badge reward-badge--compact">+{DAILY_FOCUS_COIN_REWARD} 🪙</span>
+                </div>
+              )}
+            </div>
             <div className="daily-coach-stats">
               <span>{t.coins}: 🪙 {progress.coins}</span>
               <span>{t.unlocked}: 🔓 {Object.keys(progress.completed).length + 1}</span>
@@ -841,13 +897,19 @@ function HomePage({ progress, t }) {
           {
             badgeText: t.modePracticeBadge, badgeBg: 'var(--butter)', emoji: '🎮',
             title: t.modePracticeTitle, desc: t.modePracticeDesc,
-            accent: 'var(--butter)', path: '/practice'
+            accent: 'var(--butter)', path: '/practice', quickStart: true,
           }
         ].map((mode, i) => (
           <div
             key={i}
             className="tap hover-scale popin"
-            onClick={() => navigate(mode.path)}
+            onClick={() => {
+              if (mode.quickStart) {
+                startQuickPractice(progress, setProgress, navigate, t);
+                return;
+              }
+              navigate(mode.path);
+            }}
             style={{
               width: 270,
               background: 'white',
@@ -927,7 +989,7 @@ function HomePage({ progress, t }) {
 
       <div className="home-screen-actions popin">
         {[
-          { icon: '📊', label: t.progress, onClick: () => navigate('/progress'), bg: 'white' },
+          { icon: '📊', label: t.progress, onClick: () => navigate('/results-page'), bg: 'white' },
           { icon: '👤', label: t.profile,  onClick: () => navigate('/profile'), bg: 'var(--butter)' },
         ].map((item, i) => (
           <button
@@ -958,6 +1020,7 @@ function HomePage({ progress, t }) {
 }
 
 function PlanPage({ progress }) {
+  const navigate = useNavigate();
   const completedCount = Object.keys(progress.completed).length;
   const completion = Math.round((completedCount / scenarios.length) * 100);
   const nextScenario =
@@ -1029,9 +1092,13 @@ function PlanPage({ progress }) {
             <span className="path-kicker">Следующий шаг</span>
             <h2>{nextScenario.title}</h2>
             <p>{nextScenario.goal}</p>
-            <Link className="btn-plush sm primary" to={`/scenario/${nextScenario.id}`}>
+            <button
+              className="btn-plush sm primary"
+              type="button"
+              onClick={() => startScenarioSimulation(nextScenario, navigate)}
+            >
               ▶ Начать
-            </Link>
+            </button>
           </article>
 
           <article className="plan-side-card plush">
@@ -1080,10 +1147,10 @@ function PlanPage({ progress }) {
   );
 }
 
-function ScenarioPage({ progress, setProgress }) {
+function ScenarioPage({ progress }) {
   const { id } = useParams();
-  const scenario = scenarios.find((item) => item.id === id);
-  const [isRunning, setIsRunning] = useState(false);
+  const navigate = useNavigate();
+  const scenario = findScenarioById(id, progress);
 
   if (!scenario) {
     return <Navigate to="/home" replace />;
@@ -1091,11 +1158,7 @@ function ScenarioPage({ progress, setProgress }) {
 
   return (
     <section className="screen scenario-screen">
-      {!isRunning ? (
-        <ScenarioPreview scenario={scenario} onStart={() => setIsRunning(true)} />
-      ) : (
-        <Simulation scenario={scenario} progress={progress} setProgress={setProgress} />
-      )}
+      <ScenarioPreview scenario={scenario} onStart={() => startScenarioSimulation(scenario, navigate)} />
     </section>
   );
 }
@@ -1155,238 +1218,11 @@ function ScenarioPreview({ scenario, onStart }) {
   );
 }
 
-function Simulation({ scenario, progress, setProgress }) {
-  const navigate = useNavigate();
-  const [messages, setMessages] = useState([]);
-  const [stepIndex, setStepIndex] = useState(0);
-  const [typing, setTyping] = useState(false);
-  const [draft, setDraft] = useState('');
-  const [checks, setChecks] = useState([]);
-  const [mode, setMode] = useState(progress.mode || 'keyboard');
-  const messagesRef = useRef(messages);
-  const checksRef = useRef(checks);
-  const finishedRef = useRef(false);
-  const chatEndRef = useRef(null);
-
-  useEffect(() => {
-    messagesRef.current = messages;
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages, typing]);
-
-  useEffect(() => {
-    checksRef.current = checks;
-  }, [checks]);
-
-  useEffect(() => {
-    const currentStep = scenario.script[stepIndex];
-    if (!currentStep || currentStep.role !== 'ai' || finishedRef.current) {
-      return undefined;
-    }
-
-    setTyping(true);
-    const delay = Math.min(3000, Math.max(1000, currentStep.delay || 1500));
-    const timer = window.setTimeout(() => {
-      setMessages((current) => [...current, { role: 'ai', text: currentStep.text }]);
-      setTyping(false);
-      setStepIndex((current) => current + 1);
-    }, delay);
-
-    return () => window.clearTimeout(timer);
-  }, [scenario.script, stepIndex]);
-
-  useEffect(() => {
-    if (stepIndex >= scenario.script.length && !finishedRef.current) {
-      const timer = window.setTimeout(() => finishScenario(false), 450);
-      return () => window.clearTimeout(timer);
-    }
-
-    return undefined;
-  }, [stepIndex, scenario.script.length]);
-
-  const activeUserStep = scenario.script[stepIndex]?.role === 'user' ? scenario.script[stepIndex] : null;
-
-  function finishScenario(early) {
-    if (finishedRef.current) {
-      return;
-    }
-
-    finishedRef.current = true;
-    const rating = calculateRating(checksRef.current, early);
-    const xpGained = Math.max(6, Math.round(scenario.xpReward * (rating / 3) * (early ? 0.7 : 1)));
-    const coinsGained = Math.max(3, Math.round((scenario.coinReward || 8) * (rating / 3)));
-    const quest = quests[0];
-    const completesDailyQuest =
-      !early && progress.questDoneDate !== todayKey() && scenario.skill === quest.targetSkill;
-    const questReward = completesDailyQuest ? quest.reward : 0;
-    const attempt = {
-      id: `attempt-${scenario.id}-${Date.now()}`,
-      scenarioId: scenario.id,
-      date: todayKey(),
-      rating,
-      xpGained: xpGained + questReward,
-      coinsGained,
-      transcript: messagesRef.current,
-      checks: checksRef.current,
-      early,
-    };
-
-    setProgress((current) => {
-      const currentRating = current.completed[scenario.id]?.rating || 0;
-
-      return {
-        ...current,
-        xp: current.xp + xpGained + questReward,
-        coins: current.coins + coinsGained,
-        questDoneDate: completesDailyQuest ? todayKey() : current.questDoneDate,
-        completed: {
-          ...current.completed,
-          [scenario.id]: {
-            rating: Math.max(currentRating, rating),
-            xp: xpGained + questReward,
-            coins: coinsGained,
-            date: todayKey(),
-          },
-        },
-        attempts: [attempt, ...current.attempts].slice(0, 40),
-      };
-    });
-
-    navigate(`/results/${scenario.id}`, { state: { attemptId: attempt.id } });
-  }
-
-  function submitAnswer(text = draft) {
-    const cleanText = text.trim();
-    if (!cleanText || !activeUserStep) {
-      return;
-    }
-
-    const matched = getMatchedTerms(cleanText, activeUserStep.expected);
-    const coachText =
-      matched.length >= Math.ceil(activeUserStep.expected.length / 2)
-        ? `Учтено: ${matched.join(', ')}.`
-        : `Нужно усилить: ${activeUserStep.expected.filter((item) => !matched.includes(item)).join(', ')}.`;
-    const nextMessages = [
-      ...messagesRef.current,
-      { role: 'user', text: cleanText },
-      { role: 'coach', text: coachText },
-    ];
-
-    setMessages(nextMessages);
-    setChecks((current) => [...current, { expected: activeUserStep.expected, matched }]);
-    setDraft('');
-    setStepIndex((current) => current + 1);
-  }
-
-  function useHint() {
-    if (!activeUserStep) {
-      return;
-    }
-
-    if (progress.coins < 5) {
-      setMessages((current) => [
-        ...current,
-        { role: 'coach', text: 'Монет не хватает. Попробуйте ответить через уточнение и эмпатию.' },
-      ]);
-      return;
-    }
-
-    setProgress((current) => ({ ...current, coins: current.coins - 5 }));
-    setMessages((current) => [...current, { role: 'coach', text: `Подсказка: ${activeUserStep.hint}` }]);
-  }
-
-  function toggleMode() {
-    const nextMode = mode === 'keyboard' ? 'voice' : 'keyboard';
-    setMode(nextMode);
-    setProgress((current) => ({ ...current, mode: nextMode }));
-  }
-
-  return (
-    <div className="simulation-layout">
-      <header className="simulation-top plush">
-        <div>
-          <span className="chip sky">{scenario.skill}</span>
-          <h1>{scenario.title}</h1>
-        </div>
-        <div className="simulation-tools">
-          <button className="tool-button" type="button" onClick={useHint} disabled={!activeUserStep}>
-            🆘 Подсказка <small>-5</small>
-          </button>
-          <button className="tool-button" type="button" onClick={toggleMode}>
-            {mode === 'keyboard' ? '🎙️ Голос' : '⌨️ Текст'}
-          </button>
-          <button className="tool-button stop" type="button" onClick={() => finishScenario(true)}>
-            ⏹ Завершить
-          </button>
-        </div>
-      </header>
-
-      <div className="chat-shell plush-lg">
-        <div className="chat-persona">
-          <div className="cartoon-head peach-head">
-            <span />
-            <span />
-            <i />
-          </div>
-          <div>
-            <strong>{scenario.aiPersona}</strong>
-            <span>Имитация ИИ</span>
-          </div>
-        </div>
-
-        <div className="chat-feed" aria-live="polite">
-          {messages.map((message, index) => (
-            <div key={`${message.role}-${index}`} className={`chat-message ${message.role}`}>
-              <span>{message.role === 'ai' ? 'ИИ' : message.role === 'coach' ? 'Разбор' : 'Вы'}</span>
-              <p>{message.text}</p>
-            </div>
-          ))}
-          {typing ? (
-            <div className="typing-indicator" aria-label="ИИ печатает">
-              <i />
-              <i />
-              <i />
-            </div>
-          ) : null}
-          <div ref={chatEndRef} />
-        </div>
-
-        {activeUserStep ? (
-          <div className="reply-panel">
-            <div className="quick-replies">
-              {activeUserStep.quickReplies?.map((reply) => (
-                <button key={reply} type="button" onClick={() => submitAnswer(reply)}>
-                  {reply}
-                </button>
-              ))}
-            </div>
-            <form
-              className="reply-form"
-              onSubmit={(event) => {
-                event.preventDefault();
-                submitAnswer();
-              }}
-            >
-              <input
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                placeholder={mode === 'keyboard' ? 'Ваш ответ...' : 'Голосовой режим: текстовая имитация'}
-              />
-              <button className="btn-plush primary" type="submit" aria-label="Отправить">
-                <Send size={18} aria-hidden="true" />
-              </button>
-            </form>
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
 function ResultsPage({ progress }) {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const scenario = scenarios.find((item) => item.id === id);
+  const scenario = findScenarioById(id, progress);
 
   if (!scenario) {
     return <Navigate to="/home" replace />;
@@ -1443,133 +1279,727 @@ function ResultsPage({ progress }) {
   );
 }
 
-function LibraryPage({ progress }) {
+function LibraryPage({ progress, setProgress, t = getText('ru') }) {
+  const navigate = useNavigate();
+  const [libraryTab, setLibraryTab] = useState('mine');
   const [industryFilter, setIndustryFilter] = useState('all');
-  const [skillFilter, setSkillFilter] = useState('all');
-  const skills = useMemo(() => Array.from(new Set(scenarios.map((scenario) => scenario.skill))), []);
-  const filteredScenarios = scenarios.filter((scenario) => {
+  const [genIndustry, setGenIndustry] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [userWish, setUserWish] = useState('');
+  const [showGenModal, setShowGenModal] = useState(false);
+  const [purchasingId, setPurchasingId] = useState(null);
+
+  const myIndustryIds = useMemo(() => [
+    progress.primaryIndustry,
+    ...progress.additionalIndustries,
+  ], [progress.primaryIndustry, progress.additionalIndustries]);
+
+  const myIndustries = useMemo(
+    () => industries.filter((ind) => myIndustryIds.includes(ind.id)),
+    [myIndustryIds],
+  );
+
+  const dailyOffers = useMemo(
+    () => getDailySuggestions(myIndustryIds, todayKey()),
+    [myIndustryIds],
+  );
+
+  const purchasedIds = progress.purchasedSuggestionIds || [];
+
+  const myScenarios = useMemo(() => {
+    const catalog = scenarios.filter((scenario) => myIndustryIds.includes(scenario.industry));
+    const custom = (progress.aiGeneratedScenarios || []).filter((scenario) =>
+      myIndustryIds.includes(scenario.industry),
+    );
+    const byId = new Map();
+    [...catalog, ...custom].forEach((scenario) => byId.set(scenario.id, scenario));
+    return Array.from(byId.values());
+  }, [myIndustryIds, progress.aiGeneratedScenarios]);
+
+  const filteredScenarios = myScenarios.filter((scenario) => {
     const matchesIndustry = industryFilter === 'all' || scenario.industry === industryFilter;
-    const matchesSkill = skillFilter === 'all' || scenario.skill === skillFilter;
-    return matchesIndustry && matchesSkill;
+    return matchesIndustry;
   });
+
+  function isOfferOwned(offerId) {
+    return (
+      purchasedIds.includes(offerId) ||
+      (progress.aiGeneratedScenarios || []).some((s) => s.shopOfferId === offerId)
+    );
+  }
+
+  function getOwnedScenarioId(offerId) {
+    const found = (progress.aiGeneratedScenarios || []).find((s) => s.shopOfferId === offerId);
+    return found?.id || (purchasedIds.includes(offerId) ? `shop_${offerId}` : null);
+  }
+
+  function openGenModal() {
+    setGenIndustry(myIndustryIds[0] || '');
+    setUserWish('');
+    setShowGenModal(true);
+  }
+
+  function closeGenModal() {
+    if (!isGenerating) {
+      setShowGenModal(false);
+    }
+  }
+
+  const handleGenerate = () => {
+    if (progress.coins < 5) {
+      alert('Недостаточно монет! Нужно 5 🪙');
+      return;
+    }
+
+    setIsGenerating(true);
+    setTimeout(() => {
+      const selectedIndustry = genIndustry || myIndustryIds[0];
+      const ind = getIndustry(selectedIndustry);
+
+      const newScenario = {
+        id: `ai_${Date.now()}`,
+        industry: selectedIndustry,
+        skill: 'AI Генерация',
+        title: userWish || `Кейс: ${ind.name}`,
+        goal: 'Отработка навыков в свободной форме',
+        difficulty: Math.floor(Math.random() * 3) + 1,
+        durationMin: 5,
+        xpReward: 20,
+        coinReward: 10,
+        aiPersona: 'Сгенерированный персонаж',
+        patientType: 'neutral',
+        isAiGenerated: true,
+        script: [
+          { role: 'ai', text: 'Здравствуйте! Я готов к общению. С чего начнем?', delay: 1000 },
+          {
+            role: 'user',
+            expected: ['приветствие'],
+            hint: 'Поприветствуйте собеседника',
+            quickReplies: ['Добрый день!', 'Здравствуйте, чем могу помочь?'],
+          },
+        ],
+        feedback: {
+          good: ['ИИ сгенерировал этот кейс специально для вас'],
+          improve: ['Вы можете настроить пожелания при следующей генерации'],
+        },
+      };
+
+      setProgress((curr) => ({
+        ...curr,
+        coins: curr.coins - 5,
+        aiGeneratedScenarios: [newScenario, ...(curr.aiGeneratedScenarios || [])],
+      }));
+      setIsGenerating(false);
+      setShowGenModal(false);
+      setUserWish('');
+      setLibraryTab('mine');
+    }, 2000);
+  };
+
+  function handleBuyOffer(offer) {
+    if (isOfferOwned(offer.id)) {
+      const scenarioId = getOwnedScenarioId(offer.id);
+      if (scenarioId) navigate(`/scenario/${scenarioId}`);
+      return;
+    }
+
+    if (offer.price > 0 && progress.coins < offer.price) {
+      alert(`Недостаточно монет! Нужно ${offer.price} 🪙`);
+      return;
+    }
+
+    setPurchasingId(offer.id);
+    setTimeout(() => {
+      const newScenario = suggestionToScenario(offer);
+      setProgress((curr) => ({
+        ...curr,
+        coins: curr.coins - offer.price,
+        purchasedSuggestionIds: [...new Set([...(curr.purchasedSuggestionIds || []), offer.id])],
+        aiGeneratedScenarios: [newScenario, ...(curr.aiGeneratedScenarios || [])],
+      }));
+      setPurchasingId(null);
+      setLibraryTab('mine');
+    }, 600);
+  }
 
   return (
     <section className="screen library-screen">
-      <PageTop title="Библиотека" subtitle="Сценарии по отраслям и навыкам" backTo="/home" />
-      <div className="filter-bar plush">
-        <select value={industryFilter} onChange={(event) => setIndustryFilter(event.target.value)}>
-          <option value="all">Все отрасли</option>
-          {industries.map((industry) => (
-            <option key={industry.id} value={industry.id}>
-              {industry.name}
-            </option>
-          ))}
-        </select>
-        <select value={skillFilter} onChange={(event) => setSkillFilter(event.target.value)}>
-          <option value="all">Все навыки</option>
-          {skills.map((skill) => (
-            <option key={skill} value={skill}>
-              {skill}
-            </option>
-          ))}
-        </select>
+      <PageTop title={t.libraryPageTitle} subtitle={t.libraryPageSubtitle} backTo="/home" t={t} />
+
+      <div className="library-tabs plush" role="tablist" aria-label={t.librarySectionsLabel}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={libraryTab === 'mine'}
+          className={`library-tab tap ${libraryTab === 'mine' ? 'is-active' : ''}`}
+          onClick={() => setLibraryTab('mine')}
+        >
+          📚 {t.libraryTabMine}
+          <span className="library-tab-count">{myScenarios.length}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={libraryTab === 'offers'}
+          className={`library-tab tap ${libraryTab === 'offers' ? 'is-active' : ''}`}
+          onClick={() => setLibraryTab('offers')}
+        >
+          ✨ {t.libraryTabOffers}
+          <span className="library-tab-count">10</span>
+        </button>
       </div>
 
-      <div className="scenario-list">
-        {filteredScenarios.map((scenario) => {
-          const industry = getIndustry(scenario.industry);
-          const rating = progress.completed[scenario.id]?.rating || 0;
-
-          return (
-            <Link key={scenario.id} className="library-card plush tap" to={`/scenario/${scenario.id}`}>
-              <div className="library-icon">{industry.icon}</div>
+      {libraryTab === 'mine' ? (
+        <>
+          <div className="library-ai-section plush-lg popin">
+            <div className="library-ai-section-head">
               <div>
-                <span className="chip sky">{scenario.skill}</span>
-                <h2>{scenario.title}</h2>
-                <p>{scenario.goal}</p>
-                <div className="library-meta">
-                  <span>{scenario.durationMin} мин</span>
-                  <span>{getDifficultyLabel(scenario.difficulty)}</span>
-                  {rating ? <RatingStars rating={rating} /> : <span>новый</span>}
-                </div>
+                <span className="chip sky">AI Генератор</span>
+                <h2>{t.generateCase}</h2>
+                <p>ИИ подготовит уникальный кейс под ваш запрос</p>
               </div>
-            </Link>
-          );
-        })}
-      </div>
+              <button type="button" className="btn-plush primary tap" onClick={openGenModal}>
+                <Sparkles size={18} aria-hidden="true" />
+                {t.generateButton}
+              </button>
+            </div>
+          </div>
+
+          <div className="filter-bar plush">
+            <select value={industryFilter} onChange={(event) => setIndustryFilter(event.target.value)}>
+              <option value="all">Все мои отрасли</option>
+              {myIndustries.map((industry) => (
+                <option key={industry.id} value={industry.id}>
+                  {industry.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="scenario-list">
+            {filteredScenarios.length > 0 ? (
+              filteredScenarios.map((scenario) => {
+                const industry = getIndustry(scenario.industry);
+                const rating = progress.completed[scenario.id]?.rating || 0;
+
+                return (
+                  <Link key={scenario.id} className="library-card plush tap" to={`/scenario/${scenario.id}`}>
+                    <div className="library-icon">
+                      {scenario._offerEmoji || (scenario.isAiGenerated || scenario.isPurchased ? '✨' : industry.icon)}
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+                        <span className="chip sky">{scenario.skill}</span>
+                        {scenario.isAiGenerated && <span className="chip butter">AI</span>}
+                        {scenario.isPurchased && <span className="chip mint">Куплен</span>}
+                      </div>
+                      <h2>{scenario.title}</h2>
+                      <p>{scenario.goal}</p>
+                      <div className="library-meta">
+                        <span>{scenario.durationMin} мин</span>
+                        <span>{getDifficultyLabel(scenario.difficulty)}</span>
+                        {rating ? <RatingStars rating={rating} /> : <span>новый</span>}
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })
+            ) : (
+              <div className="library-empty plush">
+                <p>У вас пока нет кейсов в этой отрасли.</p>
+                <button type="button" className="btn-plush primary tap" onClick={() => setLibraryTab('offers')}>
+                  Смотреть предложения
+                </button>
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <div className="library-offers-section">
+          <header className="library-offers-head plush-lg">
+            <div className="library-offers-head-copy">
+              <h2 className="library-offers-title">
+                <span className="library-offers-title-icon" aria-hidden="true">✨</span>
+                {t.dailyOffersTitle}
+              </h2>
+              <p className="library-offers-subtitle">{t.dailyOffersSubtitle}</p>
+              <p className="library-offers-meta">{t.updatesDaily}</p>
+            </div>
+            <div className="library-coins-badge plush-tiny">
+              <span className="library-coins-label">{t.yourCoins}</span>
+              <strong className="library-coins-value">
+                <span aria-hidden="true">🪙</span> {progress.coins}
+              </strong>
+            </div>
+          </header>
+
+          <div className="offers-grid">
+            {dailyOffers.map((offer, index) => {
+              const industry = getIndustry(offer.industry);
+              const owned = isOfferOwned(offer.id);
+              const canAfford = offer.price === 0 || progress.coins >= offer.price;
+              const isBuying = purchasingId === offer.id;
+
+              return (
+                <article key={offer.id} className={`offer-card plush-lg popin ${owned ? 'is-owned' : ''}`} style={{ animationDelay: `${index * 0.04}s` }}>
+                  <div className="offer-card-top">
+                    <div className="offer-emoji" aria-hidden="true">{offer.emoji}</div>
+                    <div className="offer-price-tag">
+                      {offer.price === 0 ? (
+                        <span className="offer-price-free">{t.free}</span>
+                      ) : (
+                        <span className="offer-price-coins">{offer.price} 🪙</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="offer-card-body">
+                    <div className="offer-tags">
+                      <span className="chip sky">{industry.icon} {industry.name}</span>
+                      <span className="chip peach">{offer.skill}</span>
+                    </div>
+                    <h3>{offer.title}</h3>
+                    <p className="offer-description">{offer.description}</p>
+                    <div className="offer-meta">
+                      <span>{offer.durationMin} мин</span>
+                      <span>{getDifficultyLabel(offer.difficulty)}</span>
+                    </div>
+                  </div>
+
+                  <div className="offer-card-foot">
+                    {owned ? (
+                      <button
+                        type="button"
+                        className="btn-plush mint tap"
+                        onClick={() => handleBuyOffer(offer)}
+                      >
+                        {t.openCase}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn-plush primary tap"
+                        onClick={() => handleBuyOffer(offer)}
+                        disabled={!canAfford || isBuying}
+                      >
+                        {isBuying ? '…' : offer.price === 0 ? t.free : `${t.buyFor} ${offer.price} 🪙`}
+                      </button>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {showGenModal && (
+        <div className="modal-overlay" onClick={closeGenModal}>
+          <div className="modal-content gen-modal plush-lg popin" onClick={(e) => e.stopPropagation()} role="dialog" aria-labelledby="gen-modal-title">
+            {!isGenerating && (
+              <button type="button" className="modal-close" onClick={closeGenModal} aria-label="Закрыть">
+                <X size={20} />
+              </button>
+            )}
+
+            <div className="modal-body gen-modal-body">
+              {isGenerating ? (
+                <div className="gen-modal-loading">
+                  <div className="ai-loader" aria-hidden="true">✨</div>
+                  <h2>Генерируем кейс</h2>
+                  <p>ИИ подбирает ситуацию под вашу отрасль и пожелания…</p>
+                </div>
+              ) : (
+                <>
+                  <div className="gen-modal-head">
+                    <span className="chip sky">AI Генератор</span>
+                    <h2 id="gen-modal-title">Новый кейс</h2>
+                    <p className="gen-modal-subtitle">Опишите ситуацию — ИИ соберёт уникальный сценарий для тренировки</p>
+                  </div>
+
+                  <div className="gen-modal-field">
+                    <label htmlFor="gen-industry">Отрасль</label>
+                    <select
+                      id="gen-industry"
+                      className="gen-modal-select"
+                      value={genIndustry}
+                      onChange={(e) => setGenIndustry(e.target.value)}
+                    >
+                      {myIndustries.map((ind) => (
+                        <option key={ind.id} value={ind.id}>
+                          {ind.icon} {ind.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="gen-modal-field">
+                    <label htmlFor="gen-wish">Ваши пожелания</label>
+                    <textarea
+                      id="gen-wish"
+                      className="gen-modal-textarea"
+                      placeholder="Например: сложный пациент, который не хочет слушать рекомендации…"
+                      value={userWish}
+                      onChange={(e) => setUserWish(e.target.value)}
+                      rows={4}
+                    />
+                    <span className="gen-modal-hint">Необязательно — можно оставить пустым</span>
+                  </div>
+
+                  <div className={`gen-modal-cost ${progress.coins < 5 ? 'is-insufficient' : ''}`}>
+                    <div className="gen-modal-cost-row">
+                      <span>Стоимость</span>
+                      <strong>5 🪙</strong>
+                    </div>
+                    <div className="gen-modal-cost-row">
+                      <span>У вас</span>
+                      <strong>{progress.coins} 🪙</strong>
+                    </div>
+                    {progress.coins < 5 && (
+                      <p className="gen-modal-cost-warning">Недостаточно монет для генерации</p>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {!isGenerating && (
+              <div className="modal-footer gen-modal-footer">
+                <button type="button" className="btn-plush tap" onClick={closeGenModal}>
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  className="btn-plush primary tap"
+                  onClick={handleGenerate}
+                  disabled={progress.coins < 5}
+                >
+                  <Sparkles size={18} aria-hidden="true" />
+                  Создать кейс
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
 
 function ProgressPage({ progress }) {
   const completedCount = Object.keys(progress.completed).length;
-  const xpByDay = useMemo(() => buildXpHistory(progress.attempts), [progress.attempts]);
-  const maxXp = Math.max(...xpByDay.map((item) => item.xp), 1);
-  const skillRows = useMemo(() => buildSkillRows(progress), [progress]);
+  const attempts = progress.attempts || [];
+  
+  // Stats
+  const scenariosCompleted = completedCount;
+  const totalRating = Object.values(progress.completed).reduce((sum, c) => sum + c.rating, 0);
+  const accuracy = Math.round((totalRating / (completedCount * 3 || 1)) * 100);
+  const practiceMinutes = Object.keys(progress.completed).reduce((sum, id) => {
+    const scenario = scenarios.find(s => s.id === id);
+    return sum + (scenario?.durationMin || 0);
+  }, 0);
+
+  // GitHub Grid
+  const gridData = useMemo(() => {
+    const grid = [];
+    const now = new Date();
+    for (let i = 89; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      const key = date.toISOString().slice(0, 10);
+      const count = attempts.filter(a => a.date === key).length;
+      grid.push({ date: key, count });
+    }
+    return grid;
+  }, [attempts]);
+
+  const getLevel = (count) => {
+    if (count === 0) return 0;
+    if (count === 1) return 1;
+    if (count === 2) return 2;
+    if (count === 3) return 3;
+    return 4;
+  };
+
+  // Psychological Metrics Calculation
+  const calculateMetrics = (attemptsList) => {
+    const base = { empathy: 40, clarity: 45, resilience: 35, honesty: 50 };
+    if (attemptsList.length === 0) return base;
+
+    const scores = { empathy: [], clarity: [], resilience: [], honesty: [] };
+    
+    attemptsList.forEach(a => {
+      const s = scenarios.find(sc => sc.id === a.scenarioId);
+      if (!s) return;
+      
+      const rating = (a.rating / 3) * 100;
+      
+      if (['Эмпатия', 'Активное слушание', 'Деэскалация'].includes(s.skill)) scores.empathy.push(rating);
+      if (['Ясные инструкции', 'Объяснение сложного', 'Обратная связь'].includes(s.skill)) scores.clarity.push(rating);
+      if (['Стрессоустойчивость', 'Кризисная коммуникация', 'Конфликт'].includes(s.skill)) scores.resilience.push(rating);
+      if (['Нейтральный тон', 'Сбор анамнеза', 'Переговоры'].includes(s.skill)) scores.honesty.push(rating);
+    });
+
+    const avg = (arr, def) => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : def;
+
+    return {
+      empathy: avg(scores.empathy, base.empathy),
+      clarity: avg(scores.clarity, base.clarity),
+      resilience: avg(scores.resilience, base.resilience),
+      honesty: avg(scores.honesty, base.honesty),
+    };
+  };
+
+  const metrics = useMemo(() => calculateMetrics(attempts), [attempts]);
+  const prevMetrics = useMemo(() => calculateMetrics(attempts.slice(1)), [attempts]);
+
+  const getTrend = (curr, prev) => {
+    const diff = curr - prev;
+    if (diff === 0) return null;
+    return (
+      <span className={`trend ${diff > 0 ? 'up' : 'down'}`}>
+        {diff > 0 ? '↑' : '↓'} {Math.abs(diff)}%
+      </span>
+    );
+  };
+
+  // Important Emotions
+  const emotions = [
+    { name: 'Уверенность', value: 75, trend: 5, icon: '🛡️' },
+    { name: 'Терпение', value: 60, trend: -2, icon: '⏳' },
+    { name: 'Внимательность', value: 85, trend: 10, icon: '👁️' },
+    { name: 'Стрессоустойчивость', value: 45, trend: 0, icon: '🌊' },
+  ];
+
+  // Patient Types Mapping
+  const patientTypes = {
+    vip: { label: 'VIP', icon: <UserPlus size={14} />, color: 'var(--butter)' },
+    good: { label: 'Лояльный', icon: <UserCheck size={14} />, color: 'var(--mint)' },
+    angry: { label: 'Сложный', icon: <UserMinus size={14} />, color: 'var(--rose)' },
+    neutral: { label: 'Обычный', icon: <User size={14} />, color: 'var(--sky)' },
+    sad: { label: 'Грустный', icon: <Smile size={14} />, color: 'var(--peach)' },
+  };
+
+  // History
+  const recentHistory = attempts.slice(0, 5);
+
+  // Achievements
+  const myAchievements = [
+    { id: 'first', title: 'Первый шаг', icon: '🌱', unlocked: completedCount >= 1 },
+    { id: 'master', title: 'Мастер', icon: '🏆', unlocked: completedCount >= 5 },
+    { id: 'stress', title: 'Стрессоустойчивый', icon: '🧘', unlocked: attempts.some(a => {
+      const s = scenarios.find(sc => sc.id === a.scenarioId);
+      return s?.skill === 'Стрессоустойчивость' && a.rating === 3;
+    })},
+    { id: 'streak', title: 'Постоянство', icon: '🔥', unlocked: progress.streak >= 3 },
+  ];
 
   return (
-    <section className="screen progress-screen">
-      <PageTop title="Прогресс" subtitle={`${completedCount} сценариев завершено`} backTo="/home" />
+    <section className="screen progress-screen results-page">
+      <PageTop title="Аналитика" subtitle="Ваш путь к мастерству" backTo="/home" />
 
-      <div className="progress-grid">
-        <article className="plush-lg xp-chart-card">
-          <div className="section-heading compact">
-            <span className="chip butter">XP</span>
-            <h2>По дням</h2>
+      <article className="plush goal-card">
+        <div className="goal-content">
+          <h2>Ваша цель</h2>
+          <p>{progress.goal || 'Улучшить навыки коммуникации'}</p>
+        </div>
+        <div className="goal-icon">🎯</div>
+      </article>
+
+      <div className="results-stats-grid">
+        <article className="plush stat-card cases">
+          <div className="stat-icon"><BookOpen size={24} /></div>
+          <div className="stat-content">
+            <h3>Кейсы</h3>
+            <span className="stat-value">{scenariosCompleted}</span>
           </div>
-          <div className="xp-chart" aria-label="График XP по дням">
-            {xpByDay.map((item) => (
-              <div key={item.day} className="xp-bar">
-                <i style={{ height: `${Math.max(8, (item.xp / maxXp) * 100)}%` }} />
-                <span>{item.day}</span>
-                <strong>{item.xp}</strong>
+        </article>
+        <article className="plush stat-card accuracy">
+          <div className="stat-icon"><Target size={24} /></div>
+          <div className="stat-content">
+            <h3>Точность</h3>
+            <span className="stat-value">{accuracy}%</span>
+          </div>
+        </article>
+        <article className="plush stat-card minutes">
+          <div className="stat-icon"><Clock size={24} /></div>
+          <div className="stat-content">
+            <h3>Минуты</h3>
+            <span className="stat-value">{practiceMinutes}</span>
+          </div>
+        </article>
+      </div>
+
+      <div className="metrics-section">
+        <article className="plush-lg github-grid-container">
+          <div className="github-grid-header">
+            <h2>Активность</h2>
+          </div>
+          <div className="github-grid-wrapper">
+            <div className="github-grid">
+              {gridData.map((day, i) => (
+                <div 
+                  key={i} 
+                  className={`grid-square level-${getLevel(day.count)}`} 
+                  title={`${day.date}: ${day.count} сценариев`}
+                />
+              ))}
+            </div>
+          </div>
+        </article>
+
+        <article className="plush-lg psycho-profile" style={{ padding: '20px' }}>
+          <h2>Психологический профиль</h2>
+          <div className="metrics-grid">
+            <div className="metric-row">
+              <div className="metric-info">
+                <span>Эмпатия</span>
+                <span>{metrics.empathy}% {getTrend(metrics.empathy, prevMetrics.empathy)}</span>
+              </div>
+              <div className="metric-bar-bg"><div className="metric-bar-fill empathy" style={{ width: `${metrics.empathy}%` }} /></div>
+            </div>
+            <div className="metric-row">
+              <div className="metric-info">
+                <span>Ясность</span>
+                <span>{metrics.clarity}% {getTrend(metrics.clarity, prevMetrics.clarity)}</span>
+              </div>
+              <div className="metric-bar-bg"><div className="metric-bar-fill clarity" style={{ width: `${metrics.clarity}%` }} /></div>
+            </div>
+            <div className="metric-row">
+              <div className="metric-info">
+                <span>Стойкость</span>
+                <span>{metrics.resilience}% {getTrend(metrics.resilience, prevMetrics.resilience)}</span>
+              </div>
+              <div className="metric-bar-bg"><div className="metric-bar-fill resilience" style={{ width: `${metrics.resilience}%` }} /></div>
+            </div>
+            <div className="metric-row">
+              <div className="metric-info">
+                <span>Честность</span>
+                <span>{metrics.honesty}% {getTrend(metrics.honesty, prevMetrics.honesty)}</span>
+              </div>
+              <div className="metric-bar-bg"><div className="metric-bar-fill honesty" style={{ width: `${metrics.honesty}%` }} /></div>
+            </div>
+          </div>
+
+          <h3 style={{ marginTop: '24px', fontSize: '16px', fontWeight: '800' }}>Важные эмоции</h3>
+          <div className="emotions-grid">
+            {emotions.map(emo => (
+              <div key={emo.name} className="emotion-item plush-tiny">
+                <span className="emo-icon">{emo.icon}</span>
+                <div className="emo-details">
+                  <div className="emo-header">
+                    <span>{emo.name}</span>
+                    <span className="emo-value">{emo.value}%</span>
+                  </div>
+                  <div className="emo-trend-container">
+                    {emo.trend !== 0 && (
+                      <span className={`trend ${emo.trend > 0 ? 'up' : 'down'}`}>
+                        {emo.trend > 0 ? '↑' : '↓'} {Math.abs(emo.trend)}%
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
         </article>
-
-        <article className="plush skill-card">
-          <h2>Сильные навыки</h2>
-          {skillRows.strong.map((item) => (
-            <div key={item.skill} className="skill-row">
-              <span>{item.skill}</span>
-              <RatingStars rating={item.rating} />
-            </div>
-          ))}
-        </article>
-
-        <article className="plush skill-card">
-          <h2>Зоны роста</h2>
-          {skillRows.weak.map((item) => (
-            <div key={item.skill} className="skill-row">
-              <span>{item.skill}</span>
-              <RatingStars rating={item.rating} />
-            </div>
-          ))}
-        </article>
       </div>
 
-      <section className="achievement-grid">
-        {achievements.map((achievement, index) => {
-          const unlocked =
-            (achievement.id === 'first_step' && completedCount >= 1) ||
-            (achievement.id === 'calm_voice' &&
-              progress.attempts.some((attempt) => {
-                const scenario = scenarios.find((item) => item.id === attempt.scenarioId);
-                return scenario?.skill === 'Стрессоустойчивость' && attempt.rating === 3;
-              })) ||
-            (achievement.id === 'pathfinder' && completedCount >= 5) ||
-            (achievement.id === 'mentor' && progress.attempts.length >= 10);
-
-          return (
-            <article key={achievement.id} className={`achievement-card plush ${unlocked ? 'unlocked' : ''}`}>
-              <span>{unlocked ? achievement.icon : '🔒'}</span>
-              <h3>{achievement.title}</h3>
-              <p>{achievement.description}</p>
-              <small>{unlocked ? 'получено' : `${index + 1}/4`}</small>
+      <section className="achievements-section">
+        <h2>Достижения</h2>
+        <div className="achievements-row">
+          {myAchievements.map(ach => (
+            <article key={ach.id} className={`plush badge-card ${ach.unlocked ? 'unlocked' : ''}`}>
+              <div className="badge-visual">
+                <span className="badge-icon">{ach.unlocked ? ach.icon : '🔒'}</span>
+                {ach.unlocked && <div className="badge-glow" />}
+              </div>
+              <div className="badge-info">
+                <h3>{ach.title}</h3>
+                <span className="badge-status">{ach.unlocked ? 'Получено' : 'Заблокировано'}</span>
+              </div>
             </article>
-          );
-        })}
+          ))}
+        </div>
+      </section>
+
+      <section className="history-section">
+        <h2>Последние диалоги</h2>
+        <div className="history-list">
+          {recentHistory.length > 0 ? (
+            recentHistory.map((attempt, idx) => {
+              const scenario = scenarios.find(s => s.id === attempt.scenarioId);
+              const prevAttempt = attempts[idx + 1];
+              const ratingDiff = prevAttempt ? attempt.rating - prevAttempt.rating : 0;
+              const xpDiff = prevAttempt ? attempt.xpGained - prevAttempt.xpGained : 0;
+              
+              const pType = patientTypes[scenario?.patientType || 'neutral'];
+              
+              const allMatched = attempt.checks?.flatMap(c => c.matched) || [];
+              const uniqueMatched = [...new Set(allMatched)];
+
+              return (
+                <article key={attempt.id} className="plush history-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <div className="history-main">
+                      <div className="patient-badge" style={{ backgroundColor: pType.color }}>
+                        {pType.icon}
+                        <span>{pType.label}</span>
+                      </div>
+                      <div className="history-info">
+                        <h3>{scenario?.title || 'Сценарий'}</h3>
+                        <span>{attempt.date}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="history-metrics">
+                      <div className="history-metric">
+                        <Zap size={14} className="xp-icon" />
+                        <strong>{attempt.xpGained} XP</strong>
+                        {xpDiff !== 0 && (
+                          <span className={`trend ${xpDiff > 0 ? 'up' : 'down'}`}>
+                            {xpDiff > 0 ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="history-rating">
+                        <RatingStars rating={attempt.rating} />
+                        {ratingDiff !== 0 && (
+                          <span className={`trend ${ratingDiff > 0 ? 'up' : 'down'}`}>
+                            {ratingDiff > 0 ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="history-details" style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                    {scenario?.skill && (
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <span className="chip sky" style={{ fontSize: '10px', padding: '2px 8px' }}>Навык</span>
+                        <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--ink)' }}>{scenario.skill}</span>
+                      </div>
+                    )}
+                    {uniqueMatched.length > 0 && (
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                        <span className="chip butter" style={{ fontSize: '10px', padding: '2px 8px' }}>Проработано</span>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                          {uniqueMatched.map(term => (
+                            <span key={term} style={{ fontSize: '12px', background: 'var(--paper)', padding: '1px 6px', borderRadius: '4px', border: '1px solid var(--line)', color: 'var(--ink-2)' }}>
+                              {term}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </article>
+              );
+            })
+          ) : (
+            <p style={{ color: 'var(--ink-soft)' }}>Вы еще не прошли ни одного сценария</p>
+          )}
+        </div>
       </section>
     </section>
   );
@@ -1614,106 +2044,274 @@ function buildSkillRows(progress) {
   };
 }
 
-function PracticePage({ progress }) {
+function PracticePage({ progress, setProgress, t }) {
   const navigate = useNavigate();
-  const openScenarios = scenarios.filter((scenario, index) => getScenarioStatus(scenario, index, progress).label !== 'locked');
+  const quickUsage = getQuickPracticeUsage(progress);
+  const startedRef = useRef(false);
 
-  function startRandom() {
-    const scenario = openScenarios[Math.floor(Math.random() * openScenarios.length)] || scenarios[0];
-    navigate(`/scenario/${scenario.id}`);
-  }
-
-  function startQuickCall() {
-    const scenario = openScenarios.find((item) => item.durationMin <= 4) || openScenarios[0] || scenarios[0];
-    navigate(`/scenario/${scenario.id}`);
-  }
-
-  function repeatMistake() {
-    const weakestAttempt = [...progress.attempts].sort((a, b) => a.rating - b.rating)[0];
-    navigate(`/scenario/${weakestAttempt?.scenarioId || openScenarios[0]?.id || scenarios[0].id}`);
-  }
+  useEffect(() => {
+    if (startedRef.current) {
+      return;
+    }
+    startedRef.current = true;
+    if (quickUsage.remaining > 0) {
+      startQuickPractice(progress, setProgress, navigate, t);
+    }
+  }, [navigate, progress, quickUsage.remaining, setProgress, t]);
 
   return (
     <section className="screen practice-screen">
-      <PageTop title="Практика" subtitle="Быстрые режимы тренировки" backTo="/home" />
-      <div className="practice-grid">
-        <button className="practice-card plush-lg tap" type="button" onClick={startRandom}>
-          <span>🎲</span>
-          <h2>Случайный</h2>
-          <p>Любой открытый сценарий из дерева навыков.</p>
-        </button>
-        <button className="practice-card plush-lg tap" type="button" onClick={startQuickCall}>
-          <span>☎️</span>
-          <h2>Быстрый звонок</h2>
-          <p>Короткий диалог до четырёх минут.</p>
-        </button>
-        <button className="practice-card plush-lg tap" type="button" onClick={repeatMistake}>
-          <span>🔁</span>
-          <h2>Повтор ошибок</h2>
-          <p>Сценарий с самой низкой последней оценкой.</p>
-        </button>
+      <PageTop title={t.modePracticeTitle} subtitle={t.modePracticeDesc} backTo="/home" />
+      <div className="practice-grid" style={{ gridTemplateColumns: '1fr' }}>
+        <article className="practice-card plush-lg">
+          <span>⚡</span>
+          <h2>{t.modePracticeTitle}</h2>
+          <p>{quickUsage.remaining > 0 ? `${quickUsage.remaining}/3 ${t.quickPracticeLeft}` : t.quickPracticeLimit}</p>
+          {quickUsage.remaining > 0 ? (
+            <button
+              className="btn-plush primary tap"
+              type="button"
+              onClick={() => startQuickPractice(progress, setProgress, navigate, t)}
+            >
+              {t.start} →
+            </button>
+          ) : null}
+        </article>
       </div>
     </section>
   );
 }
 
+function MiniOnboardingModal({ isOpen, onClose, onComplete }) {
+  const [step, setStep] = useState(1);
+  const [selectedIndustry, setSelectedIndustry] = useState(null);
+  const [selectedRole, setSelectedRole] = useState('');
+  const [goal, setGoal] = useState('');
+
+  if (!isOpen) return null;
+
+  const handleNext = () => {
+    if (step < 3) {
+      setStep(step + 1);
+    } else {
+      onComplete({ industry: selectedIndustry.id, role: selectedRole, goal });
+      onClose();
+      setStep(1);
+      setSelectedIndustry(null);
+      setSelectedRole('');
+      setGoal('');
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content plush-lg popin" onClick={(e) => e.stopPropagation()}>
+        <button className="modal-close" onClick={onClose} aria-label="Закрыть">
+          <X size={20} />
+        </button>
+
+        <div className="modal-body">
+          {step === 1 && (
+            <div className="onboarding-step">
+              <h2>Выберите отрасль</h2>
+              <div className="industry-grid">
+                {industries.map((ind) => (
+                  <button
+                    key={ind.id}
+                    className={`industry-option plush-tiny tap ${selectedIndustry?.id === ind.id ? 'selected' : ''}`}
+                    onClick={() => setSelectedIndustry(ind)}
+                  >
+                    <span className="ind-icon">{ind.icon}</span>
+                    <span className="ind-name">{ind.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="onboarding-step">
+              <h2>Ваша роль в {selectedIndustry?.name}</h2>
+              <div className="role-list">
+                {selectedIndustry?.roles.map((role) => (
+                  <button
+                    key={role}
+                    className={`role-option plush-tiny tap ${selectedRole === role ? 'selected' : ''}`}
+                    onClick={() => setSelectedRole(role)}
+                  >
+                    {role}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="onboarding-step">
+              <h2>Ваша цель обучения</h2>
+              <input
+                className="goal-input plush-tiny"
+                type="text"
+                placeholder="Например: Сбор анамнеза или Переговоры"
+                value={goal}
+                onChange={(e) => setGoal(e.target.value)}
+                autoFocus
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="modal-footer">
+          <button
+            className="btn-plush primary"
+            onClick={handleNext}
+            disabled={(step === 1 && !selectedIndustry) || (step === 2 && !selectedRole) || (step === 3 && !goal)}
+          >
+            {step === 3 ? 'Завершить' : 'Далее'} <ChevronRight size={18} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ProfilePage({ progress, setProgress }) {
-  function toggleSetting(setting) {
+  const [modalMode, setModalMode] = useState(null); // 'edit' or 'add'
+  const navigate = useNavigate();
+
+  const primaryInd = getIndustry(progress.primaryIndustry);
+
+  const handleModalComplete = (data) => {
+    if (modalMode === 'edit') {
+      setProgress((current) => ({
+        ...current,
+        primaryIndustry: data.industry,
+        role: data.role,
+        goal: data.goal,
+      }));
+    } else {
+      setProgress((current) => ({
+        ...current,
+        additionalIndustries: [...new Set([...current.additionalIndustries, data.industry])],
+      }));
+    }
+    setModalMode(null);
+  };
+
+  const handleSwitchIndustry = (industryId) => {
+    const ind = getIndustry(industryId);
+    setProgress((current) => {
+      const newAdditional = current.additionalIndustries.filter(id => id !== industryId);
+      if (current.primaryIndustry) {
+        newAdditional.push(current.primaryIndustry);
+      }
+      return {
+        ...current,
+        primaryIndustry: industryId,
+        role: ind.roles[0], // Default to first role
+        additionalIndustries: [...new Set(newAdditional)],
+      };
+    });
+  };
+
+  const handleDeleteIndustry = (e, industryId) => {
+    e.stopPropagation();
     setProgress((current) => ({
       ...current,
-      settings: {
-        ...current.settings,
-        [setting]: !current.settings[setting],
-      },
+      additionalIndustries: current.additionalIndustries.filter((id) => id !== industryId),
     }));
-  }
+  };
+
+  const handleReset = () => {
+    if (window.confirm('Сбросить весь прогресс? Это действие нельзя отменить.')) {
+      window.localStorage.removeItem(STORAGE_KEY);
+      window.location.reload();
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch {}
+    try {
+      window.localStorage.removeItem(MOCK_SESSION_KEY);
+    } catch {}
+    navigate('/signin', { replace: true });
+  };
 
   return (
     <section className="screen profile-screen">
-      <PageTop title="Профиль" subtitle="Настройки и награды" backTo="/home" />
-      <div className="profile-grid">
-        <article className="profile-hero plush-lg">
-          <div className="profile-avatar" aria-hidden="true">
-            👤
+      <header className="profile-header">
+        <Link className="back-link" to="/home">
+          <ArrowLeft size={18} /> Назад
+        </Link>
+        <h1>{progress.name}</h1>
+      </header>
+
+      <div className="profile-content">
+        <article className="profile-section plush-lg">
+          <div className="section-head">
+            <span className="chip sky">Текущая специализация</span>
+            <button className="edit-btn" onClick={() => setModalMode('edit')}>
+              ✏️ Изменить
+            </button>
           </div>
-          <h2>Коммуникатор Pro</h2>
-          <div className="profile-stats">
-            <StatPill icon="🔥" label={`${progress.streak} дней`} />
-            <StatPill icon="⭐" label={`${progress.xp} XP`} />
-            <StatPill icon="🪙" label={`${progress.coins} монет`} />
+          <div className="spec-info">
+            <div className="spec-main">
+              <span className="spec-icon">{primaryInd.icon}</span>
+              <div>
+                <h3>{primaryInd.name} • {progress.role}</h3>
+                <p>🎯 Цель: {progress.goal}</p>
+              </div>
+            </div>
           </div>
         </article>
 
-        <article className="settings-card plush">
-          <h2>Настройки</h2>
-          {[
-            ['reminders', 'Ежедневные напоминания'],
-            ['sound', 'Звуки симуляции'],
-            ['coachTips', 'Подсказки тренера'],
-          ].map(([key, label]) => (
-            <label key={key} className="toggle-row">
-              <span>{label}</span>
-              <input
-                type="checkbox"
-                checked={Boolean(progress.settings[key])}
-                onChange={() => toggleSetting(key)}
-              />
-            </label>
-          ))}
+        <article className="profile-section">
+          <h2 className="section-title">Доп. отрасли</h2>
+          <div className="additional-industries">
+            {progress.additionalIndustries.map((id) => {
+              const ind = getIndustry(id);
+              return (
+                <div key={id} className="industry-tag plush-tiny tap" onClick={() => handleSwitchIndustry(id)}>
+                  <span>{ind.icon} {ind.name}</span>
+                  <button className="delete-ind" onClick={(e) => handleDeleteIndustry(e, id)}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              );
+            })}
+            <button className="add-industry-btn plush-tiny tap" onClick={() => setModalMode('add')}>
+              <Plus size={16} /> Добавить отрасль
+            </button>
+          </div>
         </article>
 
-        <article className="profile-card plush">
-          <h2>Рефералка</h2>
-          <p>COMM-{String(progress.xp).slice(-3)}-{progress.streak}DAY</p>
-          <span className="chip mint">+50 XP за друга</span>
+        <article className="streak-card plush tap" onClick={() => navigate('/results-page')}>
+          <div className="streak-info">
+            <span className="streak-emoji">🔥</span>
+            <div>
+              <h3>{progress.streak} дней подряд</h3>
+              <p>Ваш прогресс →</p>
+            </div>
+          </div>
         </article>
 
-        <article className="profile-card plush">
-          <h2>Подписка</h2>
-          <p>Pro-пакет отраслевых сценариев</p>
-          <span className="chip rose">заглушка</span>
-        </article>
+        <div className="profile-actions">
+          <button className="btn-plush reset-btn" onClick={handleReset}>
+            <RefreshCw size={18} /> Сбросить прогресс
+          </button>
+          <button className="btn-plush logout-btn" onClick={handleLogout}>
+            <LogOut size={18} /> Выйти
+          </button>
+        </div>
       </div>
+
+      <MiniOnboardingModal
+        isOpen={!!modalMode}
+        onClose={() => setModalMode(null)}
+        onComplete={handleModalComplete}
+      />
     </section>
   );
 }
@@ -1722,7 +2320,10 @@ export function CommTrainerExperience() {
   const [progress, setProgressState] = useState(loadProgress);
   const [lang, setLang] = useInterfaceLanguage();
   const navigate = useNavigate();
-  const t = text[lang] || text.ru;
+  const location = useLocation();
+  const t = getText(lang);
+
+  const isHomePage = location.pathname === '/home' || location.pathname === '/';
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
@@ -1754,17 +2355,19 @@ export function CommTrainerExperience() {
         <span />
         <span />
       </div>
-      <TrainerToolbar progress={progress} lang={lang} setLang={setLang} t={t} onLogout={handleLogout} />
+      {isHomePage && (
+        <TrainerToolbar progress={progress} lang={lang} setLang={setLang} t={t} onLogout={handleLogout} />
+      )}
       <main className="trainer-main">
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />
-          <Route path="/home" element={<HomePage progress={progress} t={t} />} />
+          <Route path="/home" element={<HomePage progress={progress} setProgress={setProgress} t={t} />} />
           <Route path="/plan" element={<PlanPage progress={progress} />} />
-          <Route path="/scenario/:id" element={<ScenarioPage progress={progress} setProgress={setProgress} />} />
+          <Route path="/scenario/:id" element={<ScenarioPage progress={progress} />} />
           <Route path="/results/:id" element={<ResultsPage progress={progress} />} />
-          <Route path="/library" element={<LibraryPage progress={progress} />} />
-          <Route path="/progress" element={<ProgressPage progress={progress} />} />
-          <Route path="/practice" element={<PracticePage progress={progress} />} />
+          <Route path="/library" element={<LibraryPage progress={progress} setProgress={setProgress} t={t} />} />
+          <Route path="/results-page" element={<ProgressPage progress={progress} />} />
+          <Route path="/practice" element={<PracticePage progress={progress} setProgress={setProgress} t={t} />} />
           <Route path="/profile" element={<ProfilePage progress={progress} setProgress={setProgress} />} />
           <Route path="*" element={<Navigate to="/home" replace />} />
         </Routes>
