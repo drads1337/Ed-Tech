@@ -5,7 +5,7 @@ import { ContactShadows, Environment, OrbitControls, useGLTF } from '@react-thre
 import { ArrowLeft } from 'lucide-react';
 import * as THREE from 'three';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { apiRequest, getSessionToken, supabase } from './backendApi.js';
+import { assignments as mockAssignments, organization as mockOrganization, scenarios as mockScenarios } from './mockData.js';
 import ordinaryModelUrl from '../ordinary.glb?url';
 import beardedModelUrl from '../bearded.glb?url';
 import sittingModelUrl from '../note.glb?url';
@@ -1232,6 +1232,248 @@ const TRANSLATIONS = {
   }
 };
 
+const MOCK_USER_KEY = 'training_loop_mock_user';
+const MOCK_SESSION_KEY = 'training_loop_mock_session';
+const ONBOARDING_KEY = 'training_loop_onboarding';
+const ONBOARDING_TOTAL_STEPS = 5;
+
+const INDUSTRY_OPTIONS = [
+  { id: 'medicine', icon: '🏥', label: 'Медицина', tone: 'Забота и точность' },
+  { id: 'psychology', icon: '🧠', label: 'Психология', tone: 'Эмпатия и доверие' },
+  { id: 'law', icon: '⚖️', label: 'Право', tone: 'Аргументы и ясность' },
+  { id: 'education', icon: '🎓', label: 'Образование', tone: 'Подача и вовлечение' },
+  { id: 'business', icon: '💼', label: 'Бизнес', tone: 'Продажи и переговоры' },
+  { id: 'emergency', icon: '🚨', label: 'Экстренные службы', tone: 'Спокойствие под давлением' },
+  { id: 'other', icon: '✨', label: 'Другое', tone: 'Соберём под вашу цель' },
+];
+
+const ROLE_OPTIONS_BY_INDUSTRY = {
+  medicine: [
+    { id: 'doctor-nurse', icon: '👨‍⚕️', label: 'Врач / Медсестра', tone: 'Объяснять пациенту без паники' },
+    { id: 'ambulance-dispatcher', icon: '🚑', label: 'Диспетчер скорой', tone: 'Быстро собирать главное' },
+    { id: 'pharma-rep', icon: '💊', label: 'Фармпредставитель', tone: 'Уверенно отвечать на возражения' },
+    { id: 'medical-student', icon: '🎓', label: 'Студент-медик', tone: 'Тренировать первые диалоги' },
+  ],
+  psychology: [
+    { id: 'psychologist', icon: '🧘', label: 'Психолог', tone: 'Держать контакт в сложной теме' },
+    { id: 'coach', icon: '🌱', label: 'Коуч / Консультант', tone: 'Вести клиента к решению' },
+    { id: 'hr-specialist', icon: '🤝', label: 'HR-специалист', tone: 'Проводить бережные разговоры' },
+    { id: 'psychology-student', icon: '🎓', label: 'Студент', tone: 'Наработать практику' },
+  ],
+  law: [
+    { id: 'lawyer', icon: '⚖️', label: 'Юрист', tone: 'Убедительно объяснять позицию' },
+    { id: 'advocate', icon: '🧾', label: 'Адвокат', tone: 'Держать линию защиты' },
+    { id: 'compliance', icon: '📋', label: 'Комплаенс', tone: 'Прояснять правила без конфликта' },
+    { id: 'law-student', icon: '🎓', label: 'Студент-юрист', tone: 'Тренировать кейсы' },
+  ],
+  education: [
+    { id: 'teacher', icon: '👩‍🏫', label: 'Преподаватель', tone: 'Вовлекать и объяснять проще' },
+    { id: 'methodologist', icon: '📚', label: 'Методист', tone: 'Проектировать понятные сценарии' },
+    { id: 'tutor', icon: '🧩', label: 'Репетитор', tone: 'Мотивировать ученика' },
+    { id: 'student', icon: '🎓', label: 'Студент', tone: 'Прокачать практику общения' },
+  ],
+  business: [
+    { id: 'sales', icon: '💬', label: 'Продажи', tone: 'Закрывать возражения' },
+    { id: 'manager', icon: '📈', label: 'Менеджер', tone: 'Вести командные разговоры' },
+    { id: 'support', icon: '🎧', label: 'Поддержка клиентов', tone: 'Успокаивать клиента' },
+    { id: 'founder', icon: '🚀', label: 'Основатель', tone: 'Питчить и договариваться' },
+  ],
+  emergency: [
+    { id: 'dispatcher', icon: '📞', label: 'Диспетчер', tone: 'Удерживать спокойный темп' },
+    { id: 'rescuer', icon: '🛟', label: 'Спасатель', tone: 'Давать чёткие инструкции' },
+    { id: 'police', icon: '🛡️', label: 'Сотрудник службы', tone: 'Снижать напряжение' },
+    { id: 'volunteer', icon: '🤲', label: 'Волонтёр', tone: 'Помогать без растерянности' },
+  ],
+  other: [
+    { id: 'specialist', icon: '🧭', label: 'Специалист', tone: 'Собрать персональный трек' },
+    { id: 'student-other', icon: '🎓', label: 'Учащийся', tone: 'Начать с простых кейсов' },
+    { id: 'career-switcher', icon: '🔁', label: 'Меняю сферу', tone: 'Быстро войти в контекст' },
+  ],
+};
+
+const FALLBACK_ROLE_OPTION = {
+  id: 'unsure',
+  icon: '❔',
+  label: 'Другое / Не уверен',
+  tone: 'Подстроим тренировку позже',
+};
+
+const GOAL_OPTIONS = [
+  { id: 'calm-client', icon: '🗣️', label: 'Успокоить клиента', tone: 'Говорить так, чтобы вам доверяли' },
+  { id: 'close-deal', icon: '🤝', label: 'Закрыть сделку', tone: 'Уверенно вести к следующему шагу' },
+  { id: 'handle-stress', icon: '🧘', label: 'Не теряться в стрессе', tone: 'Держать тон и фокус' },
+  { id: 'follow-protocol', icon: '📋', label: 'Действовать по протоколу', tone: 'Не упускать важные шаги' },
+  { id: 'career-growth', icon: '🎯', label: 'Вырасти в карьере', tone: 'Прокачать сильную профессиональную подачу' },
+  { id: 'all-at-once', icon: '⚡', label: 'Все сразу', tone: 'Откроем универсальный старт' },
+  { id: 'other', icon: '✨', label: 'Другое', tone: 'Настроим цель вручную позже' },
+];
+
+const EXPERIENCE_OPTIONS = [
+  { id: 'beginner', icon: '🔰', label: 'Новичок', tone: 'Объясняй и помогай' },
+  { id: 'practitioner', icon: '⚡', label: 'Практик', tone: 'Давай сложные кейсы' },
+  { id: 'pro', icon: '🎓', label: 'Профи', tone: 'Только хардкор, без подсказок' },
+  { id: 'other', icon: '✨', label: 'Другое', tone: 'Выберу темп по ходу' },
+];
+
+const EMPTY_ONBOARDING_DRAFT = {
+  industry: null,
+  industryLabel: '',
+  role: null,
+  roleLabel: '',
+  goal: null,
+  goalLabel: '',
+  experience: null,
+  experienceLabel: '',
+  currentStep: 0,
+  completedAt: null,
+};
+
+function readJsonStorage(key, fallback = null) {
+  try {
+    const value = localStorage.getItem(key);
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeJsonStorage(key, value) {
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+function getMockUser() {
+  return readJsonStorage(MOCK_USER_KEY);
+}
+
+function saveMockUser(user) {
+  writeJsonStorage(MOCK_USER_KEY, user);
+}
+
+function hasMockSession() {
+  return readJsonStorage(MOCK_SESSION_KEY)?.active === true;
+}
+
+function setMockSession(email) {
+  writeJsonStorage(MOCK_SESSION_KEY, {
+    active: true,
+    email,
+    signedInAt: new Date().toISOString(),
+  });
+}
+
+function clearMockSession() {
+  localStorage.removeItem(MOCK_SESSION_KEY);
+}
+
+function getOnboardingDraft() {
+  return {
+    ...EMPTY_ONBOARDING_DRAFT,
+    ...readJsonStorage(ONBOARDING_KEY, {}),
+  };
+}
+
+function saveOnboardingDraft(draft) {
+  writeJsonStorage(ONBOARDING_KEY, draft);
+}
+
+function createMockUser({ name, email, role, organizationName, roomKey }) {
+  const normalizedRole = role || 'solo';
+  const now = new Date().toISOString();
+
+  return {
+    id: `mock-${Date.now()}`,
+    name: name.trim(),
+    email: email.trim().toLowerCase(),
+    role: normalizedRole,
+    organizationId: normalizedRole === 'admin' || normalizedRole === 'employee' ? mockOrganization.id : null,
+    organizationName: organizationName?.trim() || mockOrganization.name,
+    roomKey: roomKey?.trim() || '',
+    streak: 0,
+    xp: 0,
+    level: 'Старт',
+    goal: '',
+    weakestSkill: 'Первый диалог',
+    unlockedScenarioIds: [],
+    onboardingRequired: true,
+    onboardingCompleted: false,
+    onboarding: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function getRoleOptions(industryId) {
+  return [...(ROLE_OPTIONS_BY_INDUSTRY[industryId] || ROLE_OPTIONS_BY_INDUSTRY.other), FALLBACK_ROLE_OPTION];
+}
+
+function normalizeOnboardingStep(draft) {
+  const requestedStep = Math.min(Math.max(Number(draft.currentStep) || 0, 0), 4);
+  let firstIncompleteStep = 4;
+
+  if (!draft.industry) {
+    firstIncompleteStep = 0;
+  } else if (!draft.role) {
+    firstIncompleteStep = 1;
+  } else if (!draft.goal) {
+    firstIncompleteStep = 2;
+  } else if (!draft.experience) {
+    firstIncompleteStep = 3;
+  }
+
+  return Math.min(requestedStep, firstIncompleteStep);
+}
+
+function buildOnboardingAiSummary(draft, goalLabelOverride = '') {
+  const goalLabel = goalLabelOverride || draft.goalLabel || 'Прокачать ключевые навыки';
+  const goalOption = GOAL_OPTIONS.find((option) => option.id === draft.goal);
+
+  return {
+    roleLine: `Вы — ${draft.roleLabel || 'специалист'} в сфере «${draft.industryLabel || 'вашей отрасли'}».`,
+    goalLine: `Ваша цель — «${goalLabel}».`,
+    targetLine: `Чтобы выйти на результат, фокус: ${goalOption?.tone || 'собрать персональный трек под вашу роль'}.`,
+    modeLine: draft.experienceLabel ? `Режим тренировок — «${draft.experienceLabel}».` : '',
+  };
+}
+
+function buildMockDashboard(user) {
+  if (user.role === 'admin') {
+    return {
+      organizationId: user.organizationId || mockOrganization.id,
+      weakSkills: ['Эмпатия', 'Структура ответа'],
+      scenarios: mockScenarios.map((scenario, index) => ({
+        scenarioId: scenario.id,
+        title: scenario.title,
+        completionRate: index === 0 ? 0.74 : 0.42,
+        averageScore: index === 0 ? 82 : 76,
+        assignedEmployees: ['employee-lena', 'employee-noah', 'employee-ivy'],
+      })),
+    };
+  }
+
+  const unlockedScenarioIds = new Set(user.unlockedScenarioIds || []);
+  const firstScenario = mockScenarios[0];
+  const assignments = mockAssignments.length
+    ? mockAssignments.map((assignment) => ({
+        ...assignment,
+        assignmentId: assignment.id,
+        status: assignment.status?.toLowerCase?.() || assignment.status,
+        scenario: mockScenarios.find((scenario) => scenario.id === assignment.scenarioId) || firstScenario,
+      }))
+    : [];
+
+  return {
+    assignments: [
+      {
+        assignmentId: 'mock-first-win',
+        status: unlockedScenarioIds.has(firstScenario.id) ? 'unlocked' : 'new',
+        requiredScore: 70,
+        scenario: firstScenario,
+      },
+      ...assignments,
+    ],
+  };
+}
+
 function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -1255,14 +1497,15 @@ function LoginPage() {
 
     setIsSubmitting(true);
     setError('');
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-    if (signInError) {
-      setError(signInError.message);
+    const storedUser = getMockUser();
+    if (!storedUser || storedUser.email !== email.trim().toLowerCase()) {
+      setError('Аккаунт не найден. Сначала зарегистрируйтесь в демо-режиме.');
       setIsSubmitting(false);
       return;
     }
 
-    navigate('/dashboard');
+    setMockSession(storedUser.email);
+    navigate(storedUser.onboardingRequired || !storedUser.onboardingCompleted ? '/onboarding' : '/dashboard');
   };
 
   return (
@@ -1425,27 +1668,22 @@ function RegisterPage() {
 
     setIsSubmitting(true);
     setError('');
-    try {
-      await apiRequest('/api/auth/register', {
-        method: 'POST',
-        body: {
-          name,
-          email,
-          password,
-          role,
-          organizationName: orgName,
-          roomKey,
-        },
-      });
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInError) {
-        throw new Error(signInError.message);
-      }
-      navigate('/dashboard');
-    } catch (submitError) {
-      setError(submitError.message);
-      setIsSubmitting(false);
-    }
+    const mockUser = createMockUser({
+      name,
+      email,
+      role,
+      organizationName: orgName,
+      roomKey,
+    });
+
+    saveMockUser(mockUser);
+    setMockSession(mockUser.email);
+    saveOnboardingDraft({
+      ...EMPTY_ONBOARDING_DRAFT,
+      currentStep: 0,
+      startedAt: new Date().toISOString(),
+    });
+    navigate('/onboarding');
   };
 
   return (
@@ -1635,6 +1873,396 @@ function RegisterPage() {
   );
 }
 
+function BackgroundDoodles() {
+  return (
+    <div className="bg-doodles" aria-hidden="true">
+      <svg className="doodle doodle-sm doodle-1" viewBox="0 0 24 24">
+        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="var(--butter)" stroke="var(--line)" strokeWidth="2" strokeLinejoin="round" />
+      </svg>
+      <svg className="doodle doodle-lg doodle-2" viewBox="0 0 24 24">
+        <path d="M19.36 10.04a6 6 0 00-11.33-1.8 5 5 0 00-6 4.96c0 2.76 2.24 5 5 5h12c2.76 0 5-2.24 5-5a5 5 0 00-4.67-4.96z" fill="var(--sky)" stroke="var(--line)" strokeWidth="2" strokeLinejoin="round" />
+      </svg>
+      <svg className="doodle doodle-md doodle-3" viewBox="0 0 24 24">
+        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="var(--rose)" stroke="var(--line)" strokeWidth="2" strokeLinejoin="round" />
+      </svg>
+      <svg className="doodle doodle-sm doodle-4" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" fill="var(--butter-deep)" stroke="var(--line)" strokeWidth="2" />
+        <circle cx="12" cy="12" r="5" fill="var(--butter)" stroke="var(--line)" strokeWidth="1.5" />
+      </svg>
+      <svg className="doodle doodle-lg doodle-5" viewBox="0 0 24 24">
+        <path d="M4.5 16.5c-1.5 1.5-2.5 3.5-2.5 5.5 2 0 4-1 5.5-2.5m-3-3l6-6M12 3s4 0 7 3-1 9-9 9m-1-12a13 13 0 00-4 4l7 7a13 13 0 004-4" fill="var(--peach)" stroke="var(--line)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="14" cy="10" r="2" fill="white" stroke="var(--line)" strokeWidth="1.5" />
+      </svg>
+      <svg className="doodle doodle-md doodle-6" viewBox="0 0 24 24">
+        <path d="M4 19.5A2.5 2.5 0 016.5 17H20v2.5a2.5 2.5 0 01-2.5 2.5H6.5A2.5 2.5 0 014 19.5z" fill="var(--rose)" stroke="var(--line)" strokeWidth="2" />
+        <path d="M6.5 2H20v15H6.5A2.5 2.5 0 014 14.5V4A2.5 2.5 0 016.5 2z" fill="var(--sky)" stroke="var(--line)" strokeWidth="2" />
+      </svg>
+      <svg className="doodle doodle-sm doodle-7" viewBox="0 0 24 24">
+        <path d="M9 21h6m-5.25-3h4.5M12 3a7 7 0 00-6.9 8.2c.5 2.5 2 4.6 3.9 5.8h6c1.9-1.2 3.4-3.3 3.9-5.8A7 7 0 0012 3z" fill="var(--butter-deep)" stroke="var(--line)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      <svg className="doodle doodle-lg doodle-8" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" fill="var(--mint)" stroke="var(--line)" strokeWidth="2" />
+        <circle cx="8" cy="10" r="1.5" fill="var(--line)" />
+        <circle cx="16" cy="10" r="1.5" fill="var(--line)" />
+        <path d="M8 15a4 4 0 008 0" fill="none" stroke="var(--line)" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+      <svg className="doodle doodle-lg doodle-9" viewBox="0 0 24 24">
+        <path d="M3 3v18h18" stroke="var(--line)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <path d="M18.5 7.5L12 14l-4-4-5 5" stroke="var(--line)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <path d="M14 7.5h4.5V12" stroke="var(--line)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <rect x="6" y="14" width="2" height="4" rx="0.5" fill="var(--mint)" stroke="var(--line)" strokeWidth="1.5" />
+        <rect x="11" y="10" width="2" height="8" rx="0.5" fill="var(--butter)" stroke="var(--line)" strokeWidth="1.5" />
+        <rect x="16" y="6" width="2" height="12" rx="0.5" fill="var(--rose)" stroke="var(--line)" strokeWidth="1.5" />
+      </svg>
+      <svg className="doodle doodle-md doodle-10" viewBox="0 0 24 24">
+        <path d="M17 8h1a3 3 0 110 6h-1m-12-6h12v7a4 4 0 01-4 4H9a4 4 0 01-4-4V8z" fill="var(--peach)" stroke="var(--line)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M9 2v3M12 2v3M15 2v3" stroke="var(--line)" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+      <svg className="doodle doodle-md doodle-11" viewBox="0 0 24 24">
+        <path d="M12 2L2 7l10 5 10-5-10-5z" fill="var(--sky-deep)" stroke="var(--line)" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M6 10v6c0 2.2 2.7 4 6 4s6-1.8 6-4v-6" fill="var(--sky)" stroke="var(--line)" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M20 7v6" stroke="var(--line)" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+      <svg className="doodle doodle-sm doodle-12" viewBox="0 0 24 24">
+        <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3zm6 11l.75 2.25L21 17l-2.25.75L18 20l-.75-2.25L15 17l2.25-.75L18 14z" fill="var(--butter-deep)" stroke="var(--line)" strokeWidth="1.5" strokeLinejoin="round" />
+      </svg>
+    </div>
+  );
+}
+
+function OnboardingOptionCard({ option, isSelected, onSelect }) {
+  return (
+    <button
+      type="button"
+      className={`onboarding-option tap ${isSelected ? 'is-selected' : ''}`}
+      onClick={() => onSelect(option)}
+    >
+      <span className="onboarding-option-icon">{option.icon}</span>
+      <span>
+        <strong>{option.label}</strong>
+        <small>{option.tone}</small>
+      </span>
+    </button>
+  );
+}
+
+function OnboardingPage() {
+  const navigate = useNavigate();
+  const [draft, setDraft] = useState(() => getOnboardingDraft());
+  const [stepIndex, setStepIndex] = useState(() => normalizeOnboardingStep(getOnboardingDraft()));
+  const [isEditingGoal, setIsEditingGoal] = useState(false);
+  const [customGoalLabel, setCustomGoalLabel] = useState('');
+  const progress = Math.round(((stepIndex + 1) / ONBOARDING_TOTAL_STEPS) * 100);
+  const aiSummary = useMemo(
+    () => buildOnboardingAiSummary(draft, customGoalLabel.trim() || draft.goalLabel),
+    [draft, customGoalLabel],
+  );
+  const roleOptions = useMemo(() => getRoleOptions(draft.industry), [draft.industry]);
+
+  useEffect(() => {
+    const user = getMockUser();
+
+    if (!hasMockSession() || !user) {
+      navigate('/signup', { replace: true });
+      return;
+    }
+
+    if (user.onboardingCompleted && !user.onboardingRequired) {
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+
+    const savedDraft = getOnboardingDraft();
+    const normalizedStep = normalizeOnboardingStep(savedDraft);
+    setDraft(savedDraft);
+    setStepIndex(normalizedStep);
+  }, [navigate]);
+
+  const persistDraft = useCallback((nextDraft) => {
+    const normalizedStep = normalizeOnboardingStep(nextDraft);
+    const draftToSave = {
+      ...nextDraft,
+      currentStep: normalizedStep,
+    };
+
+    setDraft(draftToSave);
+    setStepIndex(normalizedStep);
+    saveOnboardingDraft(draftToSave);
+  }, []);
+
+  const selectIndustry = (option) => {
+    persistDraft({
+      ...draft,
+      industry: option.id,
+      industryLabel: option.label,
+      role: null,
+      roleLabel: '',
+      currentStep: 1,
+    });
+  };
+
+  const selectRole = (option) => {
+    persistDraft({
+      ...draft,
+      role: option.id,
+      roleLabel: option.label,
+      currentStep: 2,
+    });
+  };
+
+  const selectGoal = (option) => {
+    persistDraft({
+      ...draft,
+      goal: option.id,
+      goalLabel: option.label,
+      currentStep: 3,
+    });
+  };
+
+  const selectExperience = (option) => {
+    persistDraft({
+      ...draft,
+      experience: option.id,
+      experienceLabel: option.label,
+      currentStep: 4,
+    });
+  };
+
+  const skipGoal = () => {
+    selectGoal({
+      id: 'not-now',
+      icon: '⏭️',
+      label: 'Не сейчас',
+      tone: 'Вернёмся к цели позже',
+    });
+  };
+
+  const skipExperience = () => {
+    selectExperience({
+      id: 'not-now',
+      icon: '⏭️',
+      label: 'Не сейчас',
+      tone: 'Начнём с мягкого режима',
+    });
+  };
+
+  const goBack = () => {
+    const previousStep = Math.max(stepIndex - 1, 0);
+    const nextDraft = {
+      ...draft,
+      currentStep: previousStep,
+    };
+
+    setStepIndex(previousStep);
+    setDraft(nextDraft);
+    saveOnboardingDraft(nextDraft);
+  };
+
+  const completeOnboarding = (goalLabelOverride = '') => {
+    const user = getMockUser();
+    const completedAt = new Date().toISOString();
+    const firstScenarioId = mockScenarios[0]?.id;
+    const unlockedScenarioIds = Array.from(new Set([...(user?.unlockedScenarioIds || []), firstScenarioId].filter(Boolean)));
+    const finalGoalLabel = goalLabelOverride.trim() || draft.goalLabel || 'Первая тренировка';
+    const completedDraft = {
+      ...draft,
+      goalLabel: finalGoalLabel,
+      currentStep: 4,
+      completedAt,
+    };
+
+    if (user) {
+      saveMockUser({
+        ...user,
+        xp: (Number(user.xp) || 0) + (user.onboardingCompleted ? 0 : 10),
+        streak: Math.max(Number(user.streak) || 0, 1),
+        level: 'Level 1',
+        goal: finalGoalLabel,
+        weakestSkill: 'Коммуникация',
+        unlockedScenarioIds,
+        onboardingRequired: false,
+        onboardingCompleted: true,
+        onboarding: completedDraft,
+        updatedAt: completedAt,
+      });
+    }
+
+    saveOnboardingDraft(completedDraft);
+    navigate('/dashboard', { replace: true });
+  };
+
+  const renderHeader = (eyebrow, title, subtitle) => (
+    <div className="onboarding-heading">
+      <span className="chip peach">{eyebrow}</span>
+      <h1>{title}</h1>
+      <p>{subtitle}</p>
+    </div>
+  );
+
+  const renderStep = () => {
+    if (stepIndex === 0) {
+      return (
+        <>
+          {renderHeader('Шаг 1 из 5', 'В какой сфере вы работаете или хотите развиваться?', 'Выберите ближайший контекст, чтобы сценарии сразу звучали по делу.')}
+          <div className="onboarding-grid industry-grid">
+            {INDUSTRY_OPTIONS.map((option) => (
+              <OnboardingOptionCard
+                key={option.id}
+                option={option}
+                isSelected={draft.industry === option.id}
+                onSelect={selectIndustry}
+              />
+            ))}
+          </div>
+        </>
+      );
+    }
+
+    if (stepIndex === 1) {
+      return (
+        <>
+          {renderHeader('Шаг 2 из 5', 'Кем вы работаете в этой сфере?', 'Роли подстраиваются под выбранную отрасль.')}
+          <div className="onboarding-grid">
+            {roleOptions.map((option) => (
+              <OnboardingOptionCard
+                key={option.id}
+                option={option}
+                isSelected={draft.role === option.id}
+                onSelect={selectRole}
+              />
+            ))}
+          </div>
+        </>
+      );
+    }
+
+    if (stepIndex === 2) {
+      return (
+        <>
+          {renderHeader('Шаг 3 из 5', 'Что хотите прокачать в первую очередь?', 'Выберите результат, который хочется почувствовать уже в первых тренировках.')}
+          <div className="onboarding-grid">
+            {GOAL_OPTIONS.map((option) => (
+              <OnboardingOptionCard
+                key={option.id}
+                option={option}
+                isSelected={draft.goal === option.id}
+                onSelect={selectGoal}
+              />
+            ))}
+          </div>
+          <button type="button" className="onboarding-skip" onClick={skipGoal}>
+            Не сейчас
+          </button>
+        </>
+      );
+    }
+
+    if (stepIndex === 3) {
+      return (
+        <>
+          {renderHeader('Шаг 4 из 5', 'Как будете тренироваться?', 'Выберите уровень давления: от спокойной поддержки до сложных кейсов.')}
+          <div className="onboarding-grid">
+            {EXPERIENCE_OPTIONS.map((option) => (
+              <OnboardingOptionCard
+                key={option.id}
+                option={option}
+                isSelected={draft.experience === option.id}
+                onSelect={selectExperience}
+              />
+            ))}
+          </div>
+          <button type="button" className="onboarding-skip" onClick={skipExperience}>
+            Не сейчас
+          </button>
+        </>
+      );
+    }
+
+    const activeGoalLabel = customGoalLabel.trim() || draft.goalLabel;
+
+    return (
+      <>
+        {renderHeader('Шаг 5 из 5', 'Как мы вас поняли', 'Проверьте профиль. Если всё верно — откроем главное меню.')}
+        <div className="onboarding-summary">
+          <span className="chip sky">{draft.industryLabel || 'Сфера выбрана'}</span>
+          <span className="chip mint">{draft.roleLabel || 'Роль выбрана'}</span>
+          <span className="chip butter">{activeGoalLabel || 'Цель выбрана'}</span>
+          <span className="chip rose">{draft.experienceLabel || 'Формат выбран'}</span>
+        </div>
+
+        <div className="onboarding-ai-card popin">
+          <span className="onboarding-ai-badge">AI</span>
+          <div className="onboarding-ai-lines">
+            <p>{aiSummary.roleLine}</p>
+            <p>{aiSummary.goalLine}</p>
+            <p>{aiSummary.targetLine}</p>
+            {aiSummary.modeLine ? <p>{aiSummary.modeLine}</p> : null}
+          </div>
+
+          {isEditingGoal ? (
+            <div className="onboarding-goal-edit">
+              <label className="form-label" htmlFor="onboarding-goal-edit">
+                Уточните цель
+              </label>
+              <input
+                id="onboarding-goal-edit"
+                type="text"
+                className="form-input"
+                value={customGoalLabel}
+                onChange={(event) => setCustomGoalLabel(event.target.value)}
+                placeholder="Например: уверенно вести сложные разговоры"
+              />
+              <button
+                type="button"
+                className="btn-plush primary"
+                onClick={() => completeOnboarding(customGoalLabel)}
+                disabled={!customGoalLabel.trim()}
+              >
+                Сохранить и перейти в меню
+              </button>
+            </div>
+          ) : (
+            <div className="onboarding-ai-actions">
+              <button type="button" className="btn-plush primary" onClick={() => completeOnboarding()}>
+                Да, всё верно
+              </button>
+              <button
+                type="button"
+                className="btn-plush"
+                onClick={() => {
+                  setCustomGoalLabel(draft.goalLabel || '');
+                  setIsEditingGoal(true);
+                }}
+              >
+                Нет, исправить цель
+              </button>
+            </div>
+          )}
+        </div>
+      </>
+    );
+  };
+
+  return (
+    <main className="product-app dots-bg onboarding-page">
+      <BackgroundDoodles />
+      <section className="onboarding-shell plush-lg paper popin">
+        <div className="onboarding-topbar">
+          <button type="button" className="btn-plush sm" onClick={goBack} disabled={stepIndex === 0}>
+            <ArrowLeft size={16} /> Назад
+          </button>
+          <div className="onboarding-progress" aria-label={`Прогресс ${progress}%`}>
+            <span style={{ width: `${progress}%` }} />
+          </div>
+          <strong>{progress}%</strong>
+        </div>
+
+        {renderStep()}
+      </section>
+    </main>
+  );
+}
+
 function DashboardPage() {
   const [profile, setProfile] = useState(null);
   const [dashboard, setDashboard] = useState(null);
@@ -1643,46 +2271,26 @@ function DashboardPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    let isActive = true;
+    const userProfile = getMockUser();
 
-    async function loadDashboard() {
-      try {
-        const token = await getSessionToken();
-        if (!token) {
-          navigate('/signin', { replace: true });
-          return;
-        }
-
-        const userProfile = await apiRequest('/api/me', { token });
-        const dashboardPath =
-          userProfile.role === 'admin' ? '/api/admin/dashboard' : '/api/employee/dashboard';
-        const dashboardPayload = await apiRequest(dashboardPath, { token });
-
-        if (isActive) {
-          setProfile(userProfile);
-          setDashboard(dashboardPayload);
-          setError('');
-        }
-      } catch (loadError) {
-        if (isActive) {
-          setError(loadError.message);
-        }
-      } finally {
-        if (isActive) {
-          setIsLoading(false);
-        }
-      }
+    if (!hasMockSession() || !userProfile) {
+      navigate('/signin', { replace: true });
+      return;
     }
 
-    loadDashboard();
+    if (userProfile.onboardingRequired || !userProfile.onboardingCompleted) {
+      navigate('/onboarding', { replace: true });
+      return;
+    }
 
-    return () => {
-      isActive = false;
-    };
+    setProfile(userProfile);
+    setDashboard(buildMockDashboard(userProfile));
+    setError('');
+    setIsLoading(false);
   }, [navigate]);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    clearMockSession();
     navigate('/signin', { replace: true });
   };
 
@@ -1706,6 +2314,7 @@ function DashboardPage() {
               <span className={`header-avatar ${profile.role}`}>{profile.name?.[0] || 'U'}</span>
               <span className="header-username">{profile.name}</span>
               <span className="chip sky">{profile.role}</span>
+              <span className="chip butter">{profile.xp || 0} XP</span>
             </div>
           ) : null}
           <button type="button" className="btn-plush sm" onClick={handleSignOut}>Sign out</button>
@@ -1714,10 +2323,10 @@ function DashboardPage() {
 
       <section className="dashboard-shell plush-lg paper popin">
         <div className="preview-heading">
-          <span className="chip peach">Connected to FastAPI</span>
+          <span className="chip peach">Mock profile</span>
           <h2>{profile?.role === 'admin' ? 'Admin dashboard' : 'Employee dashboard'}</h2>
           <p>
-            Live data is coming from Supabase through the FastAPI backend.
+            Данные собраны локально после онбординга. Первый сценарий открыт, а награда уже в профиле.
           </p>
         </div>
 
@@ -1821,6 +2430,7 @@ export default function App() {
         <Route path="/" element={<Navigate to="/signin" replace />} />
         <Route path="/signin" element={<LoginPage />} />
         <Route path="/signup" element={<RegisterPage />} />
+        <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="*" element={<Navigate to="/signin" replace />} />
       </Routes>
