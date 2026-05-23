@@ -1,6 +1,8 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { BrowserRouter, Navigate, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { Canvas, useThree } from '@react-three/fiber';
 import { ContactShadows, Environment, OrbitControls, useGLTF } from '@react-three/drei';
+import { ArrowLeft } from 'lucide-react';
 import * as THREE from 'three';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import ordinaryModelUrl from '../ordinary.glb?url';
@@ -17,7 +19,6 @@ import {
   SITTING_POSE_REVISION,
   STANDING_POSE_REVISION,
 } from './casePoses.js';
-
 const NEUTRAL_TRANSFORM = { x: 0, y: 0, z: 0, scale: 1 };
 
 const DEFAULT_CHAISE_TRANSFORM = { ...CHAISE_POSE.chaiseTransform };
@@ -996,7 +997,7 @@ function applyPoseState(caseItem, loadedBones, setters) {
   setters.setResetToken((currentToken) => currentToken + 1);
 }
 
-export default function App() {
+function SimulationScene({ onBackToDashboard }) {
   const [activeCaseId, setActiveCaseId] = useState('desk');
   const [bones, setBones] = useState([]);
   const [modelTransform, setModelTransform] = useState(() => ({ ...CHAISE_POSE.modelTransform }));
@@ -1083,6 +1084,16 @@ export default function App() {
             </button>
           ))}
         </div>
+        {onBackToDashboard && (
+          <button
+            type="button"
+            className="btn-plush sm"
+            style={{ background: 'var(--rose)', marginLeft: 'auto' }}
+            onClick={onBackToDashboard}
+          >
+            <ArrowLeft size={16} /> Назад в кабинет
+          </button>
+        )}
       </div>
 
       <Canvas
@@ -1124,5 +1135,236 @@ export default function App() {
         <SceneCameraControls settings={activeCameraSettings} />
       </Canvas>
     </main>
+  );
+}
+
+function LoginPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!email || !password) {
+      setError('Пожалуйста, заполните все поля');
+      return;
+    }
+    alert(`Вход выполнен успешно для: ${email}`);
+    navigate('/signin');
+  };
+
+  return (
+    <div className="auth-wrapper dots-bg">
+      <div className="auth-card plush-lg paper popin">
+        <div className="auth-header">
+          <h2>С возвращением!</h2>
+          <p>Войдите, чтобы продолжить тренировки</p>
+        </div>
+
+        {error && <div className="toast-alert warning">{error}</div>}
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label className="form-label">Email</label>
+            <input
+              type="email"
+              className="form-input"
+              placeholder="example@mail.com"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setError('');
+              }}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Пароль</label>
+            <input
+              type="password"
+              className="form-input"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError('');
+              }}
+            />
+          </div>
+
+          <button type="submit" className="btn-plush primary" style={{ width: '100%', marginTop: '8px' }}>
+            Войти в систему
+          </button>
+        </form>
+
+        <div className="auth-footer">
+          Еще нет аккаунта?
+          <Link to="/signup" className="auth-link">
+            Зарегистрироваться
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RegisterPage() {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [role, setRole] = useState('solo');
+  const [orgName, setOrgName] = useState('');
+  const [roomKey, setRoomKey] = useState('');
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!name || !email || !password) {
+      setError('Пожалуйста, заполните обязательные поля');
+      return;
+    }
+    if (role === 'admin' && !orgName.trim()) {
+      setError('Пожалуйста, укажите название вашей организации');
+      return;
+    }
+    if (role === 'employee' && !roomKey.trim()) {
+      setError('Пожалуйста, введите ключ комнаты из приглашения');
+      return;
+    }
+
+    alert(`Регистрация успешна для: ${email}`);
+    navigate('/signin');
+  };
+
+  return (
+    <div className="auth-wrapper dots-bg">
+      <div className="auth-card plush-lg paper popin">
+        <div className="auth-header">
+          <h2>Регистрация</h2>
+          <p>Создайте аккаунт и начните тренироваться</p>
+        </div>
+
+        {error && <div className="toast-alert warning">{error}</div>}
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label className="form-label">Ваше имя</label>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Иван Иванов"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setError('');
+              }}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Email</label>
+            <input
+              type="email"
+              className="form-input"
+              placeholder="example@mail.com"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setError('');
+              }}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Тип аккаунта</label>
+            <select
+              className="form-select"
+              value={role}
+              onChange={(e) => {
+                setRole(e.target.value);
+                setError('');
+              }}
+            >
+              <option value="solo">Индивидуальные тренировки (Solo)</option>
+              <option value="admin">Координатор обучения компании (Admin)</option>
+              <option value="employee">Сотрудник по приглашению (Employee)</option>
+            </select>
+          </div>
+
+          {role === 'admin' && (
+            <div className="form-group popin">
+              <label className="form-label">Название организации</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="ООО Рога и Копыта"
+                value={orgName}
+                onChange={(e) => {
+                  setOrgName(e.target.value);
+                  setError('');
+                }}
+              />
+            </div>
+          )}
+
+          {role === 'employee' && (
+            <div className="form-group popin">
+              <label className="form-label">Ключ комнаты</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Например: TEAM-7K2M"
+                value={roomKey}
+                autoComplete="off"
+                onChange={(e) => {
+                  setRoomKey(e.target.value);
+                  setError('');
+                }}
+              />
+            </div>
+          )}
+
+          <div className="form-group">
+            <label className="form-label">Пароль</label>
+            <input
+              type="password"
+              className="form-input"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError('');
+              }}
+            />
+          </div>
+
+          <button type="submit" className="btn-plush primary" style={{ width: '100%', marginTop: '8px' }}>
+            Создать аккаунт
+          </button>
+        </form>
+
+        <div className="auth-footer">
+          Уже зарегистрированы?
+          <Link to="/signin" className="auth-link">
+            Войти
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Navigate to="/signin" replace />} />
+        <Route path="/signin" element={<LoginPage />} />
+        <Route path="/signup" element={<RegisterPage />} />
+        <Route path="*" element={<Navigate to="/signin" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
