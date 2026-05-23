@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
-from .routers import assignments, attempts, dashboards, materials, scenarios, simulation
+from .routers import assignments, attempts, auth, dashboards, materials, scenarios, simulation
 
 
 def create_app() -> FastAPI:
@@ -18,6 +18,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(materials.router)
+    app.include_router(auth.router)
     app.include_router(scenarios.router)
     app.include_router(assignments.router)
     app.include_router(dashboards.router)

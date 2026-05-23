@@ -6,6 +6,14 @@ from .supabase_client import get_supabase_client
 
 class Repository(ABC):
     @abstractmethod
+    def create_organization(self, name: str) -> dict:
+        raise NotImplementedError
+
+    @abstractmethod
+    def upsert_profile(self, payload: dict) -> dict:
+        raise NotImplementedError
+
+    @abstractmethod
     def get_profile(self, user_id: str) -> dict | None:
         raise NotImplementedError
 
@@ -49,6 +57,14 @@ class Repository(ABC):
 class SupabaseRepository(Repository):
     def __init__(self) -> None:
         self.client = get_supabase_client()
+
+    def create_organization(self, name: str) -> dict:
+        result = self.client.table("organizations").insert({"name": name}).execute()
+        return result.data[0]
+
+    def upsert_profile(self, payload: dict) -> dict:
+        result = self.client.table("profiles").upsert(payload).execute()
+        return result.data[0]
 
     def get_profile(self, user_id: str) -> dict | None:
         result = self.client.table("profiles").select("*").eq("id", user_id).maybe_single().execute()
@@ -152,6 +168,14 @@ class InMemoryRepository(Repository):
         self.scenarios: dict[str, dict] = {}
         self.assignments: dict[str, dict] = {}
         self.attempts: dict[str, dict] = {}
+
+    def create_organization(self, name: str) -> dict:
+        row = {"id": str(uuid4()), "name": name}
+        return row
+
+    def upsert_profile(self, payload: dict) -> dict:
+        self.profiles[payload["id"]] = payload
+        return payload
 
     def get_profile(self, user_id: str) -> dict | None:
         return self.profiles.get(user_id)

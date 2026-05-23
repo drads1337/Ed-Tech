@@ -30,6 +30,15 @@ class Profile(ApiModel):
     streak: int = 0
 
 
+class RegisterRequest(ApiModel):
+    name: str
+    email: str
+    password: str
+    role: Role = Role.solo
+    organization_name: str | None = None
+    room_key: str | None = None
+
+
 class MaterialCreate(ApiModel):
     title: str
     type: str = "text"

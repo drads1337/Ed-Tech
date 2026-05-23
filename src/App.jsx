@@ -5,6 +5,7 @@ import { ContactShadows, Environment, OrbitControls, useGLTF } from '@react-thre
 import { ArrowLeft } from 'lucide-react';
 import * as THREE from 'three';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { apiRequest, getSessionToken, supabase } from './backendApi.js';
 import ordinaryModelUrl from '../ordinary.glb?url';
 import beardedModelUrl from '../bearded.glb?url';
 import sittingModelUrl from '../note.glb?url';
@@ -1235,6 +1236,7 @@ function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
   const [lang, setLang] = useState(() => localStorage.getItem('app_lang') || 'ru');
@@ -1244,14 +1246,23 @@ function LoginPage() {
     localStorage.setItem('app_lang', l);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password) {
       setError(TRANSLATIONS[lang].errorFields);
       return;
     }
-    alert(`${TRANSLATIONS[lang].successLogin} ${email}`);
-    navigate('/signin');
+
+    setIsSubmitting(true);
+    setError('');
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    if (signInError) {
+      setError(signInError.message);
+      setIsSubmitting(false);
+      return;
+    }
+
+    navigate('/dashboard');
   };
 
   return (
@@ -1363,8 +1374,8 @@ function LoginPage() {
             />
           </div>
 
-          <button type="submit" className="btn-plush primary" style={{ width: '100%', marginTop: '8px' }}>
-            {TRANSLATIONS[lang].signInBtn}
+          <button type="submit" className="btn-plush primary" style={{ width: '100%', marginTop: '8px' }} disabled={isSubmitting}>
+            {isSubmitting ? 'Signing in...' : TRANSLATIONS[lang].signInBtn}
           </button>
         </form>
 
@@ -1387,6 +1398,7 @@ function RegisterPage() {
   const [orgName, setOrgName] = useState('');
   const [roomKey, setRoomKey] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
   const [lang, setLang] = useState(() => localStorage.getItem('app_lang') || 'ru');
@@ -1396,7 +1408,7 @@ function RegisterPage() {
     localStorage.setItem('app_lang', l);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name || !email || !password) {
       setError(TRANSLATIONS[lang].errorRequired);
@@ -1411,8 +1423,29 @@ function RegisterPage() {
       return;
     }
 
-    alert(`${TRANSLATIONS[lang].successRegister} ${email}`);
-    navigate('/signin');
+    setIsSubmitting(true);
+    setError('');
+    try {
+      await apiRequest('/api/auth/register', {
+        method: 'POST',
+        body: {
+          name,
+          email,
+          password,
+          role,
+          organizationName: orgName,
+          roomKey,
+        },
+      });
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) {
+        throw new Error(signInError.message);
+      }
+      navigate('/dashboard');
+    } catch (submitError) {
+      setError(submitError.message);
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -1586,8 +1619,8 @@ function RegisterPage() {
             />
           </div>
 
-          <button type="submit" className="btn-plush primary" style={{ width: '100%', marginTop: '8px' }}>
-            {TRANSLATIONS[lang].signUpBtn}
+          <button type="submit" className="btn-plush primary" style={{ width: '100%', marginTop: '8px' }} disabled={isSubmitting}>
+            {isSubmitting ? 'Creating...' : TRANSLATIONS[lang].signUpBtn}
           </button>
         </form>
 
@@ -1602,6 +1635,185 @@ function RegisterPage() {
   );
 }
 
+function DashboardPage() {
+  const [profile, setProfile] = useState(null);
+  const [dashboard, setDashboard] = useState(null);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadDashboard() {
+      try {
+        const token = await getSessionToken();
+        if (!token) {
+          navigate('/signin', { replace: true });
+          return;
+        }
+
+        const userProfile = await apiRequest('/api/me', { token });
+        const dashboardPath =
+          userProfile.role === 'admin' ? '/api/admin/dashboard' : '/api/employee/dashboard';
+        const dashboardPayload = await apiRequest(dashboardPath, { token });
+
+        if (isActive) {
+          setProfile(userProfile);
+          setDashboard(dashboardPayload);
+          setError('');
+        }
+      } catch (loadError) {
+        if (isActive) {
+          setError(loadError.message);
+        }
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadDashboard();
+
+    return () => {
+      isActive = false;
+    };
+  }, [navigate]);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate('/signin', { replace: true });
+  };
+
+  if (isLoading) {
+    return (
+      <main className="product-app dots-bg dashboard-page">
+        <section className="dashboard-shell plush-lg paper">
+          <p className="empty-state">Loading dashboard...</p>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="product-app dots-bg dashboard-page">
+      <header className="app-header">
+        <Link to="/dashboard" className="app-logo">Training Loop</Link>
+        <div className="header-user">
+          {profile ? (
+            <div className="header-user-info">
+              <span className={`header-avatar ${profile.role}`}>{profile.name?.[0] || 'U'}</span>
+              <span className="header-username">{profile.name}</span>
+              <span className="chip sky">{profile.role}</span>
+            </div>
+          ) : null}
+          <button type="button" className="btn-plush sm" onClick={handleSignOut}>Sign out</button>
+        </div>
+      </header>
+
+      <section className="dashboard-shell plush-lg paper popin">
+        <div className="preview-heading">
+          <span className="chip peach">Connected to FastAPI</span>
+          <h2>{profile?.role === 'admin' ? 'Admin dashboard' : 'Employee dashboard'}</h2>
+          <p>
+            Live data is coming from Supabase through the FastAPI backend.
+          </p>
+        </div>
+
+        {error ? <div className="toast-alert warning">{error}</div> : null}
+
+        {profile?.role === 'admin' ? (
+          <AdminDashboardView dashboard={dashboard} />
+        ) : (
+          <EmployeeDashboardView dashboard={dashboard} />
+        )}
+      </section>
+    </main>
+  );
+}
+
+function AdminDashboardView({ dashboard }) {
+  const scenarios = dashboard?.scenarios || [];
+
+  return (
+    <div className="dashboard-grid">
+      <div className="stat-card">
+        <span>Organization</span>
+        <strong>{dashboard?.organizationId || 'No organization'}</strong>
+      </div>
+      <div className="stat-card">
+        <span>Scenarios</span>
+        <strong>{scenarios.length}</strong>
+      </div>
+      <div className="stat-card">
+        <span>Weak skills</span>
+        <strong>{dashboard?.weakSkills?.length || 0}</strong>
+      </div>
+
+      {scenarios.map((scenario) => (
+        <article key={scenario.scenarioId} className="dashboard-card">
+          <div>
+            <span className="chip butter">Scenario</span>
+            <h3>{scenario.title}</h3>
+          </div>
+          <div className="stat-grid">
+            <div className="stat-card">
+              <span>Completion</span>
+              <strong>{Math.round((scenario.completionRate || 0) * 100)}%</strong>
+            </div>
+            <div className="stat-card">
+              <span>Average</span>
+              <strong>{scenario.averageScore ?? 'N/A'}</strong>
+            </div>
+            <div className="stat-card">
+              <span>Employees</span>
+              <strong>{scenario.assignedEmployees.length}</strong>
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function EmployeeDashboardView({ dashboard }) {
+  const assignments = dashboard?.assignments || [];
+
+  return (
+    <div className="dashboard-grid">
+      <div className="stat-card">
+        <span>Assignments</span>
+        <strong>{assignments.length}</strong>
+      </div>
+      <div className="stat-card">
+        <span>Completed</span>
+        <strong>{assignments.filter((assignment) => assignment.status === 'completed').length}</strong>
+      </div>
+      <div className="stat-card">
+        <span>Required score</span>
+        <strong>{assignments[0]?.requiredScore || 'N/A'}</strong>
+      </div>
+
+      {assignments.length ? assignments.map((assignment) => (
+        <article key={assignment.assignmentId} className="dashboard-card">
+          <div>
+            <span className="chip mint">{assignment.status}</span>
+            <h3>{assignment.scenario.title}</h3>
+            <p>{assignment.scenario.openingMessage}</p>
+          </div>
+          <button type="button" className="btn-plush sm primary">Start training</button>
+        </article>
+      )) : (
+        <article className="dashboard-card">
+          <h3>No assignments yet</h3>
+          <p>Your coach has not assigned a scenario to this account.</p>
+        </article>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -1609,6 +1821,7 @@ export default function App() {
         <Route path="/" element={<Navigate to="/signin" replace />} />
         <Route path="/signin" element={<LoginPage />} />
         <Route path="/signup" element={<RegisterPage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="*" element={<Navigate to="/signin" replace />} />
       </Routes>
     </BrowserRouter>

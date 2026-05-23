@@ -12,6 +12,7 @@
   "dependencies": {
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
+    "@supabase/supabase-js": "^2.106.1",
     "@vitejs/plugin-react": "^6.0.2",
     "lucide-react": "^1.16.0",
     "ogl": "^1.0.11",
