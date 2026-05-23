@@ -2179,7 +2179,7 @@ canvas {
 .trainer-app {
   position: relative;
   min-height: 100vh;
-  padding: 24px 18px 112px;
+  padding: 24px 18px 48px;
 }
 
 .trainer-main {
@@ -2250,6 +2250,245 @@ canvas {
   border-radius: 16px;
   background: rgba(255, 216, 107, 0.32);
   transform: rotate(18deg);
+}
+
+@keyframes orb-slow-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(80px, -60px) scale(1.15); }
+}
+
+@keyframes orb-slow-2 {
+  0%, 100% { transform: translate(0, 0) scale(1.1); }
+  50% { transform: translate(-90px, 40px) scale(0.9); }
+}
+
+@keyframes orb-slow-3 {
+  0%, 100% { transform: translate(0, 0) scale(0.95); }
+  50% { transform: translate(50px, 70px) scale(1.05); }
+}
+
+@keyframes wobble-soft {
+  0%, 100% { transform: rotate(-1.2deg); }
+  50% { transform: rotate(1.2deg); }
+}
+
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(8px, -6px); }
+}
+
+@keyframes float-up-custom {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.trainer-floating-decor {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.trainer-floating-orbs {
+  position: absolute;
+  inset: 0;
+}
+
+.trainer-floating-orb {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.trainer-floating-orb--1 {
+  left: 15%;
+  top: 10%;
+  width: 45vw;
+  height: 45vw;
+  background: radial-gradient(circle, rgba(163, 217, 185, 0.22) 0%, rgba(0, 0, 0, 0) 70%);
+  filter: blur(40px);
+  animation: orb-slow-1 15s ease-in-out infinite;
+}
+
+.trainer-floating-orb--2 {
+  right: 10%;
+  top: 20%;
+  width: 50vw;
+  height: 50vw;
+  background: radial-gradient(circle, rgba(144, 202, 249, 0.18) 0%, rgba(0, 0, 0, 0) 70%);
+  filter: blur(50px);
+  animation: orb-slow-2 18s ease-in-out infinite;
+}
+
+.trainer-floating-orb--3 {
+  left: 30%;
+  bottom: 5%;
+  width: 40vw;
+  height: 40vw;
+  background: radial-gradient(circle, rgba(255, 224, 130, 0.16) 0%, rgba(0, 0, 0, 0) 70%);
+  filter: blur(45px);
+  animation: orb-slow-3 16s ease-in-out infinite;
+}
+
+.trainer-floating-doodles {
+  position: absolute;
+  inset: 0;
+  opacity: 0.75;
+}
+
+.trainer-floating-doodles .wobble {
+  animation: wobble-soft 3.6s ease-in-out infinite;
+  transform-origin: 50% 90%;
+}
+
+.trainer-floating-doodles .floaty {
+  animation: float-up-custom 3s ease-in-out infinite;
+}
+
+.trainer-floating-doodles .drift {
+  animation: drift 6s ease-in-out infinite;
+}
+
+.home-screen {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 8px 20px 40px;
+}
+
+.home-screen-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 900px;
+  padding: 8px 4px 4px;
+}
+
+.home-screen-wordmark {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: "Nunito", system-ui, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.home-screen-wordmark span {
+  color: var(--sky-deep);
+  -webkit-text-stroke: 1.5px var(--line);
+  text-shadow: 0 2px 0 var(--line);
+  paint-order: stroke fill;
+}
+
+.home-screen-hero-ai {
+  padding: 4px 14px;
+  border: 3.5px solid var(--line);
+  border-radius: 12px;
+  background: var(--sky-deep);
+  color: white;
+  box-shadow: 0 5px 0 var(--line);
+  transform: rotate(-2deg);
+}
+
+.home-screen-hero-badge {
+  margin-left: 4px;
+  padding: 4px 10px;
+  border: 2.5px solid var(--line);
+  border-radius: 8px;
+  background: var(--butter);
+  color: var(--ink);
+  box-shadow: 0 3px 0 var(--line);
+  font-size: 1rem;
+  transform: rotate(5deg) translateY(-8px);
+}
+
+.home-screen-hero {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  max-width: 900px;
+  padding: 4px 0 8px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.home-screen-hero-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "Nunito", system-ui, sans-serif;
+  font-size: 2.75rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.home-screen-hero p {
+  max-width: 520px;
+  margin: 6px auto 0;
+  text-align: center;
+  font-family: "Nunito", system-ui, sans-serif;
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+
+.mode-cards-grid {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+  width: 100%;
+  max-width: 900px;
+  margin-top: 4px;
+  margin-bottom: 24px;
+}
+
+.home-widgets-container {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+  width: 100%;
+  max-width: 900px;
+  margin-bottom: 24px;
+}
+
+.home-widgets-container .quest-card {
+  flex: 1.5;
+  min-width: 280px;
+  margin: 0;
+}
+
+.home-widgets-container .coach-card {
+  flex: 1;
+  min-width: 240px;
+  margin: 0;
+}
+
+.home-screen-actions {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  max-width: 440px;
+  margin-top: 10px;
 }
 
 .screen {
@@ -4072,7 +4311,13 @@ canvas {
 
 @media (max-width: 700px) {
   .trainer-app {
-    padding: 14px 12px 102px;
+    padding: 14px 12px 40px;
+  }
+
+  .home-screen-hero-title {
+    flex-wrap: wrap;
+    justify-content: center;
+    font-size: 2.1rem;
   }
 
   .home-header {

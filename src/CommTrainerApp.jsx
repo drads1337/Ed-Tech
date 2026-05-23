@@ -162,6 +162,235 @@ const navItems = [
   { to: '/profile', label: 'Profile', icon: '👤' },
 ];
 
+/* ── Background Music ── */
+const MUTED_KEY = 'procomm:music-muted';
+const VOLUME = 0.08;
+
+export function BackgroundMusic() {
+  const [userMuted, setUserMuted] = useState(() => {
+    try {
+      return typeof window !== 'undefined' && window.localStorage.getItem(MUTED_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    const a = new Audio('/lofi.mp3');
+    a.loop = true;
+    a.volume = VOLUME;
+    a.preload = 'auto';
+    audioRef.current = a;
+
+    const tryPlay = () => {
+      if (!audioRef.current || mutedRef.current) return;
+      audioRef.current.play().catch(() => {});
+    };
+
+    const onGesture = () => tryPlay();
+    window.addEventListener('pointerdown', onGesture);
+    window.addEventListener('keydown', onGesture);
+    tryPlay();
+
+    return () => {
+      window.removeEventListener('pointerdown', onGesture);
+      window.removeEventListener('keydown', onGesture);
+      a.pause();
+      a.src = '';
+      audioRef.current = null;
+    };
+  }, []);
+
+  const mutedRef = useRef(userMuted);
+
+  useEffect(() => {
+    mutedRef.current = userMuted;
+    const a = audioRef.current;
+    if (!a) return;
+    if (userMuted) {
+      a.pause();
+    } else {
+      a.volume = VOLUME;
+      a.play().catch(() => {});
+    }
+  }, [userMuted]);
+
+  const toggle = () => {
+    const next = !userMuted;
+    setUserMuted(next);
+    try {
+      window.localStorage.setItem(MUTED_KEY, next ? '1' : '0');
+    } catch {}
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      title={userMuted ? 'Включить музыку' : 'Выключить музыку'}
+      aria-label={userMuted ? 'Включить музыку' : 'Выключить музыку'}
+      style={{
+        position: 'fixed',
+        bottom: 20,
+        right: 20,
+        zIndex: 1000,
+        width: 38,
+        height: 38,
+        borderRadius: '50%',
+        border: '3px solid var(--line)',
+        background: userMuted ? 'white' : 'var(--butter, #FFD86B)',
+        boxShadow: '0 4px 0 var(--line)',
+        cursor: 'pointer',
+        fontSize: 16,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 0,
+        transition: 'background 120ms ease, transform 120ms ease',
+      }}
+      className="tap"
+    >
+      <span aria-hidden style={{ lineHeight: 1 }}>
+        {userMuted ? '🔇' : '🎵'}
+      </span>
+    </button>
+  );
+}
+
+/* ── Cozy Cartoon SVGs & Helpers ── */
+function EduBook({ rot = 0 }) {
+  const stroke = 'var(--line)';
+  return (
+    <svg width="80" height="70" viewBox="0 0 100 80" style={{ transform: `rotate(${rot}deg)`, overflow: 'visible' }}>
+      <path d="M 10 70 C 30 65, 50 72, 50 72 C 50 72, 70 65, 90 70 L 90 15 C 70 10, 50 17, 50 17 C 50 17, 30 10, 10 15 Z" fill="white" stroke={stroke} strokeWidth="3.5" />
+      <path d="M 50 17 L 50 72" stroke={stroke} strokeWidth="3.5" />
+      <path d="M 15 22 C 30 18, 45 23, 45 23" fill="none" stroke="var(--ink-soft)" strokeWidth="2" />
+      <path d="M 15 34 C 30 30, 45 35, 45 35" fill="none" stroke="var(--ink-soft)" strokeWidth="2" />
+      <path d="M 15 46 C 30 42, 45 47, 45 47" fill="none" stroke="var(--ink-soft)" strokeWidth="2" />
+      <path d="M 55 23 C 70 18, 85 22, 85 22" fill="none" stroke="var(--ink-soft)" strokeWidth="2" />
+      <path d="M 55 35 C 70 30, 85 34, 85 34" fill="none" stroke="var(--ink-soft)" strokeWidth="2" />
+      <path d="M 55 47 C 70 42, 85 46, 85 46" fill="none" stroke="var(--ink-soft)" strokeWidth="2" />
+      <path d="M 6 16 L 6 71 C 26 66, 46 73, 46 73" fill="none" stroke="var(--sky-deep)" strokeWidth="2.5" strokeLinecap="round" />
+      <rect x="3" y="12" width="6" height="58" rx="2" fill="var(--sky-deep)" stroke={stroke} strokeWidth="3" />
+      <rect x="91" y="12" width="6" height="58" rx="2" fill="var(--peach)" stroke={stroke} strokeWidth="3" />
+    </svg>
+  );
+}
+
+function GraduationCap({ rot = 0 }) {
+  const stroke = 'var(--line)';
+  return (
+    <svg width="86" height="70" viewBox="0 0 100 80" style={{ transform: `rotate(${rot}deg)`, overflow: 'visible' }}>
+      <path d="M 30 45 L 30 55 C 30 63, 70 63, 70 55 L 70 45" fill="var(--ink-2)" stroke={stroke} strokeWidth="3.5" strokeLinejoin="round" />
+      <ellipse cx="50" cy="56" rx="20" ry="6" fill="var(--ink)" stroke={stroke} strokeWidth="2" />
+      <path d="M 50 15 L 90 30 L 50 45 L 10 30 Z" fill="var(--ink)" stroke={stroke} strokeWidth="3.5" strokeLinejoin="round" />
+      <path d="M 50 30 L 80 34 L 84 56" fill="none" stroke="var(--butter-deep)" strokeWidth="3" strokeLinecap="round" />
+      <rect x="80" y="52" width="8" height="12" rx="2" fill="var(--butter)" stroke={stroke} strokeWidth="2" />
+    </svg>
+  );
+}
+
+function Pencil({ rot = 0 }) {
+  const stroke = 'var(--line)';
+  return (
+    <svg width="70" height="70" viewBox="0 0 80 80" style={{ transform: `rotate(${rot}deg)`, overflow: 'visible' }}>
+      <g transform="translate(10, 10) rotate(45)">
+        <rect x="0" y="15" width="22" height="45" rx="3" fill="var(--butter)" stroke={stroke} strokeWidth="3.5" />
+        <rect x="5" y="15" width="12" height="45" fill="var(--butter-deep)" opacity="0.4" />
+        <rect x="0" y="52" width="22" height="8" fill="var(--sky)" stroke={stroke} strokeWidth="3" />
+        <rect x="0" y="60" width="22" height="12" rx="4" fill="var(--rose-deep)" stroke={stroke} strokeWidth="3" />
+        <polygon points="0,15 11,-2 22,15" fill="#FFE3C9" stroke={stroke} strokeWidth="3.5" strokeLinejoin="round" />
+        <polygon points="6,6 11,-2 16,6" fill="var(--line)" />
+      </g>
+    </svg>
+  );
+}
+
+function IdeaBulb({ rot = 0 }) {
+  const stroke = 'var(--line)';
+  return (
+    <svg width="68" height="78" viewBox="0 0 80 90" style={{ transform: `rotate(${rot}deg)`, overflow: 'visible' }}>
+      <rect x="30" y="68" width="20" height="6" rx="2" fill="var(--ink-soft)" stroke={stroke} strokeWidth="3" />
+      <rect x="32" y="74" width="16" height="6" rx="2" fill="var(--ink-soft)" stroke={stroke} strokeWidth="3" />
+      <path d="M 35 80 L 45 80" stroke={stroke} strokeWidth="3" strokeLinecap="round" />
+      <path d="M 22 55 C 10 45, 12 18, 40 18 C 68 18, 70 45, 58 55 C 53 60, 50 68, 50 68 L 30 68 C 30 68, 27 60, 22 55 Z" fill="var(--butter)" stroke={stroke} strokeWidth="3.5" strokeLinejoin="round" />
+      <path d="M 33 50 L 33 42 Q 40 33, 47 42 L 47 50" fill="none" stroke={stroke} strokeWidth="2.5" strokeLinecap="round" />
+      <line x1="12" y1="28" x2="4" y2="24" stroke="var(--butter-deep)" strokeWidth="3.5" strokeLinecap="round" />
+      <line x1="20" y1="12" x2="14" y2="4" stroke="var(--butter-deep)" strokeWidth="3.5" strokeLinecap="round" />
+      <line x1="40" y1="6" x2="40" y2="0" stroke="var(--butter-deep)" strokeWidth="3.5" strokeLinecap="round" />
+      <line x1="60" y1="12" x2="66" y2="4" stroke="var(--butter-deep)" strokeWidth="3.5" strokeLinecap="round" />
+      <line x1="68" y1="28" x2="76" y2="24" stroke="var(--butter-deep)" strokeWidth="3.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function EduMedal({ rot = 0 }) {
+  const stroke = 'var(--line)';
+  return (
+    <svg width="74" height="74" viewBox="0 0 80 80" style={{ transform: `rotate(${rot}deg)`, overflow: 'visible' }}>
+      <polygon points="30,30 20,70 36,70 40,48" fill="var(--rose-deep)" stroke={stroke} strokeWidth="3" strokeLinejoin="round" />
+      <polygon points="50,30 60,70 44,70 40,48" fill="var(--sky-deep)" stroke={stroke} strokeWidth="3" strokeLinejoin="round" />
+      <circle cx="40" cy="34" r="26" fill="var(--butter)" stroke={stroke} strokeWidth="3.5" />
+      <circle cx="40" cy="34" r="18" fill="none" stroke="var(--butter-deep)" strokeWidth="2.5" strokeDasharray="4 3" />
+      <polygon points="40,20 44,28 53,30 46,36 48,45 40,40 32,45 34,36 27,30 36,28" fill="white" stroke={stroke} strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function EduStar({ rot = 0, size = 50 }) {
+  const stroke = 'var(--line)';
+  return (
+    <svg width={size} height={size} viewBox="0 0 60 60" style={{ transform: `rotate(${rot}deg)`, overflow: 'visible' }}>
+      <polygon points="30,4 37,20 54,23 42,35 45,52 30,44 15,52 18,35 6,23 23,20" fill="var(--butter)" stroke={stroke} strokeWidth="3" strokeLinejoin="round" />
+      <polygon points="30,12 34,22 44,24 36,32 38,42 30,37 22,42 24,32 16,24 26,22" fill="var(--butter-deep)" opacity="0.6" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function Float({ left, top, anim, delay, children }) {
+  return (
+    <div className={anim} style={{ position: 'absolute', left, top, animationDelay: delay, pointerEvents: 'none' }}>
+      {children}
+    </div>
+  );
+}
+
+function TrainerFloatingDecor() {
+  return (
+    <div className="trainer-floating-decor" aria-hidden="true">
+      <div className="trainer-floating-orbs">
+        <div className="trainer-floating-orb trainer-floating-orb--1" />
+        <div className="trainer-floating-orb trainer-floating-orb--2" />
+        <div className="trainer-floating-orb trainer-floating-orb--3" />
+      </div>
+      <div className="trainer-floating-doodles">
+        <Float left="5vw" top="8vh" anim="floaty" delay="0s"><EduBook rot={-15} /></Float>
+        <Float left="22vw" top="15vh" anim="wobble" delay="2.2s"><EduStar size={38} rot={8} /></Float>
+        <Float left="38vw" top="6vh" anim="drift" delay="0.8s"><GraduationCap rot={10} /></Float>
+        <Float left="55vw" top="12vh" anim="wobble" delay="1.5s"><Pencil rot={-20} /></Float>
+        <Float left="70vw" top="5vh" anim="drift" delay="0.5s"><IdeaBulb rot={15} /></Float>
+        <Float left="86vw" top="14vh" anim="floaty" delay="1.9s"><EduMedal rot={-12} /></Float>
+        <Float left="8vw" top="34vh" anim="drift" delay="1.1s"><GraduationCap rot={-12} /></Float>
+        <Float left="28vw" top="38vh" anim="wobble" delay="0.5s"><EduStar size={42} rot={20} /></Float>
+        <Float left="46vw" top="32vh" anim="floaty" delay="0.4s"><EduBook rot={8} /></Float>
+        <Float left="68vw" top="36vh" anim="drift" delay="2.1s"><IdeaBulb rot={-15} /></Float>
+        <Float left="88vw" top="35vh" anim="wobble" delay="1.8s"><EduMedal rot={18} /></Float>
+        <Float left="12vw" top="58vh" anim="floaty" delay="1.3s"><Pencil rot={12} /></Float>
+        <Float left="30vw" top="64vh" anim="drift" delay="0.6s"><EduStar size={46} rot={-8} /></Float>
+        <Float left="48vw" top="56vh" anim="wobble" delay="2.5s"><GraduationCap rot={5} /></Float>
+        <Float left="72vw" top="60vh" anim="floaty" delay="0.9s"><EduBook rot={-10} /></Float>
+        <Float left="90vw" top="58vh" anim="drift" delay="1.7s"><IdeaBulb rot={8} /></Float>
+        <Float left="6vw" top="82vh" anim="wobble" delay="0.3s"><EduMedal rot={-5} /></Float>
+        <Float left="24vw" top="80vh" anim="drift" delay="2.8s"><Pencil rot={15} /></Float>
+        <Float left="45vw" top="84vh" anim="floaty" delay="1.2s"><EduStar size={34} rot={25} /></Float>
+        <Float left="66vw" top="82vh" anim="wobble" delay="2.0s"><GraduationCap rot={15} /></Float>
+        <Float left="85vw" top="78vh" anim="drift" delay="0.7s"><EduBook rot={20} /></Float>
+      </div>
+    </div>
+  );
+}
+
 function loadProgress() {
   try {
     const saved = window.localStorage.getItem(STORAGE_KEY);
@@ -333,32 +562,132 @@ function HomePage({ progress }) {
   const questTarget = scenarios.find((scenario) => scenario.skill === quest.targetSkill) || scenarios[0];
 
   return (
-    <section className="screen home-screen">
-      <header className="home-header plush-lg">
-        <div className="home-brand">
-          <div className="brand-mark" aria-hidden="true">
-            💬
-          </div>
-          <div>
-            <span className="eyebrow">ProComm Trainer</span>
-            <h1>Тренажёр коммуникаций</h1>
-          </div>
+    <section className="home-screen">
+      <header className="home-screen-header">
+        <div className="home-screen-wordmark" aria-hidden="true">
+          ilm-<span>AI</span>
         </div>
-
         <div className="home-metrics" aria-label="Показатели пользователя">
-          <StatPill icon="🔥" label={`${progress.streak} дней`} />
+          <StatPill icon="🔥" label={`${progress.streak} дн.`} />
           <StatPill icon="⭐" label={`${progress.xp} XP`} />
-          <button className="icon-pill" type="button" aria-label="Уведомления">
-            🔔 <span>{progress.notifications}</span>
-          </button>
-          <button className="icon-pill" type="button" aria-label="Настройки" onClick={() => navigate('/profile')}>
-            ⚙️
-          </button>
         </div>
       </header>
 
-      <div className="home-grid">
-        <article className="quest-card plush-lg popin">
+      <div className="home-screen-hero">
+        <div className="home-screen-hero-title">
+          ilm-
+          <span className="home-screen-hero-ai">AI</span>
+          <span className="home-screen-hero-badge">Тренажёр</span>
+        </div>
+        <p>
+          Платформа развития и анализа профессиональных компетенций и коммуникативных навыков
+        </p>
+      </div>
+
+      {/* ── Mode Selection Cards Grid ── */}
+      <div className="mode-cards-grid">
+        {[
+          {
+            badgeText: '🧭 MAP ROUTE', badgeBg: 'var(--mint)', emoji: '🗺️',
+            title: 'План обучения', desc: 'Маршрут по вашему направлению. Прокачивайте навыки общения шаг за шагом по карте.',
+            accent: 'var(--mint)', path: '/plan'
+          },
+          {
+            badgeText: '📚 ALL CASES', badgeBg: 'var(--sky)', emoji: '📚',
+            title: 'Библиотека кейсов', desc: 'Полный каталог сценариев для всех отраслей. Выбирайте темы, изучайте теорию и подсказки.',
+            accent: 'var(--sky-deep)', path: '/library'
+          },
+          {
+            badgeText: '⚡ QUICK PRACTICE', badgeBg: 'var(--butter)', emoji: '🎮',
+            title: 'Быстрая практика', desc: 'Случайный сценарий, звонок до 4 минут или отработка допущенных ошибок.',
+            accent: 'var(--butter)', path: '/practice'
+          }
+        ].map((mode, i) => (
+          <div
+            key={i}
+            className="tap hover-scale popin"
+            onClick={() => navigate(mode.path)}
+            style={{
+              width: 270,
+              background: 'white',
+              border: '3.5px solid var(--line)',
+              borderRadius: 24,
+              padding: '24px 22px',
+              boxShadow: '0 6px 0 var(--line), 0 12px 24px rgba(43,30,22,0.06)',
+              cursor: 'pointer',
+              display: 'flex', flexDirection: 'column', gap: 14,
+              transition: 'all 150ms ease',
+              animationDelay: `${i * 0.1}s`,
+            }}
+          >
+            {/* Card Header Tags */}
+            <div style={{ display: 'flex', justifySelf: 'start', alignItems: 'center' }}>
+              <span style={{
+                fontSize: 10, fontWeight: 900,
+                background: mode.badgeBg,
+                color: 'var(--ink)',
+                border: '2px solid var(--line)',
+                borderRadius: 6,
+                padding: '2px 8px',
+                boxShadow: '0 2px 0 var(--line)',
+                letterSpacing: '0.05em',
+              }}>
+                {mode.badgeText}
+              </span>
+            </div>
+
+            {/* Emoji illustration */}
+            <div style={{
+              width: 58, height: 58, borderRadius: '50%',
+              background: mode.accent,
+              border: '2.5px solid var(--line)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 30, boxShadow: '0 3.5px 0 var(--line)',
+            }}>
+              {mode.emoji}
+            </div>
+
+            {/* Title & Slogan */}
+            <div style={{ flexGrow: 1 }}>
+              <div style={{
+                fontFamily: 'Nunito', fontWeight: 900, fontSize: 18,
+                color: 'var(--ink)',
+                marginBottom: 6,
+              }}>
+                {mode.title}
+              </div>
+              <div style={{
+                fontFamily: 'Nunito', fontWeight: 700, fontSize: 12,
+                color: 'var(--ink-2)', lineHeight: 1.45,
+              }}>
+                {mode.desc}
+              </div>
+            </div>
+
+            {/* CTA Action button */}
+            <div style={{
+              background: 'var(--butter)',
+              border: '2.5px solid var(--line)',
+              borderRadius: 12,
+              padding: '10px 0',
+              textAlign: 'center',
+              fontFamily: 'Nunito', fontWeight: 900, fontSize: 13,
+              color: 'var(--ink)',
+              boxShadow: '0 3.5px 0 var(--line)',
+              transition: 'all 120ms ease',
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+            }}>
+              Открыть →
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Daily Quest & Focus Widgets Container ── */}
+      <div className="home-widgets-container">
+        {/* Quest day widget */}
+        <article className="quest-card plush-lg popin" style={{ animationDelay: '0.3s' }}>
           <div className="quest-scene" aria-hidden="true">
             <div className="cartoon-head peach-head">
               <span />
@@ -369,7 +698,7 @@ function HomePage({ progress }) {
           </div>
           <div className="quest-copy">
             <span className="chip butter">Квест дня</span>
-            <h2>{quest.text}</h2>
+            <h2 style={{ fontSize: '1.25rem', marginTop: '6px' }}>{quest.text}</h2>
             <div className="quest-progress">
               <span>{questDone ? '1/1' : '0/1'}</span>
               <div>
@@ -382,8 +711,9 @@ function HomePage({ progress }) {
                 type="button"
                 onClick={() => navigate(`/scenario/${questTarget.id}`)}
                 disabled={questDone}
+                style={{ minHeight: '42px', padding: '8px 16px', fontSize: '14px' }}
               >
-                <Play size={18} aria-hidden="true" />
+                <Play size={15} aria-hidden="true" />
                 {questDone ? 'Выполнено' : 'Выполнить'}
               </button>
               <span className="reward-badge">+{quest.reward} XP</span>
@@ -391,29 +721,48 @@ function HomePage({ progress }) {
           </div>
         </article>
 
-        <aside className="coach-card plush">
+        {/* Focus today widget */}
+        <aside className="coach-card plush popin" style={{ animationDelay: '0.4s' }}>
           <div className="coach-avatar" aria-hidden="true">
             ✨
           </div>
-          <h2>Фокус сегодня</h2>
-          <p>Сохранять ровный тон, уточнять факты и закрывать разговор понятной договорённостью.</p>
-          <div className="coach-mini-stats">
-            <span>Монеты: {progress.coins}</span>
-            <span>Открыто: {Object.keys(progress.completed).length + 1}</span>
+          <h2 style={{ fontSize: '1.2rem' }}>Фокус сегодня</h2>
+          <p style={{ fontSize: '0.88rem', lineHeight: 1.4 }}>Сохранять ровный тон, уточнять факты и закрывать разговор понятной договорённостью.</p>
+          <div className="coach-mini-stats" style={{ marginTop: '10px', fontSize: '0.8rem' }}>
+            <span>Монеты: 🪙 {progress.coins}</span>
+            <span>Открыто: 🔓 {Object.keys(progress.completed).length + 1}</span>
           </div>
         </aside>
       </div>
 
-      <section className="plan-teaser plush-lg">
-        <div>
-          <span className="path-kicker">Learning Path</span>
-          <h2>Дерево навыков вынесено в план</h2>
-          <p>Откройте карту, чтобы пройти сценарии по маршруту и посмотреть динамику.</p>
-        </div>
-        <button className="btn-plush sky" type="button" onClick={() => navigate('/plan')}>
-          🗺️ Открыть план
-        </button>
-      </section>
+      <div className="home-screen-actions popin">
+        {[
+          { icon: '📊', label: 'Мой прогресс', onClick: () => navigate('/progress'), bg: 'white' },
+          { icon: '👤', label: 'Мой профиль',  onClick: () => navigate('/profile'), bg: 'var(--butter)' },
+        ].map((item, i) => (
+          <button
+            key={i}
+            type="button"
+            className="tap btn-plush"
+            onClick={item.onClick}
+            style={{
+              flex: 1,
+              padding: '12px 0',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              fontSize: 14,
+              background: item.bg,
+              boxShadow: '0 4px 0 var(--line)',
+            }}
+          >
+            <span style={{ fontSize: 18 }}>{item.icon}</span>
+            <strong>{item.label}</strong>
+          </button>
+        ))}
+      </div>
     </section>
   );
 }
@@ -916,7 +1265,7 @@ function LibraryPage({ progress }) {
 
   return (
     <section className="screen library-screen">
-      <PageTop title="Библиотека" subtitle="Сценарии по отраслям и навыкам" />
+      <PageTop title="Библиотека" subtitle="Сценарии по отраслям и навыкам" backTo="/home" />
       <div className="filter-bar plush">
         <select value={industryFilter} onChange={(event) => setIndustryFilter(event.target.value)}>
           <option value="all">Все отрасли</option>
@@ -970,7 +1319,7 @@ function ProgressPage({ progress }) {
 
   return (
     <section className="screen progress-screen">
-      <PageTop title="Прогресс" subtitle={`${completedCount} сценариев завершено`} />
+      <PageTop title="Прогресс" subtitle={`${completedCount} сценариев завершено`} backTo="/home" />
 
       <div className="progress-grid">
         <article className="plush-lg xp-chart-card">
@@ -1096,7 +1445,7 @@ function PracticePage({ progress }) {
 
   return (
     <section className="screen practice-screen">
-      <PageTop title="Практика" subtitle="Быстрые режимы тренировки" />
+      <PageTop title="Практика" subtitle="Быстрые режимы тренировки" backTo="/home" />
       <div className="practice-grid">
         <button className="practice-card plush-lg tap" type="button" onClick={startRandom}>
           <span>🎲</span>
@@ -1131,7 +1480,7 @@ function ProfilePage({ progress, setProgress }) {
 
   return (
     <section className="screen profile-screen">
-      <PageTop title="Профиль" subtitle="Настройки и награды" />
+      <PageTop title="Профиль" subtitle="Настройки и награды" backTo="/home" />
       <div className="profile-grid">
         <article className="profile-hero plush-lg">
           <div className="profile-avatar" aria-hidden="true">
@@ -1192,7 +1541,9 @@ function TrainerApp() {
 
   return (
     <BrowserRouter>
-      <div className="trainer-app paper">
+      <div className="trainer-app paper dots-bg">
+        <BackgroundMusic />
+        <TrainerFloatingDecor />
         <div className="bg-shapes" aria-hidden="true">
           <span />
           <span />
@@ -1213,7 +1564,6 @@ function TrainerApp() {
             <Route path="*" element={<Navigate to="/home" replace />} />
           </Routes>
         </main>
-        <BottomNav />
       </div>
     </BrowserRouter>
   );
