@@ -41,7 +41,7 @@ def send_simulation_message(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Scenario not found.")
 
     user_message = TranscriptMessage(role="user", content=payload.user_message)
-    next_message = continue_roleplay(scenario, payload.transcript, payload.user_message)
+    next_message = continue_roleplay(scenario, payload.transcript, payload.user_message, payload.language)
     return SimulationMessageResponse(
         message=next_message,
         transcript=[*payload.transcript, user_message, next_message],

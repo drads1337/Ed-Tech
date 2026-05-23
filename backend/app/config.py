@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     deepgram_api_key: str | None = Field(default=None, alias="DEEPGRAM_API_KEY")
     openrouter_api_key: str | None = Field(default=None, alias="OPENROUTER_API_KEY")
     openrouter_base_url: str = Field(default="https://openrouter.ai/api/v1", alias="OPENROUTER_BASE_URL")
-    openrouter_model: str = Field(default="openai/gpt-oss-120b", alias="OPENROUTER_MODEL")
+    openrouter_model: str = Field(default="openai/gpt-oss-120b:free", alias="OPENROUTER_MODEL")
     openrouter_app_url: str | None = Field(default=None, alias="OPENROUTER_APP_URL")
     openrouter_app_name: str = Field(default="Ed-Tech Training Loop", alias="OPENROUTER_APP_NAME")
     backend_cors_origins: str = Field(
