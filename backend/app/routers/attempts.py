@@ -11,7 +11,7 @@ router = APIRouter(prefix="/api/attempts", tags=["attempts"])
 @router.post("/evaluate", response_model=Attempt)
 def evaluate_training_attempt(
     payload: AttemptEvaluateRequest,
-    current_user: Profile = Depends(require_roles(Role.employee, Role.solo)),
+    current_user: Profile = Depends(require_roles(Role.admin, Role.employee, Role.solo)),
     repository: Repository = Depends(get_repository),
 ) -> dict:
     scenario = repository.get_scenario(payload.scenario_id, current_user.organization_id)

@@ -40,8 +40,8 @@ const DEFAULT_DESK_TRANSFORM = { ...DESK_POSE.deskTransform };
 const DEFAULT_CHAISE_SHAPE = CHAISE_POSE.chaiseShape.map((point) => ({ ...point }));
 
 const CAMERA_ZOOM_SLACK = 0.2;
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:4000';
 const DEMO_EMPLOYEE_ID = 'user_employee_1';
+const DEMO_ADMIN_ID = 'user_admin';
 const DEFAULT_MATERIAL = `Enterprise customers ask about security, procurement, implementation value, contract guarantees, and operational savings.
 
 Sales reps must acknowledge the customer's concern, connect the answer to approved policy, explain the next step, and avoid unsupported savings promises.`;
@@ -1002,23 +1002,6 @@ CASES.forEach((caseItem) => {
   useGLTF.preload(caseItem.modelUrl);
 });
 
-async function apiRequest(path, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {}),
-    },
-  });
-
-  if (!response.ok) {
-    const errorPayload = await response.json().catch(() => ({}));
-    throw new Error(errorPayload.detail || `Request failed: ${response.status}`);
-  }
-
-  return response.json();
-}
-
 function formatPercent(value) {
   return `${Math.round(Number(value || 0) * 100)}%`;
 }
@@ -1028,6 +1011,32 @@ function transcriptForEvaluation(detail) {
     role: message.role,
     message: message.message || message.content,
   }));
+}
+
+function normalizeScenario(value) {
+  if (!value) {
+    return null;
+  }
+
+  return {
+    ...value,
+    materialId: value.materialId || value.material_id,
+    openingMessage: value.openingMessage || value.opening_message,
+    evaluationSkills: value.evaluationSkills || value.evaluation_skills || [],
+  };
+}
+
+function normalizeAssignment(value) {
+  if (!value) {
+    return null;
+  }
+
+  return {
+    ...value,
+    scenarioId: value.scenarioId || value.scenario_id,
+    employeeIds: value.employeeIds || value.employee_ids || [],
+    requiredScore: value.requiredScore || value.required_score,
+  };
 }
 
 function TrainingConsole() {
@@ -1046,6 +1055,7 @@ function TrainingConsole() {
   const [assignment, setAssignment] = useState(null);
   const [session, setSession] = useState(null);
   const [sessionDetail, setSessionDetail] = useState(null);
+  const [transcript, setTranscript] = useState([]);
   const [userMessage, setUserMessage] = useState('I understand the concern. First, our security policy requires review before procurement, and next I can map the value to your operating goals.');
   const [evaluation, setEvaluation] = useState(null);
   const [dashboard, setDashboard] = useState(null);
@@ -1060,7 +1070,7 @@ function TrainingConsole() {
   const canEvaluate = Boolean(scenario?.id && sessionDetail?.transcript?.length);
 
   const refreshDashboard = useCallback(async () => {
-    const dashboardPayload = await apiRequest('/api/admin/dashboard');
+    const dashboardPayload = await apiRequest('/api/admin/dashboard', { demoUser: DEMO_ADMIN_ID });
     setDashboard(dashboardPayload);
   }, []);
 
@@ -1074,7 +1084,7 @@ function TrainingConsole() {
           apiRequest('/api/ai/status'),
           apiRequest('/api/contracts/scenario'),
           apiRequest('/api/demo-users'),
-          apiRequest('/api/admin/dashboard'),
+          apiRequest('/api/admin/dashboard', { demoUser: DEMO_ADMIN_ID }),
         ]);
 
         if (!active) {
@@ -1117,19 +1127,22 @@ function TrainingConsole() {
   const createMaterial = () =>
     runAction('material', async () => {
       const payload = await apiRequest('/api/materials', {
+        demoUser: DEMO_ADMIN_ID,
         method: 'POST',
-        body: JSON.stringify({
+        body: {
           title: materialTitle,
           content: materialContent,
-        }),
+        },
       });
-      const chunkPayload = await apiRequest(`/api/materials/${payload.material.id}/chunks`);
-      setMaterial(payload.material);
+      const savedMaterial = payload.material || payload;
+      const chunkPayload = await apiRequest(`/api/materials/${savedMaterial.id}/chunks`, { demoUser: DEMO_ADMIN_ID });
+      setMaterial(savedMaterial);
       setChunks(chunkPayload.chunks || []);
       setScenario(null);
       setAssignment(null);
       setSession(null);
       setSessionDetail(null);
+      setTranscript([]);
       setEvaluation(null);
       await refreshDashboard();
     });
@@ -1137,20 +1150,22 @@ function TrainingConsole() {
   const generateScenario = () =>
     runAction('scenario', async () => {
       const payload = await apiRequest('/api/scenarios/generate', {
+        demoUser: DEMO_ADMIN_ID,
         method: 'POST',
-        body: JSON.stringify({
+        body: {
           materialId: material.id,
           goal,
           skills: skills
             .split(',')
             .map((skill) => skill.trim())
             .filter(Boolean),
-        }),
+        },
       });
-      setScenario(payload.scenario);
+      setScenario(normalizeScenario(payload.scenario || payload));
       setAssignment(null);
       setSession(null);
       setSessionDetail(null);
+      setTranscript([]);
       setEvaluation(null);
       await refreshDashboard();
     });
@@ -1158,53 +1173,59 @@ function TrainingConsole() {
   const assignScenario = () =>
     runAction('assignment', async () => {
       const payload = await apiRequest('/api/assignments', {
+        demoUser: DEMO_ADMIN_ID,
         method: 'POST',
-        body: JSON.stringify({
+        body: {
           scenarioId: scenario.id,
           employeeIds: [selectedUserId],
           requiredScore: 75,
-        }),
+        },
       });
-      setAssignment(payload.assignment);
+      setAssignment(normalizeAssignment(payload.assignment || payload));
       await refreshDashboard();
     });
 
   const startSession = () =>
     runAction('session', async () => {
-      const payload = await apiRequest('/api/simulation/sessions', {
-        method: 'POST',
-        body: JSON.stringify({
-          userId: selectedUserId,
-          scenarioId: scenario.id,
-        }),
-      });
-      setSession(payload.session);
-      setSessionDetail(payload.detail);
+      const openingMessage = scenario.openingMessage || scenario.opening_message;
+      const nextTranscript = openingMessage ? [{ role: 'persona', message: openingMessage }] : [];
+      setSession({ id: `local-${scenario.id}`, scenarioId: scenario.id, status: 'active' });
+      setTranscript(nextTranscript);
+      setSessionDetail({ transcript: nextTranscript });
       setEvaluation(null);
     });
 
   const sendMessage = () =>
     runAction('message', async () => {
-      const payload = await apiRequest(`/api/simulation/sessions/${session.id}/message`, {
+      const payload = await apiRequest('/api/simulation/message', {
+        demoUser: selectedUserId,
         method: 'POST',
-        body: JSON.stringify({
+        body: {
+          scenarioId: scenario.id,
+          transcript,
           userMessage,
-        }),
+        },
       });
-      setSessionDetail(payload.detail);
-      setSession(payload.detail?.session || session);
+      const nextTranscript = payload.transcript || [
+        ...transcript,
+        { role: 'user', message: userMessage },
+        { role: 'persona', message: payload.personaMessage || payload.persona_message },
+      ];
+      setTranscript(nextTranscript);
+      setSessionDetail({ transcript: nextTranscript });
       setUserMessage('');
     });
 
   const evaluateSession = () =>
     runAction('evaluation', async () => {
       const payload = await apiRequest('/api/attempts/evaluate', {
+        demoUser: selectedUserId,
         method: 'POST',
-        body: JSON.stringify({
-          userId: selectedUserId,
+        body: {
           scenarioId: scenario.id,
           transcript: transcriptForEvaluation(sessionDetail),
-        }),
+          assignmentId: assignment?.id,
+        },
       });
       setEvaluation(payload);
       await refreshDashboard();

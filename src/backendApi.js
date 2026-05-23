@@ -8,14 +8,17 @@ const SUPABASE_PUBLISHABLE_KEY =
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
-export async function apiRequest(path, { token, method = 'GET', body } = {}) {
+export async function apiRequest(path, { token, demoUser = 'user_admin', method = 'GET', body } = {}) {
+  const requestBody = typeof body === 'string' ? body : body ? JSON.stringify(body) : undefined;
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method,
     headers: {
       ...(body ? { 'Content-Type': 'application/json' } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(!token && demoUser ? { 'X-Demo-User': demoUser } : {}),
     },
-    body: body ? JSON.stringify(body) : undefined,
+    body: requestBody,
   });
 
   const payload = await response.json().catch(() => null);

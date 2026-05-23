@@ -42,21 +42,21 @@ def continue_roleplay(scenario: dict, transcript: list[TranscriptMessage], user_
     else:
         content = "I need a clearer reason to change. Can you connect this to a concrete business outcome?"
 
-    return TranscriptMessage(role="assistant", content=f"{persona}: {content}")
+    return TranscriptMessage(role="persona", content=f"{persona}: {content}")
 
 
 def evaluate_attempt(scenario: dict, transcript: list[TranscriptMessage]) -> dict:
     user_messages = [message.content for message in transcript if message.role == "user"]
     total_words = sum(len(message.split()) for message in user_messages)
     skills = scenario.get("evaluation_skills") or DEFAULT_SKILLS
-    base_score = min(92, max(55, 55 + total_words // 3 + len(user_messages) * 5))
+    base_score = min(5, max(1, 2 + total_words // 18 + len(user_messages)))
     skill_scores = {
-        skill: min(95, max(50, base_score + ((index % 3) - 1) * 5))
+        skill: min(5, max(1, base_score + ((index % 3) - 1)))
         for index, skill in enumerate(skills)
     }
 
     return {
-        "score": round(mean(skill_scores.values())),
+        "score": round((mean(skill_scores.values()) / 5) * 100),
         "skill_scores": skill_scores,
         "feedback": {
             "summary": "Good first pass. Keep answers specific and connect claims to the material.",
