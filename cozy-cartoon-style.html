@@ -65,6 +65,7 @@
       min-height: 100vh;
       -webkit-font-smoothing: antialiased;
       transition: background-color 0.3s ease;
+      position: relative;
     }
 
     /* Core Primitives */
@@ -299,6 +300,8 @@
     .container {
       max-width: 1200px;
       margin: 0 auto;
+      position: relative;
+      z-index: 1;
     }
 
     /* Style Guide Header */
@@ -718,9 +721,112 @@
       overflow: hidden;
     }
 
+    /* Flying Background Doodles styling */
+    .bg-doodles {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+
+    .doodle {
+      position: absolute;
+      opacity: 1;
+      animation: float-up 3s ease-in-out infinite;
+      width: 48px;
+      height: 48px;
+      transition: fill 0.3s ease;
+    }
+
+    .doodle-1 { left: 8%; top: 6%; animation-delay: 0s; }
+    .doodle-2 { left: 45%; top: 4%; animation-delay: 0.8s; }
+    .doodle-3 { left: 88%; top: 8%; animation-delay: 1.5s; }
+    .doodle-4 { left: 12%; top: 32%; animation-delay: 2.2s; }
+    .doodle-5 { left: 85%; top: 38%; animation-delay: 0.4s; }
+    .doodle-6 { left: 5%; top: 68%; animation-delay: 1.9s; }
+    .doodle-7 { left: 50%; top: 92%; animation-delay: 3s; }
+    .doodle-8 { left: 90%; top: 78%; animation-delay: 1.2s; }
+    .doodle-9 { left: 24%; top: 52%; animation-delay: 2.7s; }
+    .doodle-10 { left: 74%; top: 22%; animation-delay: 0.5s; }
+    .doodle-11 { left: 3%; top: 20%; animation-delay: 1.7s; }
+    .doodle-12 { left: 82%; top: 62%; animation-delay: 2.4s; }
+
+    /* Sizes */
+    .doodle-sm { width: 32px; height: 32px; }
+    .doodle-md { width: 48px; height: 48px; }
+    .doodle-lg { width: 68px; height: 68px; }
+
   </style>
 </head>
 <body class="paper">
+
+  <!-- Background Flying Pastel Doodles -->
+  <div class="bg-doodles">
+    <!-- Star -->
+    <svg class="doodle doodle-sm doodle-1" viewBox="0 0 24 24">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="var(--butter)" stroke="var(--line)" stroke-width="2" stroke-linejoin="round"/>
+    </svg>
+    <!-- Cloud -->
+    <svg class="doodle doodle-lg doodle-2" viewBox="0 0 24 24">
+      <path d="M19.36 10.04a6 6 0 00-11.33-1.8 5 5 0 00-6 4.96c0 2.76 2.24 5 5 5h12c2.76 0 5-2.24 5-5a5 5 0 00-4.67-4.96z" fill="var(--sky)" stroke="var(--line)" stroke-width="2" stroke-linejoin="round"/>
+    </svg>
+    <!-- Heart -->
+    <svg class="doodle doodle-md doodle-3" viewBox="0 0 24 24">
+      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="var(--rose)" stroke="var(--line)" stroke-width="2" stroke-linejoin="round"/>
+    </svg>
+    <!-- Coin -->
+    <svg class="doodle doodle-sm doodle-4" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" fill="var(--butter-deep)" stroke="var(--line)" stroke-width="2"/>
+      <circle cx="12" cy="12" r="5" fill="var(--butter)" stroke="var(--line)" stroke-width="1.5"/>
+    </svg>
+    <!-- Key -->
+    <svg class="doodle doodle-lg doodle-5" viewBox="0 0 24 24">
+      <path d="M21 2l-2 2m-1.5-1.5L16 4m-4 4l3-3m-6.5 6.5A4.5 4.5 0 106 18a4.5 4.5 0 005.5-3.5L15 11h2v2h2v-2h3V8h-9.5z" fill="var(--butter)" stroke="var(--line)" stroke-width="2" stroke-linejoin="round" />
+    </svg>
+    <!-- Book -->
+    <svg class="doodle doodle-md doodle-6" viewBox="0 0 24 24">
+      <path d="M4 19.5A2.5 2.5 0 016.5 17H20v2.5a2.5 2.5 0 01-2.5 2.5H6.5A2.5 2.5 0 014 19.5z" fill="var(--rose)" stroke="var(--line)" stroke-width="2" />
+      <path d="M6.5 2H20v15H6.5A2.5 2.5 0 014 14.5V4A2.5 2.5 0 016.5 2z" fill="var(--sky)" stroke="var(--line)" stroke-width="2" />
+    </svg>
+    <!-- Lightbulb -->
+    <svg class="doodle doodle-sm doodle-7" viewBox="0 0 24 24">
+      <path d="M9 21h6m-5.25-3h4.5M12 3a7 7 0 00-6.9 8.2c.5 2.5 2 4.6 3.9 5.8h6c1.9-1.2 3.4-3.3 3.9-5.8A7 7 0 0012 3z" fill="var(--butter-deep)" stroke="var(--line)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+    <!-- Smile -->
+    <svg class="doodle doodle-lg doodle-8" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" fill="var(--mint)" stroke="var(--line)" stroke-width="2" />
+      <circle cx="8" cy="10" r="1.5" fill="var(--line)" />
+      <circle cx="16" cy="10" r="1.5" fill="var(--line)" />
+      <path d="M8 15a4 4 0 008 0" fill="none" stroke="var(--line)" stroke-width="2" stroke-linecap="round" />
+    </svg>
+    <!-- Crown -->
+    <svg class="doodle doodle-md doodle-9" viewBox="0 0 24 24">
+      <path d="M2 4l3 12h14l3-12-5 4-5-6-5 6-5-4z" fill="var(--butter)" stroke="var(--line)" stroke-width="2" stroke-linejoin="round" />
+      <circle cx="2" cy="4" r="1" fill="var(--line)" />
+      <circle cx="22" cy="4" r="1" fill="var(--line)" />
+      <circle cx="12" cy="2" r="1" fill="var(--line)" />
+    </svg>
+    <!-- Coffee Cup -->
+    <svg class="doodle doodle-lg doodle-10" viewBox="0 0 24 24">
+      <path d="M17 8h1a3 3 0 110 6h-1m-12-6h12v7a4 4 0 01-4 4H9a4 4 0 01-4-4V8z" fill="var(--peach)" stroke="var(--line)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M9 2v3M12 2v3M15 2v3" stroke="var(--line)" stroke-width="1.5" stroke-linecap="round" />
+    </svg>
+    <!-- Growth Chart -->
+    <svg class="doodle doodle-lg doodle-11" viewBox="0 0 24 24">
+      <path d="M3 3v18h18" stroke="var(--line)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <path d="M18.5 7.5L12 14l-4-4-5 5" stroke="var(--line)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <path d="M14 7.5h4.5V12" stroke="var(--line)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <rect x="6" y="14" width="2" height="4" rx="0.5" fill="var(--mint)" stroke="var(--line)" stroke-width="1.5" />
+      <rect x="11" y="10" width="2" height="8" rx="0.5" fill="var(--butter)" stroke="var(--line)" stroke-width="1.5" />
+      <rect x="16" y="6" width="2" height="12" rx="0.5" fill="var(--rose)" stroke="var(--line)" stroke-width="1.5" />
+    </svg>
+    <!-- Planet -->
+    <svg class="doodle doodle-md doodle-12" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="6" fill="var(--sky)" stroke="var(--line)" stroke-width="2" />
+      <path d="M2 12h20M5.5 8.5a9.5 9.5 0 0013 7" stroke="var(--line)" stroke-width="2" stroke-linecap="round" />
+    </svg>
+  </div>
 
   <div class="container">
 

@@ -1138,35 +1138,205 @@ function SimulationScene({ onBackToDashboard }) {
   );
 }
 
+const TRANSLATIONS = {
+  ru: {
+    signInTitle: "С возвращением!",
+    signInSub: "Войдите, чтобы продолжить тренировки",
+    emailLabel: "Email",
+    passwordLabel: "Пароль",
+    signInBtn: "Войти в систему",
+    noAccount: "Еще нет аккаунта?",
+    signUpLink: "Зарегистрироваться",
+    signUpTitle: "Регистрация",
+    signUpSub: "Создайте аккаунт и начните тренироваться",
+    nameLabel: "Ваше имя",
+    namePlaceholder: "Иван Иванов",
+    roleLabel: "Тип аккаунта",
+    roleSolo: "Индивидуальные тренировки (Solo)",
+    roleAdmin: "Координатор обучения компании (Admin)",
+    roleEmployee: "Сотрудник по приглашению (Employee)",
+    orgLabel: "Название организации",
+    orgPlaceholder: "ООО Рога и Копыта",
+    roomKeyLabel: "Ключ комнаты",
+    roomKeyPlaceholder: "Например: TEAM-7K2M",
+    signUpBtn: "Создать аккаунт",
+    hasAccount: "Уже зарегистрированы?",
+    signInLink: "Войти",
+    errorFields: "Пожалуйста, заполните все поля",
+    errorRequired: "Пожалуйста, заполните обязательные поля",
+    errorOrg: "Пожалуйста, укажите название вашей организации",
+    errorRoom: "Пожалуйста, введите ключ комнаты из приглашения",
+    successLogin: "Вход выполнен успешно для:",
+    successRegister: "Регистрация успешна для:"
+  },
+  uz: {
+    signInTitle: "Xush kelibsiz!",
+    signInSub: "Mashg'ulotlarni davom ettirish uchun kiring",
+    emailLabel: "Email",
+    passwordLabel: "Parol",
+    signInBtn: "Tizimga kirish",
+    noAccount: "Hali hisobingiz yo'qmi?",
+    signUpLink: "Ro'yxatdan o'tish",
+    signUpTitle: "Ro'yxatdan o'tish",
+    signUpSub: "Hisob yarating va mashg'ulotlarni boshlang",
+    nameLabel: "Ismingiz",
+    namePlaceholder: "Ism Familiya",
+    roleLabel: "Hisob turi",
+    roleSolo: "Yakka tartibdagi mashg'ulotlar (Solo)",
+    roleAdmin: "Kompaniya o'quv koordinatori (Admin)",
+    roleEmployee: "Taklif qilingan xodim (Employee)",
+    orgLabel: "Tashkilot nomi",
+    orgPlaceholder: "MChJ Roga i Kopyta",
+    roomKeyLabel: "Xona kaliti",
+    roomKeyPlaceholder: "Masalan: TEAM-7K2M",
+    signUpBtn: "Hisob yaratish",
+    hasAccount: "Ro'yxatdan o'tganmisiz?",
+    signInLink: "Kirish",
+    errorFields: "Iltimos, barcha maydonlarni to'ldiring",
+    errorRequired: "Iltimos, majburiy maydonlarni to'ldiring",
+    errorOrg: "Iltimos, tashkilotingiz nomini ko'rsating",
+    errorRoom: "Iltimos, taklifnomadagi xona kalitini kiriting",
+    successLogin: "Tizimga muvaffaqiyatli kirildi:",
+    successRegister: "Muvaffaqiyatli ro'yxatdan o'tildi:"
+  },
+  en: {
+    signInTitle: "Welcome back!",
+    signInSub: "Sign in to continue training",
+    emailLabel: "Email",
+    passwordLabel: "Password",
+    signInBtn: "Sign In",
+    noAccount: "Don't have an account?",
+    signUpLink: "Sign up",
+    signUpTitle: "Register",
+    signUpSub: "Create an account and start training",
+    nameLabel: "Your Name",
+    namePlaceholder: "John Doe",
+    roleLabel: "Account Type",
+    roleSolo: "Individual Training (Solo)",
+    roleAdmin: "Company Training Coordinator (Admin)",
+    roleEmployee: "Invited Employee (Employee)",
+    orgLabel: "Organization Name",
+    orgPlaceholder: "Acme Corp",
+    roomKeyLabel: "Room Key",
+    roomKeyPlaceholder: "Example: TEAM-7K2M",
+    signUpBtn: "Create Account",
+    hasAccount: "Already registered?",
+    signInLink: "Sign In",
+    errorFields: "Please fill in all fields",
+    errorRequired: "Please fill in required fields",
+    errorOrg: "Please specify your organization name",
+    errorRoom: "Please enter your invitation room key",
+    successLogin: "Signed in successfully for:",
+    successRegister: "Registration successful for:"
+  }
+};
+
 function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
+  const [lang, setLang] = useState(() => localStorage.getItem('app_lang') || 'ru');
+
+  const changeLang = (l) => {
+    setLang(l);
+    localStorage.setItem('app_lang', l);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!email || !password) {
-      setError('Пожалуйста, заполните все поля');
+      setError(TRANSLATIONS[lang].errorFields);
       return;
     }
-    alert(`Вход выполнен успешно для: ${email}`);
+    alert(`${TRANSLATIONS[lang].successLogin} ${email}`);
     navigate('/signin');
   };
 
   return (
     <div className="auth-wrapper dots-bg">
+      {/* Sign In Background Flying Pastel Doodles */}
+      <div className="bg-doodles">
+        {/* Star */}
+        <svg className="doodle doodle-sm doodle-1" viewBox="0 0 24 24">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="var(--butter)" stroke="var(--line)" strokeWidth="2" strokeLinejoin="round"/>
+        </svg>
+        {/* Cloud */}
+        <svg className="doodle doodle-lg doodle-2" viewBox="0 0 24 24">
+          <path d="M19.36 10.04a6 6 0 00-11.33-1.8 5 5 0 00-6 4.96c0 2.76 2.24 5 5 5h12c2.76 0 5-2.24 5-5a5 5 0 00-4.67-4.96z" fill="var(--sky)" stroke="var(--line)" strokeWidth="2" strokeLinejoin="round"/>
+        </svg>
+        {/* Heart */}
+        <svg className="doodle doodle-md doodle-3" viewBox="0 0 24 24">
+          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="var(--rose)" stroke="var(--line)" strokeWidth="2" strokeLinejoin="round"/>
+        </svg>
+        {/* Coin / Money */}
+        <svg className="doodle doodle-sm doodle-4" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" fill="var(--butter-deep)" stroke="var(--line)" strokeWidth="2"/>
+          <circle cx="12" cy="12" r="5" fill="var(--butter)" stroke="var(--line)" strokeWidth="1.5"/>
+        </svg>
+        {/* Key */}
+        <svg className="doodle doodle-lg doodle-5" viewBox="0 0 24 24">
+          <path d="M21 2l-2 2m-1.5-1.5L16 4m-4 4l3-3m-6.5 6.5A4.5 4.5 0 106 18a4.5 4.5 0 005.5-3.5L15 11h2v2h2v-2h3V8h-9.5z" fill="var(--butter)" stroke="var(--line)" strokeWidth="2" strokeLinejoin="round" />
+        </svg>
+        {/* Book */}
+        <svg className="doodle doodle-md doodle-6" viewBox="0 0 24 24">
+          <path d="M4 19.5A2.5 2.5 0 016.5 17H20v2.5a2.5 2.5 0 01-2.5 2.5H6.5A2.5 2.5 0 014 19.5z" fill="var(--rose)" stroke="var(--line)" strokeWidth="2" />
+          <path d="M6.5 2H20v15H6.5A2.5 2.5 0 014 14.5V4A2.5 2.5 0 016.5 2z" fill="var(--sky)" stroke="var(--line)" strokeWidth="2" />
+        </svg>
+        {/* Lightbulb */}
+        <svg className="doodle doodle-sm doodle-7" viewBox="0 0 24 24">
+          <path d="M9 21h6m-5.25-3h4.5M12 3a7 7 0 00-6.9 8.2c.5 2.5 2 4.6 3.9 5.8h6c1.9-1.2 3.4-3.3 3.9-5.8A7 7 0 0012 3z" fill="var(--butter-deep)" stroke="var(--line)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        {/* Smile */}
+        <svg className="doodle doodle-lg doodle-8" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10" fill="var(--mint)" stroke="var(--line)" strokeWidth="2" />
+          <circle cx="8" cy="10" r="1.5" fill="var(--line)" />
+          <circle cx="16" cy="10" r="1.5" fill="var(--line)" />
+          <path d="M8 15a4 4 0 008 0" fill="none" stroke="var(--line)" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+        {/* Growth Chart */}
+        <svg className="doodle doodle-lg doodle-9" viewBox="0 0 24 24">
+          <path d="M3 3v18h18" stroke="var(--line)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+          <path d="M18.5 7.5L12 14l-4-4-5 5" stroke="var(--line)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+          <path d="M14 7.5h4.5V12" stroke="var(--line)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+          <rect x="6" y="14" width="2" height="4" rx="0.5" fill="var(--mint)" stroke="var(--line)" strokeWidth="1.5" />
+          <rect x="11" y="10" width="2" height="8" rx="0.5" fill="var(--butter)" stroke="var(--line)" strokeWidth="1.5" />
+          <rect x="16" y="6" width="2" height="12" rx="0.5" fill="var(--rose)" stroke="var(--line)" strokeWidth="1.5" />
+        </svg>
+        {/* Coffee Cup */}
+        <svg className="doodle doodle-md doodle-10" viewBox="0 0 24 24">
+          <path d="M17 8h1a3 3 0 110 6h-1m-12-6h12v7a4 4 0 01-4 4H9a4 4 0 01-4-4V8z" fill="var(--peach)" stroke="var(--line)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M9 2v3M12 2v3M15 2v3" stroke="var(--line)" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+        {/* Graduation Cap */}
+        <svg className="doodle doodle-md doodle-11" viewBox="0 0 24 24">
+          <path d="M12 2L2 7l10 5 10-5-10-5z" fill="var(--sky-deep)" stroke="var(--line)" strokeWidth="2" strokeLinejoin="round" />
+          <path d="M6 10v6c0 2.2 2.7 4 6 4s6-1.8 6-4v-6" fill="var(--sky)" stroke="var(--line)" strokeWidth="2" strokeLinejoin="round" />
+          <path d="M20 7v6" stroke="var(--line)" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+        {/* Sparkles */}
+        <svg className="doodle doodle-sm doodle-12" viewBox="0 0 24 24">
+          <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3zm6 11l.75 2.25L21 17l-2.25.75L18 20l-.75-2.25L15 17l2.25-.75L18 14z" fill="var(--butter-deep)" stroke="var(--line)" strokeWidth="1.5" strokeLinejoin="round" />
+        </svg>
+      </div>
       <div className="auth-card plush-lg paper popin">
+        <div className="lang-selector">
+          <button type="button" className={`lang-btn ${lang === 'ru' ? 'active' : ''}`} onClick={() => changeLang('ru')}>RU</button>
+          <button type="button" className={`lang-btn ${lang === 'uz' ? 'active' : ''}`} onClick={() => changeLang('uz')}>UZ</button>
+          <button type="button" className={`lang-btn ${lang === 'en' ? 'active' : ''}`} onClick={() => changeLang('en')}>EN</button>
+        </div>
+
         <div className="auth-header">
-          <h2>С возвращением!</h2>
-          <p>Войдите, чтобы продолжить тренировки</p>
+          <h2>{TRANSLATIONS[lang].signInTitle}</h2>
+          <p>{TRANSLATIONS[lang].signInSub}</p>
         </div>
 
         {error && <div className="toast-alert warning">{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">Email</label>
+            <label className="form-label">{TRANSLATIONS[lang].emailLabel}</label>
             <input
               type="email"
               className="form-input"
@@ -1180,7 +1350,7 @@ function LoginPage() {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Пароль</label>
+            <label className="form-label">{TRANSLATIONS[lang].passwordLabel}</label>
             <input
               type="password"
               className="form-input"
@@ -1194,14 +1364,14 @@ function LoginPage() {
           </div>
 
           <button type="submit" className="btn-plush primary" style={{ width: '100%', marginTop: '8px' }}>
-            Войти в систему
+            {TRANSLATIONS[lang].signInBtn}
           </button>
         </form>
 
         <div className="auth-footer">
-          Еще нет аккаунта?
+          {TRANSLATIONS[lang].noAccount}
           <Link to="/signup" className="auth-link">
-            Зарегистрироваться
+            {TRANSLATIONS[lang].signUpLink}
           </Link>
         </div>
       </div>
@@ -1219,42 +1389,118 @@ function RegisterPage() {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
+  const [lang, setLang] = useState(() => localStorage.getItem('app_lang') || 'ru');
+
+  const changeLang = (l) => {
+    setLang(l);
+    localStorage.setItem('app_lang', l);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!name || !email || !password) {
-      setError('Пожалуйста, заполните обязательные поля');
+      setError(TRANSLATIONS[lang].errorRequired);
       return;
     }
     if (role === 'admin' && !orgName.trim()) {
-      setError('Пожалуйста, укажите название вашей организации');
+      setError(TRANSLATIONS[lang].errorOrg);
       return;
     }
     if (role === 'employee' && !roomKey.trim()) {
-      setError('Пожалуйста, введите ключ комнаты из приглашения');
+      setError(TRANSLATIONS[lang].errorRoom);
       return;
     }
 
-    alert(`Регистрация успешна для: ${email}`);
+    alert(`${TRANSLATIONS[lang].successRegister} ${email}`);
     navigate('/signin');
   };
 
   return (
     <div className="auth-wrapper dots-bg">
+      {/* Sign Up Background Flying Pastel Doodles */}
+      <div className="bg-doodles">
+        {/* Rocket */}
+        <svg className="doodle doodle-lg doodle-1" viewBox="0 0 24 24">
+          <path d="M4.5 16.5c-1.5 1.5-2.5 3.5-2.5 5.5 2 0 4-1 5.5-2.5m-3-3l6-6M12 3s4 0 7 3-1 9-9 9m-1-12a13 13 0 00-4 4l7 7a13 13 0 004-4" fill="var(--peach)" stroke="var(--line)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx="14" cy="10" r="2" fill="white" stroke="var(--line)" strokeWidth="1.5" />
+        </svg>
+        {/* Pencil */}
+        <svg className="doodle doodle-md doodle-2" viewBox="0 0 24 24">
+          <path d="M13.5 3.5l7 7M17.5 7.5L9 16l-3.5.5.5-3.5 8.5-8.5zm-12 12H19" fill="var(--butter)" stroke="var(--line)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        {/* Star */}
+        <svg className="doodle doodle-sm doodle-3" viewBox="0 0 24 24">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="var(--sky)" stroke="var(--line)" strokeWidth="2" strokeLinejoin="round"/>
+        </svg>
+        {/* Heart */}
+        <svg className="doodle doodle-md doodle-4" viewBox="0 0 24 24">
+          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="var(--rose)" stroke="var(--line)" strokeWidth="2" strokeLinejoin="round"/>
+        </svg>
+        {/* Crown */}
+        <svg className="doodle doodle-lg doodle-5" viewBox="0 0 24 24">
+          <path d="M2 4l3 12h14l3-12-5 4-5-6-5 6-5-4z" fill="var(--butter)" stroke="var(--line)" strokeWidth="2" strokeLinejoin="round" />
+          <circle cx="2" cy="4" r="1" fill="var(--line)" />
+          <circle cx="22" cy="4" r="1" fill="var(--line)" />
+          <circle cx="12" cy="2" r="1" fill="var(--line)" />
+        </svg>
+        {/* Planet */}
+        <svg className="doodle doodle-md doodle-6" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="6" fill="var(--sky)" stroke="var(--line)" strokeWidth="2" />
+          <path d="M2 12h20M5.5 8.5a9.5 9.5 0 0013 7" stroke="var(--line)" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+        {/* Speech Bubble */}
+        <svg className="doodle doodle-md doodle-7" viewBox="0 0 24 24">
+          <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" fill="var(--rose)" stroke="var(--line)" strokeWidth="2" strokeLinejoin="round" />
+        </svg>
+        {/* Sparkles */}
+        <svg className="doodle doodle-sm doodle-8" viewBox="0 0 24 24">
+          <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3zm6 11l.75 2.25L21 17l-2.25.75L18 20l-.75-2.25L15 17l2.25-.75L18 14z" fill="var(--butter-deep)" stroke="var(--line)" strokeWidth="1.5" strokeLinejoin="round" />
+        </svg>
+        {/* Growth Chart */}
+        <svg className="doodle doodle-lg doodle-9" viewBox="0 0 24 24">
+          <path d="M3 3v18h18" stroke="var(--line)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+          <path d="M18.5 7.5L12 14l-4-4-5 5" stroke="var(--line)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+          <path d="M14 7.5h4.5V12" stroke="var(--line)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+          <rect x="6" y="14" width="2" height="4" rx="0.5" fill="var(--mint)" stroke="var(--line)" strokeWidth="1.5" />
+          <rect x="11" y="10" width="2" height="8" rx="0.5" fill="var(--butter)" stroke="var(--line)" strokeWidth="1.5" />
+          <rect x="16" y="6" width="2" height="12" rx="0.5" fill="var(--rose)" stroke="var(--line)" strokeWidth="1.5" />
+        </svg>
+        {/* Coin / Money */}
+        <svg className="doodle doodle-sm doodle-10" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9" fill="var(--butter-deep)" stroke="var(--line)" strokeWidth="2"/>
+          <circle cx="12" cy="12" r="5" fill="var(--butter)" stroke="var(--line)" strokeWidth="1.5"/>
+        </svg>
+        {/* Book */}
+        <svg className="doodle doodle-md doodle-11" viewBox="0 0 24 24">
+          <path d="M4 19.5A2.5 2.5 0 016.5 17H20v2.5a2.5 2.5 0 01-2.5 2.5H6.5A2.5 2.5 0 014 19.5z" fill="var(--rose)" stroke="var(--line)" strokeWidth="2" />
+          <path d="M6.5 2H20v15H6.5A2.5 2.5 0 014 14.5V4A2.5 2.5 0 016.5 2z" fill="var(--sky)" stroke="var(--line)" strokeWidth="2" />
+        </svg>
+        {/* Key */}
+        <svg className="doodle doodle-sm doodle-12" viewBox="0 0 24 24">
+          <path d="M21 2l-2 2m-1.5-1.5L16 4m-4 4l3-3m-6.5 6.5A4.5 4.5 0 106 18a4.5 4.5 0 005.5-3.5L15 11h2v2h2v-2h3V8h-9.5z" fill="var(--butter)" stroke="var(--line)" strokeWidth="1.5" strokeLinejoin="round" />
+        </svg>
+      </div>
       <div className="auth-card plush-lg paper popin">
+        <div className="lang-selector">
+          <button type="button" className={`lang-btn ${lang === 'ru' ? 'active' : ''}`} onClick={() => changeLang('ru')}>RU</button>
+          <button type="button" className={`lang-btn ${lang === 'uz' ? 'active' : ''}`} onClick={() => changeLang('uz')}>UZ</button>
+          <button type="button" className={`lang-btn ${lang === 'en' ? 'active' : ''}`} onClick={() => changeLang('en')}>EN</button>
+        </div>
+
         <div className="auth-header">
-          <h2>Регистрация</h2>
-          <p>Создайте аккаунт и начните тренироваться</p>
+          <h2>{TRANSLATIONS[lang].signUpTitle}</h2>
+          <p>{TRANSLATIONS[lang].signUpSub}</p>
         </div>
 
         {error && <div className="toast-alert warning">{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">Ваше имя</label>
+            <label className="form-label">{TRANSLATIONS[lang].nameLabel}</label>
             <input
               type="text"
               className="form-input"
-              placeholder="Иван Иванов"
+              placeholder={TRANSLATIONS[lang].namePlaceholder}
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
@@ -1264,7 +1510,7 @@ function RegisterPage() {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Email</label>
+            <label className="form-label">{TRANSLATIONS[lang].emailLabel}</label>
             <input
               type="email"
               className="form-input"
@@ -1278,7 +1524,7 @@ function RegisterPage() {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Тип аккаунта</label>
+            <label className="form-label">{TRANSLATIONS[lang].roleLabel}</label>
             <select
               className="form-select"
               value={role}
@@ -1287,19 +1533,19 @@ function RegisterPage() {
                 setError('');
               }}
             >
-              <option value="solo">Индивидуальные тренировки (Solo)</option>
-              <option value="admin">Координатор обучения компании (Admin)</option>
-              <option value="employee">Сотрудник по приглашению (Employee)</option>
+              <option value="solo">{TRANSLATIONS[lang].roleSolo}</option>
+              <option value="admin">{TRANSLATIONS[lang].roleAdmin}</option>
+              <option value="employee">{TRANSLATIONS[lang].roleEmployee}</option>
             </select>
           </div>
 
           {role === 'admin' && (
             <div className="form-group popin">
-              <label className="form-label">Название организации</label>
+              <label className="form-label">{TRANSLATIONS[lang].orgLabel}</label>
               <input
                 type="text"
                 className="form-input"
-                placeholder="ООО Рога и Копыта"
+                placeholder={TRANSLATIONS[lang].orgPlaceholder}
                 value={orgName}
                 onChange={(e) => {
                   setOrgName(e.target.value);
@@ -1311,11 +1557,11 @@ function RegisterPage() {
 
           {role === 'employee' && (
             <div className="form-group popin">
-              <label className="form-label">Ключ комнаты</label>
+              <label className="form-label">{TRANSLATIONS[lang].roomKeyLabel}</label>
               <input
                 type="text"
                 className="form-input"
-                placeholder="Например: TEAM-7K2M"
+                placeholder={TRANSLATIONS[lang].roomKeyPlaceholder}
                 value={roomKey}
                 autoComplete="off"
                 onChange={(e) => {
@@ -1327,7 +1573,7 @@ function RegisterPage() {
           )}
 
           <div className="form-group">
-            <label className="form-label">Пароль</label>
+            <label className="form-label">{TRANSLATIONS[lang].passwordLabel}</label>
             <input
               type="password"
               className="form-input"
@@ -1341,14 +1587,14 @@ function RegisterPage() {
           </div>
 
           <button type="submit" className="btn-plush primary" style={{ width: '100%', marginTop: '8px' }}>
-            Создать аккаунт
+            {TRANSLATIONS[lang].signUpBtn}
           </button>
         </form>
 
         <div className="auth-footer">
-          Уже зарегистрированы?
+          {TRANSLATIONS[lang].hasAccount}
           <Link to="/signin" className="auth-link">
-            Войти
+            {TRANSLATIONS[lang].signInLink}
           </Link>
         </div>
       </div>

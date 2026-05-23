@@ -1016,14 +1016,19 @@ canvas {
    AUTH PAGES & FORM CONTROLS (Cozy Cartoon Neobrutalism)
    ────────────────────────────────────────────────────────── */
 .auth-wrapper {
+  position: relative;
+  overflow: hidden;
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: calc(100vh - 180px);
+  min-height: 100vh;
   padding: 20px;
+  z-index: 1;
 }
 
 .auth-card {
+  position: relative;
+  z-index: 2;
   width: 100%;
   max-width: 480px;
   padding: clamp(20px, 4vw, 36px);
@@ -1308,6 +1313,84 @@ canvas {
 .btn-plush.sm:active {
   box-shadow: 0 1px 0 var(--line);
   transform: translateY(2px);
+}
+
+/* Background Flying Pastel Doodles */
+.bg-doodles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.doodle {
+  position: absolute;
+  opacity: 1;
+  animation: float-up 3s ease-in-out infinite;
+  width: 48px;
+  height: 48px;
+  transition: fill 0.3s ease;
+}
+
+.doodle-1 { left: 8%; top: 12%; animation-delay: 0s; }
+.doodle-2 { left: 45%; top: 6%; animation-delay: 0.8s; }
+.doodle-3 { left: 88%; top: 15%; animation-delay: 1.5s; }
+.doodle-4 { left: 12%; top: 48%; animation-delay: 2.2s; }
+.doodle-5 { left: 85%; top: 52%; animation-delay: 0.4s; }
+.doodle-6 { left: 5%; top: 78%; animation-delay: 1.9s; }
+.doodle-7 { left: 50%; top: 88%; animation-delay: 3s; }
+.doodle-8 { left: 90%; top: 82%; animation-delay: 1.2s; }
+.doodle-9 { left: 24%; top: 32%; animation-delay: 2.7s; }
+.doodle-10 { left: 74%; top: 28%; animation-delay: 0.5s; }
+.doodle-11 { left: 4%; top: 22%; animation-delay: 1.7s; }
+.doodle-12 { left: 80%; top: 68%; animation-delay: 2.4s; }
+
+/* Sizes */
+.doodle-sm { width: 32px; height: 32px; }
+.doodle-md { width: 48px; height: 48px; }
+.doodle-lg { width: 68px; height: 68px; }
+
+/* Language Selector styling */
+.lang-selector {
+  display: inline-flex;
+  justify-content: center;
+  gap: 4px;
+  background: var(--cream-2);
+  padding: 4px;
+  border: 2.5px solid var(--line);
+  border-radius: var(--r-pill);
+  margin-bottom: 20px;
+  box-shadow: var(--plush-tiny);
+  margin-left: auto;
+  margin-right: auto;
+  width: fit-content;
+}
+
+.lang-btn {
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 0.78rem;
+  padding: 4px 10px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: all 120ms ease;
+  user-select: none;
+}
+
+.lang-btn:hover {
+  color: var(--ink);
+}
+
+.lang-btn.active {
+  background: var(--butter);
+  color: var(--ink);
+  box-shadow: 0 1.5px 0 var(--line);
+  border: 1.5px solid var(--line);
+  padding: 2.5px 8.5px;
 }
 
 
