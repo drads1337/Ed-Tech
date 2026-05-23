@@ -33,6 +33,13 @@ Thumbs.db
 # Cache
 .cache/
 *.tsbuildinfo
+__pycache__/
+.pytest_cache/
+*.py[cod]
+
+# Python
+.venv/
+venv/
 
 # Optional local overrides
 *.local
