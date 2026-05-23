@@ -54,6 +54,14 @@ const COMPANY_ASSIGNMENTS = [
   },
 ];
 
+const EMPLOYEE_LEADERBOARD_USERS = [
+  { rank: 1, name: 'Лена', role: 'Support lead', score: 1840, accuracy: 94, cases: 18, streak: 9, color: 'var(--butter)' },
+  { rank: 2, name: 'Ной', role: 'Sales rep', score: 1715, accuracy: 91, cases: 16, streak: 7, color: 'var(--sky)' },
+  { rank: 3, name: 'Вы', role: 'Employee', score: 1660, accuracy: 89, cases: 14, streak: 6, color: 'var(--mint)', isMe: true },
+  { rank: 4, name: 'Айви', role: 'Client manager', score: 1530, accuracy: 86, cases: 13, streak: 4, color: 'var(--rose)' },
+  { rank: 5, name: 'Самир', role: 'Support', score: 1420, accuracy: 82, cases: 12, streak: 3, color: 'var(--peach)' },
+];
+
 const DEFAULT_PROGRESS = {
   name: 'Александр',
   primaryIndustry: 'medicine',
@@ -109,6 +117,7 @@ const text = {
     appName: 'Тренажёр',
     tagline: 'Платформа развития и анализа профессиональных компетенций и коммуникативных навыков',
     streakDays: 'дн.',
+    streakDaysInRow: 'дней подряд',
     dailyPanelTitle: 'Панель дня',
     dailyPanelSubtitle: 'Короткий фокус, быстрый старт и ваш текущий прогресс.',
     onlineBubble: 'Я на линии',
@@ -133,6 +142,12 @@ const text = {
     navProgress: 'Прогресс',
     navPractice: 'Практика',
     navProfile: 'Профиль',
+    mainNavAria: 'Основная навигация',
+    userMetricsAria: 'Показатели пользователя',
+    companyRequired: 'ОБЯЗАТЕЛЬНО',
+    companyFromTitle: 'От компании',
+    companyFromDesc: 'Пройдите задания по порядку:',
+    leaderboard: 'Рейтинг',
     modePlanBadge: '🧭 МАРШРУТ',
     modePlanTitle: 'План обучения',
     modePlanDesc: 'Маршрут по вашему направлению. Прокачивайте навыки общения шаг за шагом по карте.',
@@ -167,11 +182,149 @@ const text = {
     yourCoins: 'Ваш баланс',
     updatesDaily: 'Обновляется ежедневно',
     generateCase: 'Создать свой кейс',
+    aiGenerator: 'AI Генератор',
+    aiGeneratorDesc: 'ИИ подготовит уникальный кейс под ваш запрос',
+    allMyIndustries: 'Все мои отрасли',
+    purchasedBadge: 'Куплен',
+    newBadge: 'новый',
+    libraryEmpty: 'У вас пока нет кейсов в этой отрасли.',
+    viewOffers: 'Смотреть предложения',
+    notEnoughCoins: 'Недостаточно монет! Нужно',
+    closeBtn: 'Закрыть',
+    generatingCase: 'Генерируем кейс',
+    generatingCaseDesc: 'ИИ подбирает ситуацию под вашу отрасль и пожелания…',
+    newCaseTitle: 'Новый кейс',
+    newCaseSubtitle: 'Опишите ситуацию — ИИ соберёт уникальный сценарий для тренировки',
+    industryLabel: 'Отрасль',
+    wishLabel: 'Ваши пожелания',
+    wishPlaceholder: 'Например: сложный пациент, который не хочет слушать рекомендации…',
+    wishOptional: 'Необязательно — можно оставить пустым',
+    costLabel: 'Стоимость',
+    youHave: 'У вас',
+    insufficientCoinsGen: 'Недостаточно монет для генерации',
+    cancelBtn: 'Отмена',
+    createCaseBtn: 'Создать кейс',
+    planPathKicker: 'Маршрут навыков',
+    planSubtitle: 'Карта сценариев, живой прогресс и следующий шаг в одном уютном маршруте.',
+    planProgressLabel: 'Прогресс плана',
+    planCompletedOf: 'пройдено',
+    planTodayLabel: 'Сегодня',
+    planOneDialog: '1 диалог',
+    planNextMove: 'Следующий ход',
+    planNextMoveHint: 'Слушай → уточняй → помогай',
+    planLearningPath: 'Learning Path',
+    planSkillTree: 'Дерево навыков',
+    planRouteProgress: 'маршрута',
+    planNextStep: 'Следующий шаг',
+    planStart: 'Начать',
+    planQuestDoneStatus: 'Выполнен',
+    planQuestActiveStatus: 'В работе',
+    planChanges: 'Изменения',
+    scenarioFallback: 'Сценарий',
+    planChangesEmpty: 'После тренировок здесь появится динамика XP и оценок.',
+    planSkills: 'Навыки',
+    empathyFallback: 'Эмпатия',
+    structureFallback: 'Структура',
+    readyForDialog: 'готов к диалогу',
+    durationLabel: 'Длительность',
+    difficultyLabel: 'Сложность',
+    rewardLabel: 'Награда',
+    skillLabel: 'Навык',
+    minUnit: 'мин',
+    diffEasy: 'Лёгкая',
+    diffMedium: 'Средняя',
+    diffHard: 'Сложная',
+    resultsTitle: 'Результаты',
+    coinsEarned: 'монет',
+    prosTitle: 'Плюсы',
+    growthTitle: 'Зоны роста',
+    retryBtn: 'Повторить',
+    theoryBtn: 'Теория',
+    homeBtn: 'Домой',
+    ratingOfThree: 'из 3',
+    companyPageTitle: 'От компании',
+    companyPageSubtitle: 'Обязательные задания открываются по порядку',
+    companyMinimum: 'Корпоративный минимум',
+    companyMinimumDesc: 'Эти сцены нужно пройти до контрольной точки. Следующее задание откроется после завершения предыдущего.',
+    companyProgress: 'Прогресс:',
+    companyCheckpointDone: 'контрольная точка пройдена',
+    companyContinueOrder: 'продолжайте по порядку',
+    requiredLabel: 'Обязательно',
+    stepLabel: 'Шаг',
+    assignmentCompleted: 'Пройдено',
+    assignmentRequired: 'Обязательно пройти',
+    assignmentLocked: 'Откроется позже',
+    lockedBtn: 'Закрыто',
+    passBtn: 'Пройти',
+    leaderboardTitle: 'Рейтинг',
+    leaderboardSubtitle: 'Рейтинг между вашими коллегами',
+    companySeason: 'Сезон компании',
+    yourRank: 'Ваш текущий ранг:',
+    leaderboardDesc: 'Очки считаются за обязательный трек, точность ответов, серию тренировок и завершённые кейсы среди сотрудников вашей компании.',
+    prizeFirst: '🥇 1 место: бонус + менторская сессия',
+    prizeSecond: '🥈 2 место: премиум-курс',
+    prizeThird: '🥉 3 место: корпоративный merch box',
+    yourProgressLabel: 'Ваш прогресс',
+    requiredAssignments: 'обязательных заданий',
+    youAreHere: 'Вы здесь',
+    points: 'очков',
+    accuracyLabel: 'точность',
+    casesLabel: 'кейсов',
+    leaderboardYou: 'Вы',
+    analyticsTitle: 'Аналитика',
+    analyticsSubtitle: 'Ваш путь к мастерству',
+    yourGoal: 'Ваша цель',
+    defaultGoal: 'Улучшить навыки коммуникации',
+    statCases: 'Кейсы',
+    statAccuracy: 'Точность',
+    statMinutes: 'Минуты',
+    activityTitle: 'Активность',
+    scenariosOnDay: 'сценариев',
+    psychoProfile: 'Психологический профиль',
+    empathy: 'Эмпатия',
+    clarity: 'Ясность',
+    resilience: 'Стойкость',
+    honesty: 'Честность',
+    importantEmotions: 'Важные эмоции',
+    confidence: 'Уверенность',
+    patience: 'Терпение',
+    attentiveness: 'Внимательность',
+    stressResilience: 'Стрессоустойчивость',
+    achievementsTitle: 'Достижения',
+    achievementFirst: 'Первый шаг',
+    achievementMaster: 'Мастер',
+    achievementStress: 'Стрессоустойчивый',
+    achievementStreak: 'Постоянство',
+    achievementUnlocked: 'Получено',
+    achievementLocked: 'Заблокировано',
+    recentDialogs: 'Последние диалоги',
+    workedThrough: 'Проработано',
+    noScenariosYet: 'Вы еще не прошли ни одного сценария',
+    patientVip: 'VIP',
+    patientGood: 'Лояльный',
+    patientAngry: 'Сложный',
+    patientNeutral: 'Обычный',
+    patientSad: 'Грустный',
+    currentSpecialization: 'Текущая специализация',
+    editBtn: 'Изменить',
+    goalPrefix: 'Цель:',
+    additionalIndustries: 'Доп. отрасли',
+    addIndustry: 'Добавить отрасль',
+    yourProgressArrow: 'Ваш прогресс →',
+    resetProgress: 'Сбросить прогресс',
+    resetConfirm: 'Сбросить весь прогресс? Это действие нельзя отменить.',
+    selectIndustry: 'Выберите отрасль',
+    yourRoleIn: 'Ваша роль в',
+    yourLearningGoal: 'Ваша цель обучения',
+    goalPlaceholder: 'Например: Сбор анамнеза или Переговоры',
+    finishBtn: 'Завершить',
+    nextBtn: 'Далее',
   },
   uz: {
     appName: 'Trenajyor',
     tagline: 'Kasbiy kompetensiyalar va muloqot ko‘nikmalarini rivojlantirish hamda tahlil qilish platformasi',
     streakDays: 'kun',
+    streakDaysInRow: 'kun ketma-ket',
     dailyPanelTitle: 'Kun paneli',
     dailyPanelSubtitle: 'Qisqa fokus, tez start va joriy natijalaringiz.',
     onlineBubble: 'Aloqadaman',
@@ -196,6 +349,12 @@ const text = {
     navProgress: 'Progress',
     navPractice: 'Amaliyot',
     navProfile: 'Profil',
+    mainNavAria: 'Asosiy navigatsiya',
+    userMetricsAria: 'Foydalanuvchi ko‘rsatkichlari',
+    companyRequired: 'MAJBURIY',
+    companyFromTitle: 'Kompaniyadan',
+    companyFromDesc: 'Topshiriqlarni tartib bilan o‘ting:',
+    leaderboard: 'Reyting',
     modePlanBadge: '🧭 MARSHRUT',
     modePlanTitle: 'O‘quv rejasi',
     modePlanDesc: 'Yo‘nalishingiz bo‘yicha yo‘l xaritasi. Muloqot ko‘nikmalarini bosqichma-bosqich rivojlantiring.',
@@ -209,7 +368,13 @@ const text = {
     quickPracticeLeft: 'bugun qoldi',
     back: 'Orqaga',
     generateWithAI: 'AI bilan yaratish',
+    dailyAISuggestion: 'Kunduzgi AI-taklif',
+    generateWish: 'Xohishlaringiz (ixtiyoriy)',
+    generateCost: 'Narxi: 5 🪙',
     generateButton: 'Yangi keys yaratish',
+    aiGenerating: 'AI ssenariy yaratmoqda...',
+    addToAccount: 'Akkauntga qo‘shish',
+    myIndustries: 'Mening sohalarim',
     libraryPageTitle: 'Kutubxona',
     libraryPageSubtitle: 'Sohalaringiz bo‘yicha ssenariylar',
     librarySectionsLabel: 'Kutubxona bo‘limlari',
@@ -219,15 +384,154 @@ const text = {
     dailyOffersSubtitle: 'Bugun 10 ta keys — tanlang va kutubxonaga qo‘shing',
     buyFor: 'Sotib olish',
     free: 'Bepul',
+    purchased: 'Kutubxonada',
     openCase: 'Ochish',
     yourCoins: 'Balansingiz',
     updatesDaily: 'Har kuni yangilanadi',
     generateCase: 'O‘z keysingizni yarating',
+    aiGenerator: 'AI Generator',
+    aiGeneratorDesc: 'AI so‘rovingizga mos noyob keys tayyorlaydi',
+    allMyIndustries: 'Barcha sohalarim',
+    purchasedBadge: 'Sotib olingan',
+    newBadge: 'yangi',
+    libraryEmpty: 'Bu sohada hali keysingiz yo‘q.',
+    viewOffers: 'Takliflarni ko‘rish',
+    notEnoughCoins: 'Tangalar yetarli emas! Kerak:',
+    closeBtn: 'Yopish',
+    generatingCase: 'Keys yaratilmoqda',
+    generatingCaseDesc: 'AI sohangiz va xohishlaringizga mos vaziyat tanlamoqda…',
+    newCaseTitle: 'Yangi keys',
+    newCaseSubtitle: 'Vaziyatni tasvirlang — AI mashq uchun noyob ssenariy yig‘adi',
+    industryLabel: 'Soha',
+    wishLabel: 'Xohishlaringiz',
+    wishPlaceholder: 'Masalan: tavsiyalarni eshitishni xohlamaydigan murakkab bemor…',
+    wishOptional: 'Ixtiyoriy — bo‘sh qoldirish mumkin',
+    costLabel: 'Narxi',
+    youHave: 'Sizda',
+    insufficientCoinsGen: 'Generatsiya uchun tangalar yetarli emas',
+    cancelBtn: 'Bekor qilish',
+    createCaseBtn: 'Keys yaratish',
+    planPathKicker: 'Ko‘nikmalar marshruti',
+    planSubtitle: 'Ssenariylar xaritasi, jonli progress va keyingi qadam bitta qulay marshrutda.',
+    planProgressLabel: 'Reja progressi',
+    planCompletedOf: 'o‘tilgan',
+    planTodayLabel: 'Bugun',
+    planOneDialog: '1 ta dialog',
+    planNextMove: 'Keyingi qadam',
+    planNextMoveHint: 'Tingla → aniqlashtir → yordam ber',
+    planLearningPath: 'Learning Path',
+    planSkillTree: 'Ko‘nikmalar daraxti',
+    planRouteProgress: 'marshrut',
+    planNextStep: 'Keyingi qadam',
+    planStart: 'Boshlash',
+    planQuestDoneStatus: 'Bajarilgan',
+    planQuestActiveStatus: 'Jarayonda',
+    planChanges: 'O‘zgarishlar',
+    scenarioFallback: 'Ssenariy',
+    planChangesEmpty: 'Mashqlardan keyin bu yerda XP va baholar dinamikasi paydo bo‘ladi.',
+    planSkills: 'Ko‘nikmalar',
+    empathyFallback: 'Empatiya',
+    structureFallback: 'Struktura',
+    readyForDialog: 'dialogga tayyor',
+    durationLabel: 'Davomiyligi',
+    difficultyLabel: 'Qiyinligi',
+    rewardLabel: 'Mukofot',
+    skillLabel: 'Ko‘nikma',
+    minUnit: 'daq',
+    diffEasy: 'Oson',
+    diffMedium: 'O‘rta',
+    diffHard: 'Qiyin',
+    resultsTitle: 'Natijalar',
+    coinsEarned: 'tanga',
+    prosTitle: 'Yaxshi tomonlar',
+    growthTitle: 'O‘sish zonasi',
+    retryBtn: 'Qayta urinish',
+    theoryBtn: 'Nazariya',
+    homeBtn: 'Bosh sahifa',
+    ratingOfThree: 'dan 3',
+    companyPageTitle: 'Kompaniyadan',
+    companyPageSubtitle: 'Majburiy topshiriqlar tartib bilan ochiladi',
+    companyMinimum: 'Korporativ minimum',
+    companyMinimumDesc: 'Nazorat nuqtasigacha bu sahnalarni o‘tish kerak. Keyingi topshiriq oldingisi tugagach ochiladi.',
+    companyProgress: 'Progress:',
+    companyCheckpointDone: 'nazorat nuqtasi o‘tildi',
+    companyContinueOrder: 'tartib bilan davom eting',
+    requiredLabel: 'Majburiy',
+    stepLabel: 'Qadam',
+    assignmentCompleted: 'O‘tilgan',
+    assignmentRequired: 'Majburiy o‘tish',
+    assignmentLocked: 'Keyinroq ochiladi',
+    lockedBtn: 'Yopiq',
+    passBtn: 'O‘tish',
+    leaderboardTitle: 'Reyting',
+    leaderboardSubtitle: 'Hamkasblaringiz orasidagi reyting',
+    companySeason: 'Kompaniya mavsumi',
+    yourRank: 'Joriy o‘rningiz:',
+    leaderboardDesc: 'Ballar majburiy trek, javob aniqligi, mashq seriyasi va kompaniya xodimlari orasidagi tugallangan keyslar uchun hisoblanadi.',
+    prizeFirst: '🥇 1-o‘rin: bonus + mentor sessiyasi',
+    prizeSecond: '🥈 2-o‘rin: premium-kurs',
+    prizeThird: '🥉 3-o‘rin: korporativ merch box',
+    yourProgressLabel: 'Sizning progressingiz',
+    requiredAssignments: 'majburiy topshiriq',
+    youAreHere: 'Siz shu yerdasiz',
+    points: 'ball',
+    accuracyLabel: 'aniqlik',
+    casesLabel: 'keys',
+    leaderboardYou: 'Siz',
+    analyticsTitle: 'Analitika',
+    analyticsSubtitle: 'Mahoratga yo‘lingiz',
+    yourGoal: 'Maqsadingiz',
+    defaultGoal: 'Muloqot ko‘nikmalarini yaxshilash',
+    statCases: 'Keyslar',
+    statAccuracy: 'Aniqlik',
+    statMinutes: 'Daqiqalar',
+    activityTitle: 'Faollik',
+    scenariosOnDay: 'ssenariy',
+    psychoProfile: 'Psixologik profil',
+    empathy: 'Empatiya',
+    clarity: 'Aniqlik',
+    resilience: 'Chidamlilik',
+    honesty: 'Halollik',
+    importantEmotions: 'Muhim his-tuyg‘ular',
+    confidence: 'Ishonch',
+    patience: 'Sabr',
+    attentiveness: 'Diqqat',
+    stressResilience: 'Stressga chidamlilik',
+    achievementsTitle: 'Yutuqlar',
+    achievementFirst: 'Birinchi qadam',
+    achievementMaster: 'Usta',
+    achievementStress: 'Stressga chidamli',
+    achievementStreak: 'Doimiylik',
+    achievementUnlocked: 'Olingan',
+    achievementLocked: 'Bloklangan',
+    recentDialogs: 'So‘nggi dialoglar',
+    workedThrough: 'Ishlangan',
+    noScenariosYet: 'Siz hali hech qanday ssenariyni o‘tmagansiz',
+    patientVip: 'VIP',
+    patientGood: 'Sodiq',
+    patientAngry: 'Murakkab',
+    patientNeutral: 'Oddiy',
+    patientSad: 'Xafa',
+    currentSpecialization: 'Joriy mutaxassislik',
+    editBtn: 'O‘zgartirish',
+    goalPrefix: 'Maqsad:',
+    additionalIndustries: 'Qo‘shimcha sohalar',
+    addIndustry: 'Soha qo‘shish',
+    yourProgressArrow: 'Sizning progressingiz →',
+    resetProgress: 'Progressni tozalash',
+    resetConfirm: 'Butun progressni tozalaysizmi? Bu amalni bekor qilib bo‘lmaydi.',
+    selectIndustry: 'Sohani tanlang',
+    yourRoleIn: 'Bu sohadagi rolingiz',
+    yourLearningGoal: 'O‘quv maqsadingiz',
+    goalPlaceholder: 'Masalan: Anamnez yig‘ish yoki Muzokaralar',
+    finishBtn: 'Yakunlash',
+    nextBtn: 'Keyingi',
   },
   en: {
     appName: 'Trainer',
     tagline: 'A platform for developing and analyzing professional competencies and communication skills',
     streakDays: 'days',
+    streakDaysInRow: 'days in a row',
     dailyPanelTitle: 'Today Panel',
     dailyPanelSubtitle: 'A short focus, quick start, and your current progress.',
     onlineBubble: 'I am online',
@@ -252,6 +556,12 @@ const text = {
     navProgress: 'Progress',
     navPractice: 'Practice',
     navProfile: 'Profile',
+    mainNavAria: 'Main navigation',
+    userMetricsAria: 'User metrics',
+    companyRequired: 'REQUIRED',
+    companyFromTitle: 'From company',
+    companyFromDesc: 'Complete assignments in order:',
+    leaderboard: 'Leaderboard',
     modePlanBadge: '🧭 MAP ROUTE',
     modePlanTitle: 'Learning plan',
     modePlanDesc: 'A route for your direction. Build communication skills step by step on the map.',
@@ -265,7 +575,13 @@ const text = {
     quickPracticeLeft: 'left today',
     back: 'Back',
     generateWithAI: 'Generate with AI',
+    dailyAISuggestion: 'AI suggestion of the day',
+    generateWish: 'Your wishes (optional)',
+    generateCost: 'Cost: 5 🪙',
     generateButton: 'Create new case',
+    aiGenerating: 'AI is creating a scenario...',
+    addToAccount: 'Add to account',
+    myIndustries: 'My industries',
     libraryPageTitle: 'Library',
     libraryPageSubtitle: 'Scenarios for your industries',
     librarySectionsLabel: 'Library sections',
@@ -275,10 +591,148 @@ const text = {
     dailyOffersSubtitle: '10 cases for today — pick one and add it to your library',
     buyFor: 'Buy for',
     free: 'Free',
+    purchased: 'In library',
     openCase: 'Open',
     yourCoins: 'Your balance',
     updatesDaily: 'Updates daily',
     generateCase: 'Create your own case',
+    aiGenerator: 'AI Generator',
+    aiGeneratorDesc: 'AI will prepare a unique case for your request',
+    allMyIndustries: 'All my industries',
+    purchasedBadge: 'Purchased',
+    newBadge: 'new',
+    libraryEmpty: 'You do not have cases in this industry yet.',
+    viewOffers: 'View offers',
+    notEnoughCoins: 'Not enough coins! Need',
+    closeBtn: 'Close',
+    generatingCase: 'Generating case',
+    generatingCaseDesc: 'AI is picking a situation for your industry and wishes…',
+    newCaseTitle: 'New case',
+    newCaseSubtitle: 'Describe the situation — AI will build a unique training scenario',
+    industryLabel: 'Industry',
+    wishLabel: 'Your wishes',
+    wishPlaceholder: 'Example: a difficult patient who does not want to follow recommendations…',
+    wishOptional: 'Optional — you can leave it empty',
+    costLabel: 'Cost',
+    youHave: 'You have',
+    insufficientCoinsGen: 'Not enough coins to generate',
+    cancelBtn: 'Cancel',
+    createCaseBtn: 'Create case',
+    planPathKicker: 'Skill route',
+    planSubtitle: 'A scenario map, live progress, and the next step in one cozy route.',
+    planProgressLabel: 'Plan progress',
+    planCompletedOf: 'completed',
+    planTodayLabel: 'Today',
+    planOneDialog: '1 dialogue',
+    planNextMove: 'Next move',
+    planNextMoveHint: 'Listen → clarify → help',
+    planLearningPath: 'Learning Path',
+    planSkillTree: 'Skill tree',
+    planRouteProgress: 'of route',
+    planNextStep: 'Next step',
+    planStart: 'Start',
+    planQuestDoneStatus: 'Done',
+    planQuestActiveStatus: 'In progress',
+    planChanges: 'Changes',
+    scenarioFallback: 'Scenario',
+    planChangesEmpty: 'After training, XP and rating dynamics will appear here.',
+    planSkills: 'Skills',
+    empathyFallback: 'Empathy',
+    structureFallback: 'Structure',
+    readyForDialog: 'ready for dialogue',
+    durationLabel: 'Duration',
+    difficultyLabel: 'Difficulty',
+    rewardLabel: 'Reward',
+    skillLabel: 'Skill',
+    minUnit: 'min',
+    diffEasy: 'Easy',
+    diffMedium: 'Medium',
+    diffHard: 'Hard',
+    resultsTitle: 'Results',
+    coinsEarned: 'coins',
+    prosTitle: 'Strengths',
+    growthTitle: 'Growth areas',
+    retryBtn: 'Retry',
+    theoryBtn: 'Theory',
+    homeBtn: 'Home',
+    ratingOfThree: 'of 3',
+    companyPageTitle: 'From company',
+    companyPageSubtitle: 'Required assignments unlock in order',
+    companyMinimum: 'Corporate minimum',
+    companyMinimumDesc: 'Complete these scenes before the checkpoint. The next assignment opens after the previous one is finished.',
+    companyProgress: 'Progress:',
+    companyCheckpointDone: 'checkpoint passed',
+    companyContinueOrder: 'continue in order',
+    requiredLabel: 'Required',
+    stepLabel: 'Step',
+    assignmentCompleted: 'Completed',
+    assignmentRequired: 'Required to pass',
+    assignmentLocked: 'Opens later',
+    lockedBtn: 'Locked',
+    passBtn: 'Start',
+    leaderboardTitle: 'Leaderboard',
+    leaderboardSubtitle: 'Ranking among your colleagues',
+    companySeason: 'Company season',
+    yourRank: 'Your current rank:',
+    leaderboardDesc: 'Points are counted for the required track, answer accuracy, training streak, and completed cases among your company employees.',
+    prizeFirst: '🥇 1st place: bonus + mentoring session',
+    prizeSecond: '🥈 2nd place: premium course',
+    prizeThird: '🥉 3rd place: corporate merch box',
+    yourProgressLabel: 'Your progress',
+    requiredAssignments: 'required assignments',
+    youAreHere: 'You are here',
+    points: 'points',
+    accuracyLabel: 'accuracy',
+    casesLabel: 'cases',
+    leaderboardYou: 'You',
+    analyticsTitle: 'Analytics',
+    analyticsSubtitle: 'Your path to mastery',
+    yourGoal: 'Your goal',
+    defaultGoal: 'Improve communication skills',
+    statCases: 'Cases',
+    statAccuracy: 'Accuracy',
+    statMinutes: 'Minutes',
+    activityTitle: 'Activity',
+    scenariosOnDay: 'scenarios',
+    psychoProfile: 'Psychological profile',
+    empathy: 'Empathy',
+    clarity: 'Clarity',
+    resilience: 'Resilience',
+    honesty: 'Honesty',
+    importantEmotions: 'Important emotions',
+    confidence: 'Confidence',
+    patience: 'Patience',
+    attentiveness: 'Attentiveness',
+    stressResilience: 'Stress resilience',
+    achievementsTitle: 'Achievements',
+    achievementFirst: 'First step',
+    achievementMaster: 'Master',
+    achievementStress: 'Stress-resilient',
+    achievementStreak: 'Consistency',
+    achievementUnlocked: 'Unlocked',
+    achievementLocked: 'Locked',
+    recentDialogs: 'Recent dialogues',
+    workedThrough: 'Worked through',
+    noScenariosYet: 'You have not completed any scenarios yet',
+    patientVip: 'VIP',
+    patientGood: 'Loyal',
+    patientAngry: 'Difficult',
+    patientNeutral: 'Regular',
+    patientSad: 'Sad',
+    currentSpecialization: 'Current specialization',
+    editBtn: 'Edit',
+    goalPrefix: 'Goal:',
+    additionalIndustries: 'Additional industries',
+    addIndustry: 'Add industry',
+    yourProgressArrow: 'Your progress →',
+    resetProgress: 'Reset progress',
+    resetConfirm: 'Reset all progress? This action cannot be undone.',
+    selectIndustry: 'Choose an industry',
+    yourRoleIn: 'Your role in',
+    yourLearningGoal: 'Your learning goal',
+    goalPlaceholder: 'Example: History taking or Negotiations',
+    finishBtn: 'Finish',
+    nextBtn: 'Next',
   },
 };
 
@@ -565,16 +1019,16 @@ function getCompanyAssignmentScenario(assignment) {
   return scenarios.find((scenario) => scenario.id === assignment.scenarioId) || scenarios[0];
 }
 
-function getCompanyAssignmentState(assignment, index, progress) {
+function getCompanyAssignmentState(assignment, index, progress, t) {
   const scenario = getCompanyAssignmentScenario(assignment);
   if (progress.completed[scenario.id]) {
-    return { label: 'completed', text: 'Пройдено' };
+    return { label: 'completed', text: t.assignmentCompleted };
   }
 
   const previous = COMPANY_ASSIGNMENTS[index - 1];
   const previousScenario = previous ? getCompanyAssignmentScenario(previous) : null;
   const isOpen = index === 0 || !previousScenario || progress.completed[previousScenario.id];
-  return isOpen ? { label: 'open', text: 'Обязательно пройти' } : { label: 'locked', text: 'Откроется позже' };
+  return isOpen ? { label: 'open', text: t.assignmentRequired } : { label: 'locked', text: t.assignmentLocked };
 }
 
 function getCompanyTrackStats(progress) {
@@ -681,8 +1135,8 @@ function suggestionToScenario(offer) {
   };
 }
 
-function getDifficultyLabel(level) {
-  return ['Лёгкая', 'Средняя', 'Сложная'][Math.max(0, Math.min(2, Number(level) - 1))] || 'Средняя';
+function getDifficultyLabel(level, t) {
+  return [t.diffEasy, t.diffMedium, t.diffHard][Math.max(0, Math.min(2, Number(level) - 1))] || t.diffMedium;
 }
 
 function getDifficultyStars(level) {
@@ -700,9 +1154,9 @@ function getScenarioStatus(scenario, index, progress) {
   return isOpen ? { label: 'open', icon: '🔓', rating: 0 } : { label: 'locked', icon: '🔒', rating: 0 };
 }
 
-function RatingStars({ rating = 0 }) {
+function RatingStars({ rating = 0, t = text.ru }) {
   return (
-    <span className="rating-stars" aria-label={`${rating} из 3`}>
+    <span className="rating-stars" aria-label={`${rating} ${t.ratingOfThree}`}>
       {'★'.repeat(rating)}
       {'☆'.repeat(Math.max(0, 3 - rating))}
     </span>
@@ -759,7 +1213,7 @@ function useInterfaceLanguage() {
 
 function BottomNav({ t }) {
   return (
-    <nav className="bottom-nav" aria-label="Основная навигация">
+    <nav className="bottom-nav" aria-label={t.mainNavAria}>
       {navItems.map((item) => (
         <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? 'is-active' : undefined)}>
           <span aria-hidden="true">{item.icon}</span>
@@ -786,7 +1240,7 @@ function PageTop({ title, subtitle, backTo, t = text.ru }) {
   );
 }
 
-function LearningPathMap({ progress }) {
+function LearningPathMap({ progress, t }) {
   const navigate = useNavigate();
 
   return (
@@ -813,7 +1267,7 @@ function LearningPathMap({ progress }) {
               <span className="node-icon">
                 {status.label === 'locked' ? '🔒' : status.label === 'completed' ? '✓' : industry.icon}
               </span>
-              {isCurrent ? <span className="start-bubble">Начать</span> : null}
+              {isCurrent ? <span className="start-bubble">{t.planStart}</span> : null}
             </button>
 
             <div className="snake-caption">
@@ -850,7 +1304,7 @@ function TrainerToolbar({ progress, lang, setLang, t, onLogout }) {
       <Link to="/home" className="home-screen-wordmark" aria-label="ilm-AI">
         ilm-<span>AI</span>
       </Link>
-      <div className="home-header-actions" aria-label="Показатели пользователя">
+      <div className="home-header-actions" aria-label={t.userMetricsAria}>
         <div className="home-metrics">
           <StatPill icon="🔥" label={`${progress.streak} ${t.streakDays}`} />
           <StatPill icon="⭐" label={`${progress.xp} XP`} />
@@ -879,11 +1333,11 @@ function HomePage({ progress, setProgress, t }) {
   const modeCards = [
     ...(showCompanyTrack
       ? [{
-          badgeText: 'ОБЯЗАТЕЛЬНО',
+          badgeText: t.companyRequired,
           badgeBg: 'var(--rose)',
           emoji: '🏢',
-          title: 'От компании',
-          desc: `Пройдите задания по порядку: ${companyTrack.completed}/${companyTrack.total}.`,
+          title: t.companyFromTitle,
+          desc: `${t.companyFromDesc} ${companyTrack.completed}/${companyTrack.total}.`,
           accent: 'var(--rose)',
           path: '/company',
         }]
@@ -962,22 +1416,24 @@ function HomePage({ progress, setProgress, t }) {
               <span className="chip sky">{t.focusToday}</span>
             </header>
             <p className="daily-tile-copy">{t.focusCopy}</p>
-            <div className="daily-tile-foot daily-coach-foot">
-              {focusDone ? (
-                <span className="chip mint">{t.focusCompleted}</span>
-              ) : (
-                <div className="daily-task-reward">
-                  <span className="daily-reward-label">{t.dailyReward}</span>
-                  <span className="reward-badge reward-badge--compact">+{DAILY_FOCUS_COIN_REWARD} 🪙</span>
-                </div>
-              )}
-            </div>
-            <div className="daily-coach-stats">
-              <span>{t.coins}: 🪙 {progress.coins}</span>
-              <span>{t.unlocked}: 🔓 {Object.keys(progress.completed).length + 1}</span>
-              {showCompanyTrack ? (
-                <span>🏢 {companyTrack.completed}/{companyTrack.total} обязательно</span>
-              ) : null}
+            <div className="daily-coach-bottom">
+              <div className="daily-tile-foot daily-coach-foot">
+                {focusDone ? (
+                  <span className="chip mint">{t.focusCompleted}</span>
+                ) : (
+                  <div className="daily-task-reward">
+                    <span className="daily-reward-label">{t.dailyReward}</span>
+                    <span className="reward-badge reward-badge--compact">+{DAILY_FOCUS_COIN_REWARD} 🪙</span>
+                  </div>
+                )}
+              </div>
+              <div className="daily-coach-stats">
+                <span>{t.coins}: 🪙 {progress.coins}</span>
+                <span>{t.unlocked}: 🔓 {Object.keys(progress.completed).length + 1}</span>
+                {showCompanyTrack ? (
+                  <span>🏢 {companyTrack.completed}/{companyTrack.total}</span>
+                ) : null}
+              </div>
             </div>
           </aside>
         </div>
@@ -997,7 +1453,7 @@ function HomePage({ progress, setProgress, t }) {
               navigate(mode.path);
             }}
             style={{
-              width: 270,
+              width: '100%',
               background: 'white',
               border: '3.5px solid var(--line)',
               borderRadius: 24,
@@ -1076,6 +1532,9 @@ function HomePage({ progress, setProgress, t }) {
       <div className="home-screen-actions popin">
         {[
           { icon: '📊', label: t.progress, onClick: () => navigate('/results-page'), bg: 'white' },
+          ...(showCompanyTrack
+            ? [{ icon: '🏆', label: t.leaderboard, onClick: () => navigate('/leaderboard'), bg: 'var(--sky)' }]
+            : []),
           { icon: '👤', label: t.profile,  onClick: () => navigate('/profile'), bg: 'var(--butter)' },
         ].map((item, i) => (
           <button
@@ -1105,7 +1564,7 @@ function HomePage({ progress, setProgress, t }) {
   );
 }
 
-function PlanPage({ progress }) {
+function PlanPage({ progress, t }) {
   const navigate = useNavigate();
   const completedCount = Object.keys(progress.completed).length;
   const completion = Math.round((completedCount / scenarios.length) * 100);
@@ -1118,30 +1577,30 @@ function PlanPage({ progress }) {
   return (
     <section className="screen plan-screen">
       <Link className="back-link plan-back-link" to="/home">
-        <ArrowLeft size={18} aria-hidden="true" /> Назад
+        <ArrowLeft size={18} aria-hidden="true" /> {t.back}
       </Link>
       <header className="plan-hero plush-lg">
         <div className="plan-hero-copy">
-          <span className="path-kicker hero-kicker">Маршрут навыков</span>
-          <h1>План обучения</h1>
-          <p>Карта сценариев, живой прогресс и следующий шаг в одном уютном маршруте.</p>
-          <div className="plan-hero-chips" aria-label="Прогресс плана">
-            <span>🧭 {completedCount}/{scenarios.length} пройдено</span>
+          <span className="path-kicker hero-kicker">{t.planPathKicker}</span>
+          <h1>{t.modePlanTitle}</h1>
+          <p>{t.planSubtitle}</p>
+          <div className="plan-hero-chips" aria-label={t.planProgressLabel}>
+            <span>🧭 {completedCount}/{scenarios.length} {t.planCompletedOf}</span>
             <span>⭐ {progress.xp} XP</span>
-            <span>🔥 {progress.streak} дней подряд</span>
+            <span>🔥 {progress.streak} {t.streakDaysInRow}</span>
           </div>
         </div>
         <div className="plan-hero-art" aria-hidden="true">
           <div className="toy-stage">
-            <span className="toy-label">Сегодня</span>
-            <span className="toy-note note-one">1 диалог</span>
+            <span className="toy-label">{t.planTodayLabel}</span>
+            <span className="toy-note note-one">{t.planOneDialog}</span>
             <span className="toy-note note-two">+15 XP</span>
             <span className="toy-block block-one" />
             <span className="toy-block block-two" />
             <span className="toy-block block-three" />
             <span className="toy-card">
-              <strong>Следующий ход</strong>
-              <small>Слушай → уточняй → помогай</small>
+              <strong>{t.planNextMove}</strong>
+              <small>{t.planNextMoveHint}</small>
             </span>
             <span className="toy-route">
               <i />
@@ -1160,22 +1619,22 @@ function PlanPage({ progress }) {
         <section className="learning-path plan-map-panel">
           <div className="section-heading plan-map-heading">
             <div>
-              <span className="path-kicker">Learning Path</span>
-              <h2>Дерево навыков</h2>
+              <span className="path-kicker">{t.planLearningPath}</span>
+              <h2>{t.planSkillTree}</h2>
             </div>
-            <div className="map-heading-progress" aria-label={`Прогресс маршрута ${completion}%`}>
-              <span>{completion}% маршрута</span>
+            <div className="map-heading-progress" aria-label={`${t.planProgressLabel} ${completion}%`}>
+              <span>{completion}% {t.planRouteProgress}</span>
               <div>
                 <i style={{ width: `${completion}%` }} />
               </div>
             </div>
           </div>
-          <LearningPathMap progress={progress} />
+          <LearningPathMap progress={progress} t={t} />
         </section>
 
         <aside className="plan-sidebar">
           <article className="plan-side-card plush">
-            <span className="path-kicker">Следующий шаг</span>
+            <span className="path-kicker">{t.planNextStep}</span>
             <h2>{nextScenario.title}</h2>
             <p>{nextScenario.goal}</p>
             <button
@@ -1183,19 +1642,19 @@ function PlanPage({ progress }) {
               type="button"
               onClick={() => startScenarioSimulation(nextScenario, navigate)}
             >
-              ▶ Начать
+              ▶ {t.planStart}
             </button>
           </article>
 
           <article className="plan-side-card plush">
-            <span className="path-kicker">Квест дня</span>
-            <h2>{questDone ? 'Выполнен' : 'В работе'}</h2>
-            <p>{quests[0].text}</p>
+            <span className="path-kicker">{t.dailyQuest}</span>
+            <h2>{questDone ? t.planQuestDoneStatus : t.planQuestActiveStatus}</h2>
+            <p>{quests[0].text === 'Пройти 1 сценарий на стрессоустойчивость' ? t.questText : quests[0].text}</p>
             <span className="reward-badge">+{quests[0].reward} XP</span>
           </article>
 
           <article className="plan-side-card plush">
-            <span className="path-kicker">Изменения</span>
+            <span className="path-kicker">{t.planChanges}</span>
             {recentAttempts.length ? (
               <div className="plan-change-list">
                 {recentAttempts.map((attempt) => {
@@ -1203,7 +1662,7 @@ function PlanPage({ progress }) {
 
                   return (
                     <div key={attempt.id} className="plan-change-row">
-                      <strong>{scenario?.title || 'Сценарий'}</strong>
+                      <strong>{scenario?.title || t.scenarioFallback}</strong>
                       <span>
                         +{attempt.xpGained} XP · {attempt.rating}/3
                       </span>
@@ -1212,19 +1671,19 @@ function PlanPage({ progress }) {
                 })}
               </div>
             ) : (
-              <p>После тренировок здесь появится динамика XP и оценок.</p>
+              <p>{t.planChangesEmpty}</p>
             )}
           </article>
 
           <article className="plan-side-card plush">
-            <span className="path-kicker">Навыки</span>
+            <span className="path-kicker">{t.planSkills}</span>
             <div className="skill-row">
-              <span>{skillRows.strong[0]?.skill || 'Эмпатия'}</span>
-              <RatingStars rating={skillRows.strong[0]?.rating || 2} />
+              <span>{skillRows.strong[0]?.skill || t.empathyFallback}</span>
+              <RatingStars rating={skillRows.strong[0]?.rating || 2} t={t} />
             </div>
             <div className="skill-row">
-              <span>{skillRows.weak[0]?.skill || 'Структура'}</span>
-              <RatingStars rating={skillRows.weak[0]?.rating || 1} />
+              <span>{skillRows.weak[0]?.skill || t.structureFallback}</span>
+              <RatingStars rating={skillRows.weak[0]?.rating || 1} t={t} />
             </div>
           </article>
         </aside>
@@ -1233,7 +1692,7 @@ function PlanPage({ progress }) {
   );
 }
 
-function ScenarioPage({ progress }) {
+function ScenarioPage({ progress, t }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const scenario = findScenarioById(id, progress);
@@ -1244,17 +1703,17 @@ function ScenarioPage({ progress }) {
 
   return (
     <section className="screen scenario-screen">
-      <ScenarioPreview scenario={scenario} onStart={() => startScenarioSimulation(scenario, navigate)} />
+      <ScenarioPreview scenario={scenario} onStart={() => startScenarioSimulation(scenario, navigate)} t={t} />
     </section>
   );
 }
 
-function ScenarioPreview({ scenario, onStart }) {
+function ScenarioPreview({ scenario, onStart, t }) {
   const industry = getIndustry(scenario.industry);
 
   return (
     <>
-      <PageTop title={scenario.title} subtitle={scenario.aiPersona} backTo="/home" />
+      <PageTop title={scenario.title} subtitle={scenario.aiPersona} backTo="/home" t={t} />
       <div className="scenario-preview plush-lg">
         <div className="scenario-art" aria-hidden="true">
           <div className="preview-window" />
@@ -1268,7 +1727,7 @@ function ScenarioPreview({ scenario, onStart }) {
             <span />
             <i />
           </div>
-          <div className="speech-chip">готов к диалогу</div>
+          <div className="speech-chip">{t.readyForDialog}</div>
         </div>
 
         <div className="preview-copy">
@@ -1279,24 +1738,24 @@ function ScenarioPreview({ scenario, onStart }) {
           <p>{scenario.aiPersona}</p>
           <div className="preview-stats">
             <div>
-              <span>Длительность</span>
-              <strong>{scenario.durationMin} мин</strong>
+              <span>{t.durationLabel}</span>
+              <strong>{scenario.durationMin} {t.minUnit}</strong>
             </div>
             <div>
-              <span>Сложность</span>
-              <strong>{getDifficultyLabel(scenario.difficulty)}</strong>
+              <span>{t.difficultyLabel}</span>
+              <strong>{getDifficultyLabel(scenario.difficulty, t)}</strong>
             </div>
             <div>
-              <span>Награда</span>
+              <span>{t.rewardLabel}</span>
               <strong>+{scenario.xpReward} XP</strong>
             </div>
             <div>
-              <span>Навык</span>
+              <span>{t.skillLabel}</span>
               <strong>{scenario.skill}</strong>
             </div>
           </div>
           <button className="btn-plush primary start-button" type="button" onClick={onStart}>
-            <Play size={20} aria-hidden="true" /> Начать
+            <Play size={20} aria-hidden="true" /> {t.planStart}
           </button>
         </div>
       </div>
@@ -1304,7 +1763,7 @@ function ScenarioPreview({ scenario, onStart }) {
   );
 }
 
-function ResultsPage({ progress }) {
+function ResultsPage({ progress, t }) {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -1323,26 +1782,26 @@ function ResultsPage({ progress }) {
 
   return (
     <section className="screen results-screen">
-      <PageTop title="Результаты" subtitle={scenario.title} backTo="/home" />
+      <PageTop title={t.resultsTitle} subtitle={scenario.title} backTo="/home" t={t} />
       <div className="results-card plush-lg">
         <div className="results-hero">
           <Sparkles size={34} aria-hidden="true" />
           <span className="rating-big">
-            <RatingStars rating={rating} />
+            <RatingStars rating={rating} t={t} />
           </span>
           <h2>+{attempt?.xpGained || scenario.xpReward} XP</h2>
-          <p>+{attempt?.coinsGained || scenario.coinReward} монет</p>
+          <p>+{attempt?.coinsGained || scenario.coinReward} {t.coinsEarned}</p>
         </div>
 
         <div className="feedback-grid">
           <article className="feedback-box">
-            <h3>Плюсы</h3>
+            <h3>{t.prosTitle}</h3>
             {good.map((item) => (
               <p key={item}>🟢 {item}</p>
             ))}
           </article>
           <article className="feedback-box">
-            <h3>Зоны роста</h3>
+            <h3>{t.growthTitle}</h3>
             {improve.map((item) => (
               <p key={item}>⭐ {item}</p>
             ))}
@@ -1351,13 +1810,13 @@ function ResultsPage({ progress }) {
 
         <div className="results-actions">
           <button className="btn-plush primary" type="button" onClick={() => navigate(`/scenario/${scenario.id}`)}>
-            <RefreshCw size={18} aria-hidden="true" /> Повторить
+            <RefreshCw size={18} aria-hidden="true" /> {t.retryBtn}
           </button>
           <button className="btn-plush" type="button" onClick={() => navigate('/library')}>
-            📚 Теория
+            📚 {t.theoryBtn}
           </button>
           <button className="btn-plush mint" type="button" onClick={() => navigate('/home')}>
-            🏠 Домой
+            🏠 {t.homeBtn}
           </button>
         </div>
       </div>
@@ -1433,7 +1892,7 @@ function LibraryPage({ progress, setProgress, t = getText('ru') }) {
 
   const handleGenerate = () => {
     if (progress.coins < 5) {
-      alert('Недостаточно монет! Нужно 5 🪙');
+      alert(`${t.notEnoughCoins} 5 🪙`);
       return;
     }
 
@@ -1490,7 +1949,7 @@ function LibraryPage({ progress, setProgress, t = getText('ru') }) {
     }
 
     if (offer.price > 0 && progress.coins < offer.price) {
-      alert(`Недостаточно монет! Нужно ${offer.price} 🪙`);
+      alert(`${t.notEnoughCoins} ${offer.price} 🪙`);
       return;
     }
 
@@ -1540,9 +1999,9 @@ function LibraryPage({ progress, setProgress, t = getText('ru') }) {
           <div className="library-ai-section plush-lg popin">
             <div className="library-ai-section-head">
               <div>
-                <span className="chip sky">AI Генератор</span>
+                <span className="chip sky">{t.aiGenerator}</span>
                 <h2>{t.generateCase}</h2>
-                <p>ИИ подготовит уникальный кейс под ваш запрос</p>
+                <p>{t.aiGeneratorDesc}</p>
               </div>
               <button type="button" className="btn-plush primary tap" onClick={openGenModal}>
                 <Sparkles size={18} aria-hidden="true" />
@@ -1553,7 +2012,7 @@ function LibraryPage({ progress, setProgress, t = getText('ru') }) {
 
           <div className="filter-bar plush">
             <select value={industryFilter} onChange={(event) => setIndustryFilter(event.target.value)}>
-              <option value="all">Все мои отрасли</option>
+              <option value="all">{t.allMyIndustries}</option>
               {myIndustries.map((industry) => (
                 <option key={industry.id} value={industry.id}>
                   {industry.name}
@@ -1577,14 +2036,14 @@ function LibraryPage({ progress, setProgress, t = getText('ru') }) {
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
                         <span className="chip sky">{scenario.skill}</span>
                         {scenario.isAiGenerated && <span className="chip butter">AI</span>}
-                        {scenario.isPurchased && <span className="chip mint">Куплен</span>}
+                        {scenario.isPurchased && <span className="chip mint">{t.purchasedBadge}</span>}
                       </div>
                       <h2>{scenario.title}</h2>
                       <p>{scenario.goal}</p>
                       <div className="library-meta">
-                        <span>{scenario.durationMin} мин</span>
-                        <span>{getDifficultyLabel(scenario.difficulty)}</span>
-                        {rating ? <RatingStars rating={rating} /> : <span>новый</span>}
+                        <span>{scenario.durationMin} {t.minUnit}</span>
+                        <span>{getDifficultyLabel(scenario.difficulty, t)}</span>
+                        {rating ? <RatingStars rating={rating} t={t} /> : <span>{t.newBadge}</span>}
                       </div>
                     </div>
                   </Link>
@@ -1592,9 +2051,9 @@ function LibraryPage({ progress, setProgress, t = getText('ru') }) {
               })
             ) : (
               <div className="library-empty plush">
-                <p>У вас пока нет кейсов в этой отрасли.</p>
+                <p>{t.libraryEmpty}</p>
                 <button type="button" className="btn-plush primary tap" onClick={() => setLibraryTab('offers')}>
-                  Смотреть предложения
+                  {t.viewOffers}
                 </button>
               </div>
             )}
@@ -1647,8 +2106,8 @@ function LibraryPage({ progress, setProgress, t = getText('ru') }) {
                     <h3>{offer.title}</h3>
                     <p className="offer-description">{offer.description}</p>
                     <div className="offer-meta">
-                      <span>{offer.durationMin} мин</span>
-                      <span>{getDifficultyLabel(offer.difficulty)}</span>
+                      <span>{offer.durationMin} {t.minUnit}</span>
+                      <span>{getDifficultyLabel(offer.difficulty, t)}</span>
                     </div>
                   </div>
 
@@ -1683,7 +2142,7 @@ function LibraryPage({ progress, setProgress, t = getText('ru') }) {
         <div className="modal-overlay" onClick={closeGenModal}>
           <div className="modal-content gen-modal plush-lg popin" onClick={(e) => e.stopPropagation()} role="dialog" aria-labelledby="gen-modal-title">
             {!isGenerating && (
-              <button type="button" className="modal-close" onClick={closeGenModal} aria-label="Закрыть">
+              <button type="button" className="modal-close" onClick={closeGenModal} aria-label={t.closeBtn}>
                 <X size={20} />
               </button>
             )}
@@ -1692,19 +2151,19 @@ function LibraryPage({ progress, setProgress, t = getText('ru') }) {
               {isGenerating ? (
                 <div className="gen-modal-loading">
                   <div className="ai-loader" aria-hidden="true">✨</div>
-                  <h2>Генерируем кейс</h2>
-                  <p>ИИ подбирает ситуацию под вашу отрасль и пожелания…</p>
+                  <h2>{t.generatingCase}</h2>
+                  <p>{t.generatingCaseDesc}</p>
                 </div>
               ) : (
                 <>
                   <div className="gen-modal-head">
-                    <span className="chip sky">AI Генератор</span>
-                    <h2 id="gen-modal-title">Новый кейс</h2>
-                    <p className="gen-modal-subtitle">Опишите ситуацию — ИИ соберёт уникальный сценарий для тренировки</p>
+                    <span className="chip sky">{t.aiGenerator}</span>
+                    <h2 id="gen-modal-title">{t.newCaseTitle}</h2>
+                    <p className="gen-modal-subtitle">{t.newCaseSubtitle}</p>
                   </div>
 
                   <div className="gen-modal-field">
-                    <label htmlFor="gen-industry">Отрасль</label>
+                    <label htmlFor="gen-industry">{t.industryLabel}</label>
                     <select
                       id="gen-industry"
                       className="gen-modal-select"
@@ -1720,29 +2179,29 @@ function LibraryPage({ progress, setProgress, t = getText('ru') }) {
                   </div>
 
                   <div className="gen-modal-field">
-                    <label htmlFor="gen-wish">Ваши пожелания</label>
+                    <label htmlFor="gen-wish">{t.wishLabel}</label>
                     <textarea
                       id="gen-wish"
                       className="gen-modal-textarea"
-                      placeholder="Например: сложный пациент, который не хочет слушать рекомендации…"
+                      placeholder={t.wishPlaceholder}
                       value={userWish}
                       onChange={(e) => setUserWish(e.target.value)}
                       rows={4}
                     />
-                    <span className="gen-modal-hint">Необязательно — можно оставить пустым</span>
+                    <span className="gen-modal-hint">{t.wishOptional}</span>
                   </div>
 
                   <div className={`gen-modal-cost ${progress.coins < 5 ? 'is-insufficient' : ''}`}>
                     <div className="gen-modal-cost-row">
-                      <span>Стоимость</span>
+                      <span>{t.costLabel}</span>
                       <strong>5 🪙</strong>
                     </div>
                     <div className="gen-modal-cost-row">
-                      <span>У вас</span>
+                      <span>{t.youHave}</span>
                       <strong>{progress.coins} 🪙</strong>
                     </div>
                     {progress.coins < 5 && (
-                      <p className="gen-modal-cost-warning">Недостаточно монет для генерации</p>
+                      <p className="gen-modal-cost-warning">{t.insufficientCoinsGen}</p>
                     )}
                   </div>
                 </>
@@ -1752,7 +2211,7 @@ function LibraryPage({ progress, setProgress, t = getText('ru') }) {
             {!isGenerating && (
               <div className="modal-footer gen-modal-footer">
                 <button type="button" className="btn-plush tap" onClick={closeGenModal}>
-                  Отмена
+                  {t.cancelBtn}
                 </button>
                 <button
                   type="button"
@@ -1761,7 +2220,7 @@ function LibraryPage({ progress, setProgress, t = getText('ru') }) {
                   disabled={progress.coins < 5}
                 >
                   <Sparkles size={18} aria-hidden="true" />
-                  Создать кейс
+                  {t.createCaseBtn}
                 </button>
               </div>
             )}
@@ -1772,29 +2231,29 @@ function LibraryPage({ progress, setProgress, t = getText('ru') }) {
   );
 }
 
-function CompanyAssignmentsPage({ progress }) {
+function CompanyAssignmentsPage({ progress, t }) {
   const navigate = useNavigate();
   const track = getCompanyTrackStats(progress);
 
   return (
     <section className="screen library-screen company-screen">
-      <PageTop title="От компании" subtitle="Обязательные задания открываются по порядку" backTo="/home" />
+      <PageTop title={t.companyPageTitle} subtitle={t.companyPageSubtitle} backTo="/home" t={t} />
 
       <header className="library-offers-head plush-lg company-track-head">
         <div className="library-offers-head-copy">
           <h2 className="library-offers-title">
             <span className="library-offers-title-icon" aria-hidden="true">🏢</span>
-            Корпоративный минимум
+            {t.companyMinimum}
           </h2>
           <p className="library-offers-subtitle">
-            Эти сцены нужно пройти до контрольной точки. Следующее задание откроется после завершения предыдущего.
+            {t.companyMinimumDesc}
           </p>
           <p className="library-offers-meta">
-            Прогресс: {track.completed}/{track.total} {track.isComplete ? '· контрольная точка пройдена' : '· продолжайте по порядку'}
+            {t.companyProgress} {track.completed}/{track.total} {track.isComplete ? `· ${t.companyCheckpointDone}` : `· ${t.companyContinueOrder}`}
           </p>
         </div>
         <div className="library-coins-badge plush-tiny">
-          <span className="library-coins-label">Обязательно</span>
+          <span className="library-coins-label">{t.requiredLabel}</span>
           <strong className="library-coins-value">{track.completed}/{track.total}</strong>
         </div>
       </header>
@@ -1803,7 +2262,7 @@ function CompanyAssignmentsPage({ progress }) {
         {COMPANY_ASSIGNMENTS.map((assignment, index) => {
           const scenario = getCompanyAssignmentScenario(assignment);
           const industry = getIndustry(scenario.industry);
-          const state = getCompanyAssignmentState(assignment, index, progress);
+          const state = getCompanyAssignmentState(assignment, index, progress, t);
           const rating = progress.completed[scenario.id]?.rating || 0;
           const isLocked = state.label === 'locked';
 
@@ -1818,14 +2277,14 @@ function CompanyAssignmentsPage({ progress }) {
                     {state.text}
                   </span>
                   <span className="chip sky">{assignment.badge}</span>
-                  <span className="chip peach">Шаг {index + 1}</span>
+                  <span className="chip peach">{t.stepLabel} {index + 1}</span>
                 </div>
                 <h2>{assignment.title}</h2>
                 <p>{assignment.description}</p>
                 <div className="library-meta">
-                  <span>{scenario.durationMin} мин</span>
-                  <span>{getDifficultyLabel(scenario.difficulty)}</span>
-                  {rating ? <RatingStars rating={rating} /> : <span>{assignment.checkpoint}</span>}
+                  <span>{scenario.durationMin} {t.minUnit}</span>
+                  <span>{getDifficultyLabel(scenario.difficulty, t)}</span>
+                  {rating ? <RatingStars rating={rating} t={t} /> : <span>{assignment.checkpoint}</span>}
                 </div>
               </div>
               <button
@@ -1834,7 +2293,7 @@ function CompanyAssignmentsPage({ progress }) {
                 disabled={isLocked}
                 onClick={() => navigate(`/scenario/${scenario.id}`)}
               >
-                {state.label === 'completed' ? 'Повторить' : isLocked ? 'Закрыто' : 'Пройти'}
+                {state.label === 'completed' ? t.retryBtn : isLocked ? t.lockedBtn : t.passBtn}
               </button>
             </article>
           );
@@ -1844,7 +2303,63 @@ function CompanyAssignmentsPage({ progress }) {
   );
 }
 
-function ProgressPage({ progress }) {
+function EmployeeLeaderboardPage({ progress, t }) {
+  const track = getCompanyTrackStats(progress);
+  const currentUser = EMPLOYEE_LEADERBOARD_USERS.find((user) => user.isMe) || EMPLOYEE_LEADERBOARD_USERS[0];
+
+  return (
+    <section className="screen library-screen leaderboard-screen">
+      <PageTop title={t.leaderboardTitle} subtitle={t.leaderboardSubtitle} backTo="/home" t={t} />
+
+      <header className="library-offers-head plush-lg leaderboard-head">
+        <div className="library-offers-head-copy">
+          <span className="chip butter">{t.companySeason}</span>
+          <h2 className="library-offers-title">
+            <span className="library-offers-title-icon" aria-hidden="true">🏆</span>
+            {t.yourRank} #{currentUser.rank}
+          </h2>
+          <p className="library-offers-subtitle">
+            {t.leaderboardDesc}
+          </p>
+          <div className="chip-row leaderboard-prize-row">
+            <span className="chip butter">{t.prizeFirst}</span>
+            <span className="chip sky">{t.prizeSecond}</span>
+            <span className="chip mint">{t.prizeThird}</span>
+          </div>
+        </div>
+        <div className="library-coins-badge plush-tiny">
+          <span className="library-coins-label">{t.yourProgressLabel}</span>
+          <strong className="library-coins-value">{currentUser.score}</strong>
+          <span className="library-offers-meta">{track.completed}/{track.total} {t.requiredAssignments}</span>
+        </div>
+      </header>
+
+      <div className="leaderboard-list">
+        {EMPLOYEE_LEADERBOARD_USERS.map((user) => (
+          <article key={user.rank} className={`leaderboard-row plush ${user.isMe ? 'is-me' : ''}`}>
+            <div className="leaderboard-rank">#{user.rank}</div>
+            <div className="leaderboard-avatar" style={{ background: user.color }}>{user.name[0]}</div>
+            <div className="leaderboard-main">
+              <div className="leaderboard-name-line">
+                <h3>{user.isMe ? t.leaderboardYou : user.name}</h3>
+                {user.isMe ? <span className="chip mint">{t.youAreHere}</span> : null}
+              </div>
+              <p>{user.role}</p>
+            </div>
+            <div className="chip-row leaderboard-metrics">
+              <span className="chip butter"><b>{user.score}</b> {t.points}</span>
+              <span className="chip sky">{user.accuracy}% {t.accuracyLabel}</span>
+              <span className="chip peach">{user.cases} {t.casesLabel}</span>
+              <span className="chip mint">🔥 {user.streak}</span>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ProgressPage({ progress, t }) {
   const completedCount = Object.keys(progress.completed).length;
   const attempts = progress.attempts || [];
   
@@ -1857,7 +2372,6 @@ function ProgressPage({ progress }) {
     return sum + (scenario?.durationMin || 0);
   }, 0);
 
-  // GitHub Grid
   const gridData = useMemo(() => {
     const grid = [];
     const now = new Date();
@@ -1921,45 +2435,41 @@ function ProgressPage({ progress }) {
     );
   };
 
-  // Important Emotions
   const emotions = [
-    { name: 'Уверенность', value: 75, trend: 5, icon: '🛡️' },
-    { name: 'Терпение', value: 60, trend: -2, icon: '⏳' },
-    { name: 'Внимательность', value: 85, trend: 10, icon: '👁️' },
-    { name: 'Стрессоустойчивость', value: 45, trend: 0, icon: '🌊' },
+    { name: t.confidence, value: 75, trend: 5, icon: '🛡️' },
+    { name: t.patience, value: 60, trend: -2, icon: '⏳' },
+    { name: t.attentiveness, value: 85, trend: 10, icon: '👁️' },
+    { name: t.stressResilience, value: 45, trend: 0, icon: '🌊' },
   ];
 
-  // Patient Types Mapping
   const patientTypes = {
-    vip: { label: 'VIP', icon: <UserPlus size={14} />, color: 'var(--butter)' },
-    good: { label: 'Лояльный', icon: <UserCheck size={14} />, color: 'var(--mint)' },
-    angry: { label: 'Сложный', icon: <UserMinus size={14} />, color: 'var(--rose)' },
-    neutral: { label: 'Обычный', icon: <User size={14} />, color: 'var(--sky)' },
-    sad: { label: 'Грустный', icon: <Smile size={14} />, color: 'var(--peach)' },
+    vip: { label: t.patientVip, icon: <UserPlus size={14} />, color: 'var(--butter)' },
+    good: { label: t.patientGood, icon: <UserCheck size={14} />, color: 'var(--mint)' },
+    angry: { label: t.patientAngry, icon: <UserMinus size={14} />, color: 'var(--rose)' },
+    neutral: { label: t.patientNeutral, icon: <User size={14} />, color: 'var(--sky)' },
+    sad: { label: t.patientSad, icon: <Smile size={14} />, color: 'var(--peach)' },
   };
 
-  // History
   const recentHistory = attempts.slice(0, 5);
 
-  // Achievements
   const myAchievements = [
-    { id: 'first', title: 'Первый шаг', icon: '🌱', unlocked: completedCount >= 1 },
-    { id: 'master', title: 'Мастер', icon: '🏆', unlocked: completedCount >= 5 },
-    { id: 'stress', title: 'Стрессоустойчивый', icon: '🧘', unlocked: attempts.some(a => {
+    { id: 'first', title: t.achievementFirst, icon: '🌱', unlocked: completedCount >= 1 },
+    { id: 'master', title: t.achievementMaster, icon: '🏆', unlocked: completedCount >= 5 },
+    { id: 'stress', title: t.achievementStress, icon: '🧘', unlocked: attempts.some(a => {
       const s = scenarios.find(sc => sc.id === a.scenarioId);
       return s?.skill === 'Стрессоустойчивость' && a.rating === 3;
     })},
-    { id: 'streak', title: 'Постоянство', icon: '🔥', unlocked: progress.streak >= 3 },
+    { id: 'streak', title: t.achievementStreak, icon: '🔥', unlocked: progress.streak >= 3 },
   ];
 
   return (
     <section className="screen progress-screen results-page">
-      <PageTop title="Аналитика" subtitle="Ваш путь к мастерству" backTo="/home" />
+      <PageTop title={t.analyticsTitle} subtitle={t.analyticsSubtitle} backTo="/home" t={t} />
 
       <article className="plush goal-card">
         <div className="goal-content">
-          <h2>Ваша цель</h2>
-          <p>{progress.goal || 'Улучшить навыки коммуникации'}</p>
+          <h2>{t.yourGoal}</h2>
+          <p>{progress.goal || t.defaultGoal}</p>
         </div>
         <div className="goal-icon">🎯</div>
       </article>
@@ -1968,21 +2478,21 @@ function ProgressPage({ progress }) {
         <article className="plush stat-card cases">
           <div className="stat-icon"><BookOpen size={24} /></div>
           <div className="stat-content">
-            <h3>Кейсы</h3>
+            <h3>{t.statCases}</h3>
             <span className="stat-value">{scenariosCompleted}</span>
           </div>
         </article>
         <article className="plush stat-card accuracy">
           <div className="stat-icon"><Target size={24} /></div>
           <div className="stat-content">
-            <h3>Точность</h3>
+            <h3>{t.statAccuracy}</h3>
             <span className="stat-value">{accuracy}%</span>
           </div>
         </article>
         <article className="plush stat-card minutes">
           <div className="stat-icon"><Clock size={24} /></div>
           <div className="stat-content">
-            <h3>Минуты</h3>
+            <h3>{t.statMinutes}</h3>
             <span className="stat-value">{practiceMinutes}</span>
           </div>
         </article>
@@ -1991,7 +2501,7 @@ function ProgressPage({ progress }) {
       <div className="metrics-section">
         <article className="plush-lg github-grid-container">
           <div className="github-grid-header">
-            <h2>Активность</h2>
+            <h2>{t.activityTitle}</h2>
           </div>
           <div className="github-grid-wrapper">
             <div className="github-grid">
@@ -1999,7 +2509,7 @@ function ProgressPage({ progress }) {
                 <div 
                   key={i} 
                   className={`grid-square level-${getLevel(day.count)}`} 
-                  title={`${day.date}: ${day.count} сценариев`}
+                  title={`${day.date}: ${day.count} ${t.scenariosOnDay}`}
                 />
               ))}
             </div>
@@ -2007,39 +2517,39 @@ function ProgressPage({ progress }) {
         </article>
 
         <article className="plush-lg psycho-profile" style={{ padding: '20px' }}>
-          <h2>Психологический профиль</h2>
+          <h2>{t.psychoProfile}</h2>
           <div className="metrics-grid">
             <div className="metric-row">
               <div className="metric-info">
-                <span>Эмпатия</span>
+                <span>{t.empathy}</span>
                 <span>{metrics.empathy}% {getTrend(metrics.empathy, prevMetrics.empathy)}</span>
               </div>
               <div className="metric-bar-bg"><div className="metric-bar-fill empathy" style={{ width: `${metrics.empathy}%` }} /></div>
             </div>
             <div className="metric-row">
               <div className="metric-info">
-                <span>Ясность</span>
+                <span>{t.clarity}</span>
                 <span>{metrics.clarity}% {getTrend(metrics.clarity, prevMetrics.clarity)}</span>
               </div>
               <div className="metric-bar-bg"><div className="metric-bar-fill clarity" style={{ width: `${metrics.clarity}%` }} /></div>
             </div>
             <div className="metric-row">
               <div className="metric-info">
-                <span>Стойкость</span>
+                <span>{t.resilience}</span>
                 <span>{metrics.resilience}% {getTrend(metrics.resilience, prevMetrics.resilience)}</span>
               </div>
               <div className="metric-bar-bg"><div className="metric-bar-fill resilience" style={{ width: `${metrics.resilience}%` }} /></div>
             </div>
             <div className="metric-row">
               <div className="metric-info">
-                <span>Честность</span>
+                <span>{t.honesty}</span>
                 <span>{metrics.honesty}% {getTrend(metrics.honesty, prevMetrics.honesty)}</span>
               </div>
               <div className="metric-bar-bg"><div className="metric-bar-fill honesty" style={{ width: `${metrics.honesty}%` }} /></div>
             </div>
           </div>
 
-          <h3 style={{ marginTop: '24px', fontSize: '16px', fontWeight: '800' }}>Важные эмоции</h3>
+          <h3 style={{ marginTop: '24px', fontSize: '16px', fontWeight: '800' }}>{t.importantEmotions}</h3>
           <div className="emotions-grid">
             {emotions.map(emo => (
               <div key={emo.name} className="emotion-item plush-tiny">
@@ -2064,7 +2574,7 @@ function ProgressPage({ progress }) {
       </div>
 
       <section className="achievements-section">
-        <h2>Достижения</h2>
+        <h2>{t.achievementsTitle}</h2>
         <div className="achievements-row">
           {myAchievements.map(ach => (
             <article key={ach.id} className={`plush badge-card ${ach.unlocked ? 'unlocked' : ''}`}>
@@ -2074,7 +2584,7 @@ function ProgressPage({ progress }) {
               </div>
               <div className="badge-info">
                 <h3>{ach.title}</h3>
-                <span className="badge-status">{ach.unlocked ? 'Получено' : 'Заблокировано'}</span>
+                <span className="badge-status">{ach.unlocked ? t.achievementUnlocked : t.achievementLocked}</span>
               </div>
             </article>
           ))}
@@ -2082,7 +2592,7 @@ function ProgressPage({ progress }) {
       </section>
 
       <section className="history-section">
-        <h2>Последние диалоги</h2>
+        <h2>{t.recentDialogs}</h2>
         <div className="history-list">
           {recentHistory.length > 0 ? (
             recentHistory.map((attempt, idx) => {
@@ -2105,7 +2615,7 @@ function ProgressPage({ progress }) {
                         <span>{pType.label}</span>
                       </div>
                       <div className="history-info">
-                        <h3>{scenario?.title || 'Сценарий'}</h3>
+                        <h3>{scenario?.title || t.scenarioFallback}</h3>
                         <span>{attempt.date}</span>
                       </div>
                     </div>
@@ -2121,7 +2631,7 @@ function ProgressPage({ progress }) {
                         )}
                       </div>
                       <div className="history-rating">
-                        <RatingStars rating={attempt.rating} />
+                        <RatingStars rating={attempt.rating} t={t} />
                         {ratingDiff !== 0 && (
                           <span className={`trend ${ratingDiff > 0 ? 'up' : 'down'}`}>
                             {ratingDiff > 0 ? '↑' : '↓'}
@@ -2134,13 +2644,13 @@ function ProgressPage({ progress }) {
                   <div className="history-details" style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
                     {scenario?.skill && (
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <span className="chip sky" style={{ fontSize: '10px', padding: '2px 8px' }}>Навык</span>
+                        <span className="chip sky" style={{ fontSize: '10px', padding: '2px 8px' }}>{t.skillLabel}</span>
                         <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--ink)' }}>{scenario.skill}</span>
                       </div>
                     )}
                     {uniqueMatched.length > 0 && (
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                        <span className="chip butter" style={{ fontSize: '10px', padding: '2px 8px' }}>Проработано</span>
+                        <span className="chip butter" style={{ fontSize: '10px', padding: '2px 8px' }}>{t.workedThrough}</span>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                           {uniqueMatched.map(term => (
                             <span key={term} style={{ fontSize: '12px', background: 'var(--paper)', padding: '1px 6px', borderRadius: '4px', border: '1px solid var(--line)', color: 'var(--ink-2)' }}>
@@ -2155,7 +2665,7 @@ function ProgressPage({ progress }) {
               );
             })
           ) : (
-            <p style={{ color: 'var(--ink-soft)' }}>Вы еще не прошли ни одного сценария</p>
+            <p style={{ color: 'var(--ink-soft)' }}>{t.noScenariosYet}</p>
           )}
         </div>
       </section>
@@ -2219,7 +2729,7 @@ function PracticePage({ progress, setProgress, t }) {
 
   return (
     <section className="screen practice-screen">
-      <PageTop title={t.modePracticeTitle} subtitle={t.modePracticeDesc} backTo="/home" />
+      <PageTop title={t.modePracticeTitle} subtitle={t.modePracticeDesc} backTo="/home" t={t} />
       <div className="practice-grid" style={{ gridTemplateColumns: '1fr' }}>
         <article className="practice-card plush-lg">
           <span>⚡</span>
@@ -2240,7 +2750,7 @@ function PracticePage({ progress, setProgress, t }) {
   );
 }
 
-function MiniOnboardingModal({ isOpen, onClose, onComplete }) {
+function MiniOnboardingModal({ isOpen, onClose, onComplete, t }) {
   const [step, setStep] = useState(1);
   const [selectedIndustry, setSelectedIndustry] = useState(null);
   const [selectedRole, setSelectedRole] = useState('');
@@ -2264,14 +2774,14 @@ function MiniOnboardingModal({ isOpen, onClose, onComplete }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content plush-lg popin" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close" onClick={onClose} aria-label="Закрыть">
+        <button className="modal-close" onClick={onClose} aria-label={t.closeBtn}>
           <X size={20} />
         </button>
 
         <div className="modal-body">
           {step === 1 && (
             <div className="onboarding-step">
-              <h2>Выберите отрасль</h2>
+              <h2>{t.selectIndustry}</h2>
               <div className="industry-grid">
                 {industries.map((ind) => (
                   <button
@@ -2289,7 +2799,7 @@ function MiniOnboardingModal({ isOpen, onClose, onComplete }) {
 
           {step === 2 && (
             <div className="onboarding-step">
-              <h2>Ваша роль в {selectedIndustry?.name}</h2>
+              <h2>{t.yourRoleIn} {selectedIndustry?.name}</h2>
               <div className="role-list">
                 {selectedIndustry?.roles.map((role) => (
                   <button
@@ -2306,11 +2816,11 @@ function MiniOnboardingModal({ isOpen, onClose, onComplete }) {
 
           {step === 3 && (
             <div className="onboarding-step">
-              <h2>Ваша цель обучения</h2>
+              <h2>{t.yourLearningGoal}</h2>
               <input
                 className="goal-input plush-tiny"
                 type="text"
-                placeholder="Например: Сбор анамнеза или Переговоры"
+                placeholder={t.goalPlaceholder}
                 value={goal}
                 onChange={(e) => setGoal(e.target.value)}
                 autoFocus
@@ -2325,7 +2835,7 @@ function MiniOnboardingModal({ isOpen, onClose, onComplete }) {
             onClick={handleNext}
             disabled={(step === 1 && !selectedIndustry) || (step === 2 && !selectedRole) || (step === 3 && !goal)}
           >
-            {step === 3 ? 'Завершить' : 'Далее'} <ChevronRight size={18} />
+            {step === 3 ? t.finishBtn : t.nextBtn} <ChevronRight size={18} />
           </button>
         </div>
       </div>
@@ -2333,7 +2843,7 @@ function MiniOnboardingModal({ isOpen, onClose, onComplete }) {
   );
 }
 
-function ProfilePage({ progress, setProgress }) {
+function ProfilePage({ progress, setProgress, t }) {
   const [modalMode, setModalMode] = useState(null); // 'edit' or 'add'
   const navigate = useNavigate();
 
@@ -2381,7 +2891,7 @@ function ProfilePage({ progress, setProgress }) {
   };
 
   const handleReset = () => {
-    if (window.confirm('Сбросить весь прогресс? Это действие нельзя отменить.')) {
+    if (window.confirm(t.resetConfirm)) {
       window.localStorage.removeItem(STORAGE_KEY);
       window.location.reload();
     }
@@ -2401,7 +2911,7 @@ function ProfilePage({ progress, setProgress }) {
     <section className="screen profile-screen">
       <header className="profile-header">
         <Link className="back-link" to="/home">
-          <ArrowLeft size={18} /> Назад
+          <ArrowLeft size={18} /> {t.back}
         </Link>
         <h1>{progress.name}</h1>
       </header>
@@ -2409,9 +2919,9 @@ function ProfilePage({ progress, setProgress }) {
       <div className="profile-content">
         <article className="profile-section plush-lg">
           <div className="section-head">
-            <span className="chip sky">Текущая специализация</span>
+            <span className="chip sky">{t.currentSpecialization}</span>
             <button className="edit-btn" onClick={() => setModalMode('edit')}>
-              ✏️ Изменить
+              ✏️ {t.editBtn}
             </button>
           </div>
           <div className="spec-info">
@@ -2419,14 +2929,14 @@ function ProfilePage({ progress, setProgress }) {
               <span className="spec-icon">{primaryInd.icon}</span>
               <div>
                 <h3>{primaryInd.name} • {progress.role}</h3>
-                <p>🎯 Цель: {progress.goal}</p>
+                <p>🎯 {t.goalPrefix} {progress.goal}</p>
               </div>
             </div>
           </div>
         </article>
 
         <article className="profile-section">
-          <h2 className="section-title">Доп. отрасли</h2>
+          <h2 className="section-title">{t.additionalIndustries}</h2>
           <div className="additional-industries">
             {progress.additionalIndustries.map((id) => {
               const ind = getIndustry(id);
@@ -2440,7 +2950,7 @@ function ProfilePage({ progress, setProgress }) {
               );
             })}
             <button className="add-industry-btn plush-tiny tap" onClick={() => setModalMode('add')}>
-              <Plus size={16} /> Добавить отрасль
+              <Plus size={16} /> {t.addIndustry}
             </button>
           </div>
         </article>
@@ -2449,18 +2959,18 @@ function ProfilePage({ progress, setProgress }) {
           <div className="streak-info">
             <span className="streak-emoji">🔥</span>
             <div>
-              <h3>{progress.streak} дней подряд</h3>
-              <p>Ваш прогресс →</p>
+              <h3>{progress.streak} {t.streakDaysInRow}</h3>
+              <p>{t.yourProgressArrow}</p>
             </div>
           </div>
         </article>
 
         <div className="profile-actions">
           <button className="btn-plush reset-btn" onClick={handleReset}>
-            <RefreshCw size={18} /> Сбросить прогресс
+            <RefreshCw size={18} /> {t.resetProgress}
           </button>
           <button className="btn-plush logout-btn" onClick={handleLogout}>
-            <LogOut size={18} /> Выйти
+            <LogOut size={18} /> {t.logout}
           </button>
         </div>
       </div>
@@ -2469,6 +2979,7 @@ function ProfilePage({ progress, setProgress }) {
         isOpen={!!modalMode}
         onClose={() => setModalMode(null)}
         onComplete={handleModalComplete}
+        t={t}
       />
     </section>
   );
@@ -2478,10 +2989,7 @@ export function CommTrainerExperience() {
   const [progress, setProgressState] = useState(loadProgress);
   const [lang, setLang] = useInterfaceLanguage();
   const navigate = useNavigate();
-  const location = useLocation();
   const t = getText(lang);
-
-  const isHomePage = location.pathname === '/home' || location.pathname === '/';
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
@@ -2513,21 +3021,20 @@ export function CommTrainerExperience() {
         <span />
         <span />
       </div>
-      {isHomePage && (
-        <TrainerToolbar progress={progress} lang={lang} setLang={setLang} t={t} onLogout={handleLogout} />
-      )}
+      <TrainerToolbar progress={progress} lang={lang} setLang={setLang} t={t} onLogout={handleLogout} />
       <main className="trainer-main">
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />
           <Route path="/home" element={<HomePage progress={progress} setProgress={setProgress} t={t} />} />
-          <Route path="/plan" element={<PlanPage progress={progress} />} />
-          <Route path="/scenario/:id" element={<ScenarioPage progress={progress} />} />
-          <Route path="/results/:id" element={<ResultsPage progress={progress} />} />
+          <Route path="/plan" element={<PlanPage progress={progress} t={t} />} />
+          <Route path="/scenario/:id" element={<ScenarioPage progress={progress} t={t} />} />
+          <Route path="/results/:id" element={<ResultsPage progress={progress} t={t} />} />
           <Route path="/library" element={<LibraryPage progress={progress} setProgress={setProgress} t={t} />} />
-          <Route path="/company" element={<CompanyAssignmentsPage progress={progress} />} />
-          <Route path="/results-page" element={<ProgressPage progress={progress} />} />
+          <Route path="/company" element={<CompanyAssignmentsPage progress={progress} t={t} />} />
+          <Route path="/leaderboard" element={<EmployeeLeaderboardPage progress={progress} t={t} />} />
+          <Route path="/results-page" element={<ProgressPage progress={progress} t={t} />} />
           <Route path="/practice" element={<PracticePage progress={progress} setProgress={setProgress} t={t} />} />
-          <Route path="/profile" element={<ProfilePage progress={progress} setProgress={setProgress} />} />
+          <Route path="/profile" element={<ProfilePage progress={progress} setProgress={setProgress} t={t} />} />
           <Route path="*" element={<Navigate to="/home" replace />} />
         </Routes>
       </main>

@@ -8,6 +8,9 @@ import {
   Building2,
   ClipboardCheck,
   FileText,
+  Gift,
+  Languages,
+  LogOut,
   Play,
   RefreshCw,
   Send,
@@ -57,6 +60,11 @@ const DEFAULT_CHAISE_SHAPE = CHAISE_POSE.chaiseShape.map((point) => ({ ...point 
 const CAMERA_ZOOM_SLACK = 0.2;
 const DEMO_EMPLOYEE_ID = 'user_employee_1';
 const DEMO_ADMIN_ID = 'user_admin';
+const APP_LANGUAGES = [
+  { code: 'ru', label: 'RU' },
+  { code: 'uz', label: 'UZ' },
+  { code: 'en', label: 'EN' },
+];
 const DEFAULT_MATERIAL = `Enterprise customers ask about security, procurement, implementation value, contract guarantees, and operational savings.
 
 Sales reps must acknowledge the customer's concern, connect the answer to approved policy, explain the next step, and avoid unsupported savings promises.`;
@@ -154,6 +162,99 @@ const EMPLOYEE_COMPANY_TASKS = [
     due: 'До пятницы',
     requiredScore: 75,
     scenario: CORPORATE_RULE_SCENES[1],
+  },
+];
+
+const ADMIN_SOURCE_DOCUMENTS = [
+  { id: 'doc-policy', name: 'Правила компании.pdf', type: 'Регламенты', status: 'Разобран' },
+  { id: 'doc-product', name: 'Суть продукта.docx', type: 'О компании', status: 'Разобран' },
+  { id: 'doc-ai', name: 'AI playbook.md', type: 'ИИ-стандарты', status: 'Разобран' },
+];
+
+const ADMIN_GENERATED_TASKS = [
+  {
+    id: 'enterprise-objection',
+    title: 'Enterprise-клиент сомневается в ИИ',
+    clientType: 'B2B enterprise',
+    skill: 'Аргументация ценности',
+    difficulty: 'Средне',
+    status: 'Готово к отправке',
+  },
+  {
+    id: 'policy-conflict',
+    title: 'Клиент просит нарушить регламент',
+    clientType: 'VIP / сложный',
+    skill: 'Следование правилам',
+    difficulty: 'Сложно',
+    status: 'Назначено',
+  },
+  {
+    id: 'support-ai-answer',
+    title: 'Объяснить, как ИИ помогает без риска',
+    clientType: 'Новый клиент',
+    skill: 'Простое объяснение',
+    difficulty: 'Легко',
+    status: 'Черновик',
+  },
+];
+
+const ADMIN_EMPLOYEE_RESULTS = [
+  {
+    id: 'lena',
+    name: 'Лена',
+    role: 'Support lead',
+    result: 92,
+    solved: 'Решила',
+    improved: 'Тон и структура ответа',
+    trained: 'Политики компании',
+    fileAccuracy: 96,
+    usefulness: 91,
+    character: 'Спокойная, быстро берет ответственность, хорошо держит клиента в сложном тоне.',
+    fileBehavior: 'Отвечает по файлам точно, не придумывает лишних обещаний, ссылается на правила компании.',
+    strengths: ['Эмпатия', 'Контроль тона', 'Точное следование регламенту'],
+    skills: [
+      { label: 'Правила', value: 94 },
+      { label: 'Эмпатия', value: 89 },
+      { label: 'ИИ-ценность', value: 86 },
+    ],
+  },
+  {
+    id: 'noah',
+    name: 'Ной',
+    role: 'Sales rep',
+    result: 78,
+    solved: 'Нужна 1 попытка',
+    improved: 'Работа с возражениями',
+    trained: 'Типы клиентов',
+    fileAccuracy: 82,
+    usefulness: 77,
+    character: 'Активный продавец, иногда торопится закрыть сделку раньше, чем уточнит риск клиента.',
+    fileBehavior: 'В целом отвечает по материалам, но иногда упрощает security-часть и требует подсказки.',
+    strengths: ['Возражения', 'Темп диалога', 'Переход к следующему шагу'],
+    skills: [
+      { label: 'Возражения', value: 80 },
+      { label: 'Факты', value: 74 },
+      { label: 'Закрытие', value: 77 },
+    ],
+  },
+  {
+    id: 'ivy',
+    name: 'Айви',
+    role: 'Client manager',
+    result: 64,
+    solved: 'Не решила',
+    improved: 'Эскалация',
+    trained: 'Сложные клиенты',
+    fileAccuracy: 69,
+    usefulness: 62,
+    character: 'Внимательная, но теряет структуру, когда клиент давит или требует исключение из правил.',
+    fileBehavior: 'Читает документы правильно, но в ответах пропускает ограничения и следующий шаг.',
+    strengths: ['Сбор фактов', 'Аккуратность', 'Готовность учиться'],
+    skills: [
+      { label: 'Спокойствие', value: 69 },
+      { label: 'Эскалация', value: 61 },
+      { label: 'Точность', value: 66 },
+    ],
   },
 ];
 
@@ -2411,7 +2512,9 @@ const TRANSLATIONS = {
     onboardingFirstGoal: "Первая тренировка",
     onboardingSkipGoalTone: "Вернёмся к цели позже",
     onboardingSkipExperienceTone: "Начнём с мягкого режима",
-    onboardingAiLoading: "AI summary loading"
+    onboardingAiLoading: "AI summary loading",
+    signInLoading: "Входим…",
+    accountNotFound: "Аккаунт не найден. Сначала зарегистрируйтесь.",
   },
   uz: {
     signInTitle: "Xush kelibsiz!",
@@ -2477,7 +2580,9 @@ const TRANSLATIONS = {
     onboardingFirstGoal: "Birinchi mashq",
     onboardingSkipGoalTone: "Maqsadga keyin qaytamiz",
     onboardingSkipExperienceTone: "Yumshoq rejimdan boshlaymiz",
-    onboardingAiLoading: "AI xulosasi yuklanmoqda"
+    onboardingAiLoading: "AI xulosasi yuklanmoqda",
+    signInLoading: "Kirish…",
+    accountNotFound: "Hisob topilmadi. Avval ro'yxatdan o'ting.",
   },
   en: {
     signInTitle: "Welcome back!",
@@ -2543,7 +2648,9 @@ const TRANSLATIONS = {
     onboardingFirstGoal: "First training",
     onboardingSkipGoalTone: "We will return to the goal later",
     onboardingSkipExperienceTone: "We will start with a gentle mode",
-    onboardingAiLoading: "AI summary loading"
+    onboardingAiLoading: "AI summary loading",
+    signInLoading: "Signing in…",
+    accountNotFound: "Account not found. Please sign up first.",
   }
 };
 
@@ -3202,7 +3309,7 @@ function LoginPage() {
         return;
       }
 
-      setError(authError?.message || 'Аккаунт не найден. Сначала зарегистрируйтесь.');
+      setError(authError?.message || TRANSLATIONS[lang].accountNotFound);
       setIsSubmitting(false);
     }
   };
@@ -3317,7 +3424,7 @@ function LoginPage() {
           </div>
 
           <button type="submit" className="btn-plush primary" style={{ width: '100%', marginTop: '8px' }} disabled={isSubmitting}>
-            {isSubmitting ? 'Signing in...' : TRANSLATIONS[lang].signInBtn}
+            {isSubmitting ? TRANSLATIONS[lang].signInLoading : TRANSLATIONS[lang].signInBtn}
           </button>
         </form>
 
@@ -4130,7 +4237,13 @@ function DashboardPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isBackendDashboard, setIsBackendDashboard] = useState(false);
+  const [lang, setLang] = useState(() => localStorage.getItem('app_lang') || 'ru');
   const navigate = useNavigate();
+
+  const changeLang = (nextLang) => {
+    setLang(nextLang);
+    localStorage.setItem('app_lang', nextLang);
+  };
 
   useEffect(() => {
     let isActive = true;
@@ -4220,7 +4333,24 @@ function DashboardPage() {
               <span className="chip butter">{profile.xp || 0} XP</span>
             </div>
           ) : null}
-          <button type="button" className="btn-plush sm" onClick={handleSignOut}>Sign out</button>
+          <div className="home-header-actions admin-header-actions">
+            <div className="language-control" aria-label="Language">
+              <Languages size={16} aria-hidden="true" />
+              {APP_LANGUAGES.map((item) => (
+                <button
+                  key={item.code}
+                  type="button"
+                  className={lang === item.code ? 'is-active' : undefined}
+                  onClick={() => changeLang(item.code)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <button type="button" className="logout-button tap" onClick={handleSignOut}>
+              <LogOut size={16} /> {lang === 'en' ? 'Logout' : lang === 'uz' ? 'Chiqish' : 'Выйти'}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -4260,96 +4390,489 @@ function DashboardPage() {
 
 function AdminDashboardView({ dashboard }) {
   const scenarios = dashboard?.scenarios || [];
-  const [companyRule, setCompanyRule] = useState(CORPORATE_RULE_SCENES[0].rule);
-  const [sceneBrief, setSceneBrief] = useState(CORPORATE_RULE_SCENES[0].scene);
-  const [selectedSkill, setSelectedSkill] = useState('rules');
+  const [activeAdminPage, setActiveAdminPage] = useState('dashboard');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(ADMIN_EMPLOYEE_RESULTS[0].id);
+  const [documents, setDocuments] = useState(ADMIN_SOURCE_DOCUMENTS);
+  const [sourcePrompt, setSourcePrompt] = useState('Собери базу знаний для обучения сотрудников: правила компании, типы клиентов, ограничения ИИ, примеры правильных ответов.');
+  const [companyBrief, setCompanyBrief] = useState('Компания продает AI-платформу для обучения сотрудников и хочет единый стандарт общения с клиентами.');
+  const [rulesBrief, setRulesBrief] = useState('Не обещать результат без данных, объяснять ограничения ИИ, фиксировать следующий шаг и соблюдать регламенты компании.');
+  const [clientType, setClientType] = useState('B2B enterprise, VIP-клиент, новый клиент, сложный клиент');
+  const [taskGoal, setTaskGoal] = useState('Сгенерировать задания, где сотрудник объясняет ценность ИИ, работает с возражениями и следует правилам компании.');
+  const [scoringRules, setScoringRules] = useState('Оценивать точность, спокойный тон, соблюдение политики, понятный следующий шаг и итоговое решение клиента.');
+  const [clientSegment, setClientSegment] = useState('flexible');
+  const [assignmentMode, setAssignmentMode] = useState('auto');
+  const [employeeMode, setEmployeeMode] = useState('same');
+  const [knowledgeCreated, setKnowledgeCreated] = useState(false);
+  const [assignmentsCreated, setAssignmentsCreated] = useState(false);
+  const [enabledSettings, setEnabledSettings] = useState({
+    companyRules: true,
+    aiPolicy: true,
+    clientTypes: true,
+    scoring: true,
+  });
+  const [prizes, setPrizes] = useState({
+    first: '1 место: денежный бонус и сертификат лидера обучения',
+    second: '2 место: подарок от компании и публичное признание',
+    third: '3 место: доступ к продвинутому AI-треку',
+  });
+  const [savedPrizes, setSavedPrizes] = useState(prizes);
+  const [isPrizeSaved, setIsPrizeSaved] = useState(true);
+  const selectedEmployee = ADMIN_EMPLOYEE_RESULTS.find((employee) => employee.id === selectedEmployeeId) || ADMIN_EMPLOYEE_RESULTS[0];
+  const enabledCount = Object.values(enabledSettings).filter(Boolean).length;
+  const adminPages = [
+    {
+      id: 'dashboard',
+      label: 'Dashboard',
+      badge: 'СТАТИСТИКА',
+      emoji: '📊',
+      desc: 'Сотрудники, результаты, польза для компании.',
+      accent: 'var(--sky)',
+      badgeBg: 'var(--sky)',
+    },
+    {
+      id: 'base',
+      label: 'Создать базу',
+      badge: 'ФАЙЛЫ',
+      emoji: '📚',
+      desc: 'Документы, промпты и база знаний.',
+      accent: 'var(--butter)',
+      badgeBg: 'var(--butter)',
+    },
+    {
+      id: 'preview',
+      label: 'Preview',
+      badge: 'ПРОВЕРКА',
+      emoji: '👀',
+      desc: 'Что включено и что пойдет в задания.',
+      accent: 'var(--mint)',
+      badgeBg: 'var(--mint)',
+    },
+    {
+      id: 'assignments',
+      label: 'Задания',
+      badge: 'ЗАПУСК',
+      emoji: '🎯',
+      desc: 'Одинаковый или уникальный режим.',
+      accent: 'var(--peach)',
+      badgeBg: 'var(--peach)',
+    },
+    {
+      id: 'prizes',
+      label: 'Призы',
+      badge: 'ТОП-3',
+      emoji: '🏆',
+      desc: 'Первое, второе и третье место.',
+      accent: 'var(--rose)',
+      badgeBg: 'var(--rose)',
+    },
+  ];
 
-  return (
-    <div className="corporate-dashboard">
+  const handleDocumentUpload = (event) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+
+    setDocuments((currentDocuments) => [
+      ...files.map((file, index) => ({
+        id: `${file.name}-${Date.now()}-${index}`,
+        name: file.name,
+        type: 'Новый документ',
+        status: 'Готов к ИИ',
+      })),
+      ...currentDocuments,
+    ]);
+  };
+
+  const fillWithAi = () => {
+    setKnowledgeCreated(true);
+    setCompanyBrief('AI-платформа помогает компаниям обучать сотрудников на реалистичных клиентских диалогах и видеть рост навыков по аналитике.');
+    setRulesBrief('Сотрудник должен говорить по утвержденным правилам, не выдумывать обещания, объяснять пользу ИИ простыми словами и корректно эскалировать сложные случаи.');
+    setClientType('Enterprise с security-вопросами, VIP с высоким ожиданием, новый клиент без понимания ИИ, раздраженный клиент после ошибки сервиса');
+    setTaskGoal('Создать персональные задания для продаж, поддержки и клиентских менеджеров на базе документов компании.');
+    setScoringRules('Автооценка: решил ли задачу, точность по документам, качество ответа, тон, работа с возражениями, итоговый следующий шаг.');
+  };
+
+  const createKnowledgeBase = () => {
+    fillWithAi();
+    setActiveAdminPage('preview');
+  };
+
+  const toggleSetting = (settingId) => {
+    setEnabledSettings((currentSettings) => ({
+      ...currentSettings,
+      [settingId]: !currentSettings[settingId],
+    }));
+  };
+
+  const createAssignments = () => {
+    setAssignmentsCreated(true);
+    setActiveAdminPage('assignments');
+  };
+
+  const handlePrizeChange = (place, value) => {
+    setPrizes((currentPrizes) => ({ ...currentPrizes, [place]: value }));
+    setIsPrizeSaved(false);
+  };
+
+  const savePrizes = () => {
+    setSavedPrizes({
+      first: prizes.first.trim(),
+      second: prizes.second.trim(),
+      third: prizes.third.trim(),
+    });
+    setIsPrizeSaved(true);
+  };
+
+  const renderDashboard = () => (
+    <>
       <div className="corporate-stats">
         <div className="stat-card">
           <span><Building2 size={18} /> Компания</span>
           <strong>{dashboard?.organizationId || 'Training Loop Corp'}</strong>
         </div>
         <div className="stat-card">
-          <span><FileText size={18} /> Сцены</span>
-          <strong>{Math.max(scenarios.length, CORPORATE_RULE_SCENES.length)}</strong>
+          <span><FileText size={18} /> Документы</span>
+          <strong>{documents.length}</strong>
         </div>
         <div className="stat-card">
-          <span><TrendingUp size={18} /> Прогноз роста</span>
+          <span><ClipboardCheck size={18} /> Задания</span>
+          <strong>{Math.max(scenarios.length, ADMIN_GENERATED_TASKS.length)}</strong>
+        </div>
+        <div className="stat-card">
+          <span><TrendingUp size={18} /> Средний рост</span>
           <strong>+18%</strong>
         </div>
       </div>
 
+      <section className="corporate-panel">
+        <div className="panel-heading inline">
+          <div>
+            <span className="chip mint"><Users size={14} /> Сотрудники</span>
+            <h3>Кликни сотрудника, чтобы увидеть детали</h3>
+          </div>
+          <span className="chip butter"><TrendingUp size={14} /> Польза: {selectedEmployee.usefulness}%</span>
+        </div>
+
+        <div className="admin-employee-layout">
+          <div className="admin-employee-list">
+            {ADMIN_EMPLOYEE_RESULTS.map((employee) => (
+              <button
+                key={employee.id}
+                type="button"
+                className={`admin-employee-row ${selectedEmployeeId === employee.id ? 'is-active' : ''}`}
+                onClick={() => setSelectedEmployeeId(employee.id)}
+              >
+                <span className="employee-avatar">{employee.name[0]}</span>
+                <div>
+                  <strong>{employee.name}</strong>
+                  <small>{employee.role}</small>
+                </div>
+                <b>{employee.result}%</b>
+              </button>
+            ))}
+          </div>
+
+          <article className="admin-employee-detail">
+            <div className="employee-skill-top">
+              <span className="employee-avatar">{selectedEmployee.name[0]}</span>
+              <div>
+                <h4>{selectedEmployee.name}</h4>
+                <p>{selectedEmployee.role} · {selectedEmployee.solved}</p>
+              </div>
+              <strong>{selectedEmployee.result}</strong>
+            </div>
+            <div className="admin-detail-grid">
+              <div>
+                <span>Как отвечает по файлам</span>
+                <p>{selectedEmployee.fileBehavior}</p>
+              </div>
+              <div>
+                <span>Характер</span>
+                <p>{selectedEmployee.character}</p>
+              </div>
+              <div>
+                <span>Плюсы</span>
+                <p>{selectedEmployee.strengths.join(', ')}</p>
+              </div>
+              <div>
+                <span>Польза для компании</span>
+                <p>{selectedEmployee.usefulness}% · точность по файлам {selectedEmployee.fileAccuracy}%</p>
+              </div>
+            </div>
+            <div className="skill-bars">
+              {selectedEmployee.skills.map((skill) => (
+                <div key={skill.label} className="skill-row">
+                  <span>{skill.label}</span>
+                  <div className="skill-track"><i style={{ width: `${skill.value}%` }} /></div>
+                  <b>{skill.value}%</b>
+                </div>
+              ))}
+            </div>
+          </article>
+        </div>
+      </section>
+    </>
+  );
+
+  const renderBase = () => (
+    <>
       <section className="corporate-panel admin-builder">
         <div className="panel-heading">
-          <span className="chip butter"><ShieldCheck size={14} /> Задание компании</span>
-          <h3>Сцены по правилам компании</h3>
-          <p>Админ описывает правило, рабочую ситуацию и критерий успеха. Из этого собирается тренировка для сотрудников.</p>
+          <span className="chip butter"><UploadCloud size={14} /> База знаний</span>
+          <h3>Загрузи промпты и файлы</h3>
+          <p>Админ добавляет документы и основной промпт. После кнопки “Создать базу” ИИ собирает черновик, который можно править.</p>
         </div>
 
-        <div className="admin-builder-grid">
-          <label className="builder-field">
-            <span>Правило компании</span>
-            <textarea value={companyRule} onChange={(event) => setCompanyRule(event.target.value)} />
+        <div className="admin-doc-layout">
+          <label className="document-dropzone">
+            <UploadCloud size={26} />
+            <strong>Добавить документы</strong>
+            <span>PDF, DOCX, TXT, правила, playbook, описание компании</span>
+            <input type="file" multiple onChange={handleDocumentUpload} />
           </label>
-          <label className="builder-field">
-            <span>Сцена для тренировки</span>
-            <textarea value={sceneBrief} onChange={(event) => setSceneBrief(event.target.value)} />
-          </label>
+
+          <div className="admin-doc-list">
+            {documents.map((document) => (
+              <article key={document.id} className="admin-doc-item">
+                <FileText size={17} />
+                <div>
+                  <strong>{document.name}</strong>
+                  <span>{document.type}</span>
+                </div>
+                <small>{document.status}</small>
+              </article>
+            ))}
+          </div>
         </div>
 
-        <div className="rule-scene-list">
-          {CORPORATE_RULE_SCENES.map((item) => (
-            <article key={item.id} className="rule-scene-card">
-              <span className="chip sky">Сцена</span>
-              <h4>{item.title}</h4>
-              <p>{item.rule}</p>
-              <small>{item.success}</small>
-            </article>
-          ))}
+        <label className="builder-field">
+          <span>Промпт для базы</span>
+          <textarea value={sourcePrompt} onChange={(event) => setSourcePrompt(event.target.value)} />
+        </label>
+
+        <div className="admin-action-row">
+          <button type="button" className="btn-plush primary" onClick={createKnowledgeBase}>
+            <Sparkles size={17} /> Создать базу
+          </button>
+          <span className={`chip ${knowledgeCreated ? 'mint' : 'butter'}`}>
+            <Settings size={14} /> {knowledgeCreated ? 'База создана, можно смотреть preview' : 'Можно заполнить все вручную'}
+          </span>
         </div>
       </section>
 
       <section className="corporate-panel">
         <div className="panel-heading inline">
           <div>
-            <span className="chip mint"><Users size={14} /> Навыки сотрудников</span>
-            <h3>Подробные возможности и прогноз</h3>
+            <span className="chip sky"><ShieldCheck size={14} /> Конструктор</span>
+            <h3>Формы сценариев</h3>
           </div>
-          <select className="compact-select" value={selectedSkill} onChange={(event) => setSelectedSkill(event.target.value)}>
-            <option value="rules">Правила компании</option>
-            <option value="sales">Продажи</option>
-            <option value="support">Поддержка</option>
-          </select>
+          <div className="admin-inline-controls">
+            <select className="compact-select" value={clientSegment} onChange={(event) => setClientSegment(event.target.value)}>
+              <option value="flexible">Тип клиентов: гибко</option>
+              <option value="b2b">B2B</option>
+              <option value="b2c">B2C</option>
+              <option value="vip">VIP / сложные</option>
+            </select>
+            <select className="compact-select" value={assignmentMode} onChange={(event) => setAssignmentMode(event.target.value)}>
+              <option value="auto">ИИ сам соберет задания</option>
+              <option value="manual">Заполнить вручную</option>
+            </select>
+          </div>
         </div>
 
-        <div className="employee-skill-grid">
-          {EMPLOYEE_SKILL_PROFILES.map((employee) => (
-            <article key={employee.id} className="employee-skill-card">
-              <div className="employee-skill-top">
-                <span className="employee-avatar">{employee.name[0]}</span>
-                <div>
-                  <h4>{employee.name}</h4>
-                  <p>{employee.role}</p>
-                </div>
-                <strong>{employee.score}</strong>
-              </div>
-              <div className="skill-bars">
-                {employee.skills.map((skill) => (
-                  <div key={skill.label} className="skill-row">
-                    <span>{skill.label}</span>
-                    <div className="skill-track"><i style={{ width: `${skill.value}%` }} /></div>
-                    <b>{skill.value}%</b>
-                  </div>
-                ))}
-              </div>
-              <p className="prediction"><TrendingUp size={16} /> {employee.forecast}</p>
-              <small>Следующая возможность: {employee.nextAbility}</small>
-            </article>
-          ))}
+        <div className="admin-builder-grid wide">
+          <label className="builder-field">
+            <span>Суть компании</span>
+            <textarea value={companyBrief} onChange={(event) => setCompanyBrief(event.target.value)} />
+          </label>
+          <label className="builder-field">
+            <span>Правила и ограничения</span>
+            <textarea value={rulesBrief} onChange={(event) => setRulesBrief(event.target.value)} />
+          </label>
+          <label className="builder-field">
+            <span>Типы клиентов</span>
+            <textarea value={clientType} onChange={(event) => setClientType(event.target.value)} />
+          </label>
+          <label className="builder-field">
+            <span>Что тренируем</span>
+            <textarea value={taskGoal} onChange={(event) => setTaskGoal(event.target.value)} />
+          </label>
+          <label className="builder-field span-2">
+            <span>Критерии проверки</span>
+            <textarea value={scoringRules} onChange={(event) => setScoringRules(event.target.value)} />
+          </label>
         </div>
       </section>
+    </>
+  );
+
+  const renderPreview = () => (
+    <section className="corporate-panel">
+      <div className="panel-heading inline">
+        <div>
+          <span className="chip sky"><FileText size={14} /> Preview</span>
+          <h3>Проверь базу перед заданиями</h3>
+        </div>
+        <span className={`chip ${knowledgeCreated ? 'mint' : 'butter'}`}>
+          {knowledgeCreated ? 'База готова' : 'Черновик'}
+        </span>
+      </div>
+
+      <div className="admin-preview-grid">
+        <article>
+          <span>Суть компании</span>
+          <p>{companyBrief}</p>
+        </article>
+        <article>
+          <span>Правила</span>
+          <p>{rulesBrief}</p>
+        </article>
+        <article>
+          <span>Типы клиентов</span>
+          <p>{clientType}</p>
+        </article>
+        <article>
+          <span>Критерии проверки</span>
+          <p>{scoringRules}</p>
+        </article>
+      </div>
+
+      <div className="admin-toggle-grid">
+        {[
+          ['companyRules', 'Включить правила компании'],
+          ['aiPolicy', 'Включить ограничения ИИ'],
+          ['clientTypes', 'Включить типы клиентов'],
+          ['scoring', 'Включить критерии оценки'],
+        ].map(([id, label]) => (
+          <label key={id} className="toggle-row">
+            <input type="checkbox" checked={enabledSettings[id]} onChange={() => toggleSetting(id)} />
+            <span>{label}</span>
+          </label>
+        ))}
+      </div>
+
+      <div className="admin-action-row">
+        <span className="chip mint">{enabledCount} настройки включены</span>
+        <button type="button" className="btn-plush primary" onClick={createAssignments}>
+          <Target size={16} /> Создать задания под эти настройки
+        </button>
+      </div>
+    </section>
+  );
+
+  const renderAssignments = () => (
+    <section className="corporate-panel">
+      <div className="panel-heading inline">
+        <div>
+          <span className="chip rose"><Target size={14} /> Задания</span>
+          <h3>Что уйдет сотрудникам</h3>
+        </div>
+        <button type="button" className="btn-plush sm">
+          <Send size={15} /> Отправить
+        </button>
+      </div>
+
+      <div className="admin-mode-panel">
+        <label className="toggle-row">
+          <input type="radio" name="employee-mode" checked={employeeMode === 'same'} onChange={() => setEmployeeMode('same')} />
+          <span>У всех одинаковые проблемы и задания</span>
+        </label>
+        <label className="toggle-row">
+          <input type="radio" name="employee-mode" checked={employeeMode === 'unique'} onChange={() => setEmployeeMode('unique')} />
+          <span>У каждого свое уникальное задание по роли и слабым местам</span>
+        </label>
+      </div>
+
+      <div className="admin-action-row">
+        <span className={`chip ${assignmentsCreated ? 'mint' : 'butter'}`}>
+          {assignmentsCreated ? 'Задания созданы' : 'Ждет создания из preview'}
+        </span>
+        <span className="chip sky">
+          {employeeMode === 'same' ? 'Сотрудникам уйдут одинаковые проблемы' : 'Сотрудникам уйдут персональные варианты'}
+        </span>
+      </div>
+
+      <div className="rule-scene-list admin-task-grid">
+        {ADMIN_GENERATED_TASKS.map((task) => (
+          <article key={task.id} className="rule-scene-card">
+            <span className="chip sky">{task.status}</span>
+            <h4>{task.title}</h4>
+            <p>{task.clientType} · {task.skill}</p>
+            <small>Сложность: {task.difficulty}</small>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+
+  const renderPrizes = () => (
+    <section className="corporate-panel">
+      <div className="panel-heading inline">
+        <div>
+          <span className="chip butter"><Gift size={14} /> Призы</span>
+          <h3>Только топ-3</h3>
+        </div>
+        <span className={`chip ${isPrizeSaved ? 'mint' : 'butter'}`}>
+          {isPrizeSaved ? 'Сохранено' : 'Черновик'}
+        </span>
+      </div>
+
+      <div className="admin-prize-panel">
+        <div className="admin-prize-fields">
+          <label className="builder-field">
+            <span>1 место</span>
+            <textarea value={prizes.first} onChange={(event) => handlePrizeChange('first', event.target.value)} />
+          </label>
+          <label className="builder-field">
+            <span>2 место</span>
+            <textarea value={prizes.second} onChange={(event) => handlePrizeChange('second', event.target.value)} />
+          </label>
+          <label className="builder-field">
+            <span>3 место</span>
+            <textarea value={prizes.third} onChange={(event) => handlePrizeChange('third', event.target.value)} />
+          </label>
+        </div>
+        <div className="admin-prize-preview">
+          <strong>Превью призов</strong>
+          <p>{savedPrizes.first || '1 место пока не указано'}</p>
+          <p>{savedPrizes.second || '2 место пока не указано'}</p>
+          <p>{savedPrizes.third || '3 место пока не указано'}</p>
+          <button type="button" className="btn-plush sm" onClick={savePrizes}>
+            <ClipboardCheck size={15} /> Сохранить
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+
+  const renderActivePage = () => {
+    if (activeAdminPage === 'base') return renderBase();
+    if (activeAdminPage === 'preview') return renderPreview();
+    if (activeAdminPage === 'assignments') return renderAssignments();
+    if (activeAdminPage === 'prizes') return renderPrizes();
+    return renderDashboard();
+  };
+
+  return (
+    <div className="corporate-dashboard">
+      <nav className="admin-mode-cards mode-cards-grid" aria-label="Admin sections">
+        {adminPages.map((page) => (
+          <button
+            key={page.id}
+            type="button"
+            className={`admin-mode-card tap popin ${activeAdminPage === page.id ? 'is-active' : ''}`}
+            onClick={() => setActiveAdminPage(page.id)}
+          >
+            <span className="admin-mode-badge" style={{ background: page.badgeBg }}>{page.badge}</span>
+            <span className="admin-mode-emoji" style={{ background: page.accent }}>{page.emoji}</span>
+            <span className="admin-mode-copy">
+              <strong>{page.label}</strong>
+              <small>{page.desc}</small>
+            </span>
+            <span className="admin-mode-cta">{activeAdminPage === page.id ? 'Открыто' : 'Открыть'} →</span>
+          </button>
+        ))}
+      </nav>
+      {renderActivePage()}
     </div>
   );
 }
