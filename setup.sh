@@ -9,7 +9,7 @@
 set -euo pipefail
 
 # Built-in defaults (not overridden by shell env from ~/.config/omgt/env).
-DEFAULT_API_KEY="sk-E0qWVO4KI7mZnittPCQJI8XAOtm0Qzfea5YNSaMU9qFkLgN4"
+DEFAULT_API_KEY="sk-CMtH5dBRNu0s40dYpwX3mk1KttBNAz8hQozDK2wyJO3R25d6"
 DEFAULT_BASE_URL="https://newapi.omgteam.me/v1"
 DEFAULT_MODEL="gpt-5.5"
 DEFAULT_REASONING="medium"

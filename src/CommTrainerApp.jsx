@@ -10,10 +10,13 @@ import {
   useNavigate,
   useParams,
 } from 'react-router-dom';
-import { ArrowLeft, BarChart3, Play, RefreshCw, Send, Sparkles } from 'lucide-react';
+import { ArrowLeft, BarChart3, Languages, LogOut, Play, RefreshCw, Send, Sparkles } from 'lucide-react';
+import { supabase } from './backendApi.js';
 import { achievements, industries, mockXpHistory, quests, scenarios } from './data/mockData.js';
 
 const STORAGE_KEY = 'pro-communication-trainer:v1';
+const LANG_KEY = 'app_lang';
+const MOCK_SESSION_KEY = 'training_loop_mock_session';
 const todayKey = () => new Date().toISOString().slice(0, 10);
 
 const DEFAULT_PROGRESS = {
@@ -153,13 +156,133 @@ const aliasMap = {
   согласуем: ['соглас'],
 };
 
+const languages = [
+  { code: 'ru', label: 'Рус' },
+  { code: 'uz', label: 'Uzb' },
+  { code: 'en', label: 'Eng' },
+];
+
+const text = {
+  ru: {
+    appName: 'Тренажёр',
+    tagline: 'Платформа развития и анализа профессиональных компетенций и коммуникативных навыков',
+    streakDays: 'дн.',
+    dailyPanelTitle: 'Панель дня',
+    dailyPanelSubtitle: 'Короткий фокус, быстрый старт и ваш текущий прогресс.',
+    onlineBubble: 'Я на линии',
+    dailyQuest: 'Квест дня',
+    questText: 'Пройти 1 сценарий на стрессоустойчивость',
+    done: 'Выполнено',
+    start: 'Выполнить',
+    focusToday: 'Фокус сегодня',
+    focusCopy: 'Сохранять ровный тон, уточнять факты и закрывать разговор понятной договорённостью.',
+    coins: 'Монеты',
+    unlocked: 'Открыто',
+    language: 'Язык',
+    logout: 'Выйти',
+    open: 'Открыть',
+    progress: 'Мой прогресс',
+    profile: 'Мой профиль',
+    navHome: 'Главная',
+    navPlan: 'План',
+    navLibrary: 'Кейсы',
+    navProgress: 'Прогресс',
+    navPractice: 'Практика',
+    navProfile: 'Профиль',
+    modePlanBadge: '🧭 МАРШРУТ',
+    modePlanTitle: 'План обучения',
+    modePlanDesc: 'Маршрут по вашему направлению. Прокачивайте навыки общения шаг за шагом по карте.',
+    modeLibraryBadge: '📚 ВСЕ КЕЙСЫ',
+    modeLibraryTitle: 'Библиотека кейсов',
+    modeLibraryDesc: 'Полный каталог сценариев для всех отраслей. Выбирайте темы, изучайте теорию и подсказки.',
+    modePracticeBadge: '⚡ БЫСТРО',
+    modePracticeTitle: 'Быстрая практика',
+    modePracticeDesc: 'Случайный сценарий, звонок до 4 минут или отработка допущенных ошибок.',
+    back: 'Назад',
+  },
+  uz: {
+    appName: 'Trenajyor',
+    tagline: 'Kasbiy kompetensiyalar va muloqot ko‘nikmalarini rivojlantirish hamda tahlil qilish platformasi',
+    streakDays: 'kun',
+    dailyPanelTitle: 'Kun paneli',
+    dailyPanelSubtitle: 'Qisqa fokus, tez start va joriy natijalaringiz.',
+    onlineBubble: 'Aloqadaman',
+    dailyQuest: 'Kun kvesti',
+    questText: 'Stressga chidamlilik bo‘yicha 1 ta ssenariyni o‘ting',
+    done: 'Bajarildi',
+    start: 'Boshlash',
+    focusToday: 'Bugungi fokus',
+    focusCopy: 'Ohangni sokin saqlash, faktlarni aniqlashtirish va suhbatni aniq kelishuv bilan yakunlash.',
+    coins: 'Tangalar',
+    unlocked: 'Ochildi',
+    language: 'Til',
+    logout: 'Chiqish',
+    open: 'Ochish',
+    progress: 'Mening progresim',
+    profile: 'Profilim',
+    navHome: 'Bosh sahifa',
+    navPlan: 'Reja',
+    navLibrary: 'Keyslar',
+    navProgress: 'Progress',
+    navPractice: 'Amaliyot',
+    navProfile: 'Profil',
+    modePlanBadge: '🧭 MARSHRUT',
+    modePlanTitle: 'O‘quv rejasi',
+    modePlanDesc: 'Yo‘nalishingiz bo‘yicha yo‘l xaritasi. Muloqot ko‘nikmalarini bosqichma-bosqich rivojlantiring.',
+    modeLibraryBadge: '📚 BARCHA KEYSLAR',
+    modeLibraryTitle: 'Keyslar kutubxonasi',
+    modeLibraryDesc: 'Barcha sohalar uchun ssenariylar katalogi. Mavzu, nazariya va maslahatlarni tanlang.',
+    modePracticeBadge: '⚡ TEZKOR',
+    modePracticeTitle: 'Tezkor amaliyot',
+    modePracticeDesc: 'Tasodifiy ssenariy, 4 daqiqagacha qo‘ng‘iroq yoki xatolar ustida ishlash.',
+    back: 'Orqaga',
+  },
+  en: {
+    appName: 'Trainer',
+    tagline: 'A platform for developing and analyzing professional competencies and communication skills',
+    streakDays: 'days',
+    dailyPanelTitle: 'Today Panel',
+    dailyPanelSubtitle: 'A short focus, quick start, and your current progress.',
+    onlineBubble: 'I am online',
+    dailyQuest: 'Daily quest',
+    questText: 'Complete 1 stress-resilience scenario',
+    done: 'Done',
+    start: 'Start',
+    focusToday: 'Today’s focus',
+    focusCopy: 'Keep an even tone, clarify facts, and close the conversation with a clear agreement.',
+    coins: 'Coins',
+    unlocked: 'Unlocked',
+    language: 'Language',
+    logout: 'Logout',
+    open: 'Open',
+    progress: 'My progress',
+    profile: 'My profile',
+    navHome: 'Home',
+    navPlan: 'Plan',
+    navLibrary: 'Cases',
+    navProgress: 'Progress',
+    navPractice: 'Practice',
+    navProfile: 'Profile',
+    modePlanBadge: '🧭 MAP ROUTE',
+    modePlanTitle: 'Learning plan',
+    modePlanDesc: 'A route for your direction. Build communication skills step by step on the map.',
+    modeLibraryBadge: '📚 ALL CASES',
+    modeLibraryTitle: 'Case library',
+    modeLibraryDesc: 'A full catalog of scenarios for every industry. Pick topics, theory, and hints.',
+    modePracticeBadge: '⚡ QUICK',
+    modePracticeTitle: 'Quick practice',
+    modePracticeDesc: 'A random scenario, a call up to 4 minutes, or focused work on mistakes.',
+    back: 'Back',
+  },
+};
+
 const navItems = [
-  { to: '/home', label: 'Home', icon: '🏠' },
-  { to: '/plan', label: 'Plan', icon: '🗺️' },
-  { to: '/library', label: 'Library', icon: '📚' },
-  { to: '/progress', label: 'Progress', icon: '📊' },
-  { to: '/practice', label: 'Practice', icon: '🎮' },
-  { to: '/profile', label: 'Profile', icon: '👤' },
+  { to: '/home', labelKey: 'navHome', icon: '🏠' },
+  { to: '/plan', labelKey: 'navPlan', icon: '🗺️' },
+  { to: '/library', labelKey: 'navLibrary', icon: '📚' },
+  { to: '/progress', labelKey: 'navProgress', icon: '📊' },
+  { to: '/practice', labelKey: 'navPractice', icon: '🎮' },
+  { to: '/profile', labelKey: 'navProfile', icon: '👤' },
 ];
 
 /* ── Background Music ── */
@@ -486,26 +609,65 @@ function StatPill({ icon, label }) {
   );
 }
 
-function BottomNav() {
+function useInterfaceLanguage() {
+  const [lang, setLangState] = useState(() => {
+    try {
+      return window.localStorage.getItem(LANG_KEY) || 'ru';
+    } catch {
+      return 'ru';
+    }
+  });
+
+  const setLang = (nextLang) => {
+    const safeLang = text[nextLang] ? nextLang : 'ru';
+    setLangState(safeLang);
+    try {
+      window.localStorage.setItem(LANG_KEY, safeLang);
+    } catch {}
+  };
+
+  useEffect(() => {
+    const syncLang = () => {
+      try {
+        const storedLang = window.localStorage.getItem(LANG_KEY) || 'ru';
+        if (text[storedLang]) {
+          setLangState(storedLang);
+        }
+      } catch {}
+    };
+
+    window.addEventListener('storage', syncLang);
+    window.addEventListener('focus', syncLang);
+
+    return () => {
+      window.removeEventListener('storage', syncLang);
+      window.removeEventListener('focus', syncLang);
+    };
+  }, []);
+
+  return [lang, setLang];
+}
+
+function BottomNav({ t }) {
   return (
     <nav className="bottom-nav" aria-label="Основная навигация">
       {navItems.map((item) => (
         <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? 'is-active' : undefined)}>
           <span aria-hidden="true">{item.icon}</span>
-          <strong>{item.label}</strong>
+          <strong>{t[item.labelKey]}</strong>
         </NavLink>
       ))}
     </nav>
   );
 }
 
-function PageTop({ title, subtitle, backTo }) {
+function PageTop({ title, subtitle, backTo, t = text.ru }) {
   return (
     <header className="page-top">
       <div>
         {backTo ? (
           <Link className="back-link" to={backTo}>
-            <ArrowLeft size={18} aria-hidden="true" /> Назад
+            <ArrowLeft size={18} aria-hidden="true" /> {t.back}
           </Link>
         ) : null}
         <h1>{title}</h1>
@@ -555,51 +717,130 @@ function LearningPathMap({ progress }) {
   );
 }
 
-function HomePage({ progress }) {
+function LanguageControl({ lang, setLang, t }) {
+  return (
+    <div className="language-control" aria-label={t.language}>
+      <Languages size={16} aria-hidden="true" />
+      {languages.map((item) => (
+        <button
+          key={item.code}
+          type="button"
+          className={lang === item.code ? 'is-active' : undefined}
+          onClick={() => setLang(item.code)}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function TrainerToolbar({ progress, lang, setLang, t, onLogout }) {
+  return (
+    <header className="trainer-toolbar">
+      <Link to="/home" className="home-screen-wordmark" aria-label="ilm-AI">
+        ilm-<span>AI</span>
+      </Link>
+      <div className="home-header-actions" aria-label="Показатели пользователя">
+        <div className="home-metrics">
+          <StatPill icon="🔥" label={`${progress.streak} ${t.streakDays}`} />
+          <StatPill icon="⭐" label={`${progress.xp} XP`} />
+        </div>
+        <LanguageControl lang={lang} setLang={setLang} t={t} />
+        <button type="button" className="logout-button tap" onClick={onLogout}>
+          <LogOut size={16} aria-hidden="true" />
+          {t.logout}
+        </button>
+      </div>
+    </header>
+  );
+}
+
+function HomePage({ progress, t }) {
   const navigate = useNavigate();
   const quest = quests[0];
   const questDone = progress.questDoneDate === todayKey();
   const questTarget = scenarios.find((scenario) => scenario.skill === quest.targetSkill) || scenarios[0];
+  const dailyQuestText = quest.text === 'Пройти 1 сценарий на стрессоустойчивость' ? t.questText : quest.text;
 
   return (
     <section className="home-screen">
-      <header className="home-screen-header">
-        <div className="home-screen-wordmark" aria-hidden="true">
-          ilm-<span>AI</span>
-        </div>
-        <div className="home-metrics" aria-label="Показатели пользователя">
-          <StatPill icon="🔥" label={`${progress.streak} дн.`} />
-          <StatPill icon="⭐" label={`${progress.xp} XP`} />
-        </div>
-      </header>
-
-      <div className="home-screen-hero">
+      <div className="home-screen-hero popin">
         <div className="home-screen-hero-title">
           ilm-
           <span className="home-screen-hero-ai">AI</span>
-          <span className="home-screen-hero-badge">Тренажёр</span>
+          <span className="home-screen-hero-badge">{t.appName}</span>
         </div>
-        <p>
-          Платформа развития и анализа профессиональных компетенций и коммуникативных навыков
-        </p>
+        <p>{t.tagline}</p>
       </div>
+
+      <section className="daily-panel plush-lg popin" aria-labelledby="daily-panel-title">
+        <div className="daily-panel-heading">
+          <span className="chip sky">{t.dailyPanelTitle}</span>
+          <h2 id="daily-panel-title">{t.dailyPanelSubtitle}</h2>
+        </div>
+        <div className="daily-panel-grid home-daily-grid">
+          <article className="daily-tile daily-quest-tile">
+            <header className="daily-tile-head">
+              <div className="daily-quest-visual" aria-hidden="true">
+                <span className="daily-quest-emoji">🎯</span>
+                <span className="daily-quest-status">{t.onlineBubble}</span>
+              </div>
+              <span className="chip butter">{t.dailyQuest}</span>
+            </header>
+            <h3 className="daily-tile-title">{dailyQuestText}</h3>
+            <div className="quest-progress">
+              <span>{questDone ? '1/1' : '0/1'}</span>
+              <div>
+                <i style={{ width: questDone ? '100%' : '0%' }} />
+              </div>
+            </div>
+            <div className="daily-tile-foot">
+              <button
+                className="btn-plush primary"
+                type="button"
+                onClick={() => navigate(`/scenario/${questTarget.id}`)}
+                disabled={questDone}
+              >
+                <Play size={15} aria-hidden="true" />
+                {questDone ? t.done : t.start}
+              </button>
+              <span className="reward-badge">+{quest.reward} XP</span>
+            </div>
+          </article>
+
+          <aside className="daily-tile daily-coach-tile">
+            <header className="daily-tile-head">
+              <div className="daily-coach-visual" aria-hidden="true">
+                <span className="daily-coach-emoji">✨</span>
+              </div>
+              <span className="chip sky">{t.focusToday}</span>
+            </header>
+            <p className="daily-tile-copy">{t.focusCopy}</p>
+            <div className="daily-coach-stats">
+              <span>{t.coins}: 🪙 {progress.coins}</span>
+              <span>{t.unlocked}: 🔓 {Object.keys(progress.completed).length + 1}</span>
+            </div>
+          </aside>
+        </div>
+      </section>
 
       {/* ── Mode Selection Cards Grid ── */}
       <div className="mode-cards-grid">
         {[
           {
-            badgeText: '🧭 MAP ROUTE', badgeBg: 'var(--mint)', emoji: '🗺️',
-            title: 'План обучения', desc: 'Маршрут по вашему направлению. Прокачивайте навыки общения шаг за шагом по карте.',
+            badgeText: t.modePlanBadge, badgeBg: 'var(--mint)', emoji: '🗺️',
+            title: t.modePlanTitle, desc: t.modePlanDesc,
             accent: 'var(--mint)', path: '/plan'
           },
           {
-            badgeText: '📚 ALL CASES', badgeBg: 'var(--sky)', emoji: '📚',
-            title: 'Библиотека кейсов', desc: 'Полный каталог сценариев для всех отраслей. Выбирайте темы, изучайте теорию и подсказки.',
+            badgeText: t.modeLibraryBadge, badgeBg: 'var(--sky)', emoji: '📚',
+            title: t.modeLibraryTitle, desc: t.modeLibraryDesc,
             accent: 'var(--sky-deep)', path: '/library'
           },
           {
-            badgeText: '⚡ QUICK PRACTICE', badgeBg: 'var(--butter)', emoji: '🎮',
-            title: 'Быстрая практика', desc: 'Случайный сценарий, звонок до 4 минут или отработка допущенных ошибок.',
+            badgeText: t.modePracticeBadge, badgeBg: 'var(--butter)', emoji: '🎮',
+            title: t.modePracticeTitle, desc: t.modePracticeDesc,
             accent: 'var(--butter)', path: '/practice'
           }
         ].map((mode, i) => (
@@ -678,67 +919,16 @@ function HomePage({ progress }) {
               letterSpacing: '0.04em',
               textTransform: 'uppercase',
             }}>
-              Открыть →
+              {t.open} →
             </div>
           </div>
         ))}
       </div>
 
-      {/* ── Daily Quest & Focus Widgets Container ── */}
-      <div className="home-widgets-container">
-        {/* Quest day widget */}
-        <article className="quest-card plush-lg popin" style={{ animationDelay: '0.3s' }}>
-          <div className="quest-scene" aria-hidden="true">
-            <div className="cartoon-head peach-head">
-              <span />
-              <span />
-              <i />
-            </div>
-            <div className="mini-bubble">Я на линии</div>
-          </div>
-          <div className="quest-copy">
-            <span className="chip butter">Квест дня</span>
-            <h2 style={{ fontSize: '1.25rem', marginTop: '6px' }}>{quest.text}</h2>
-            <div className="quest-progress">
-              <span>{questDone ? '1/1' : '0/1'}</span>
-              <div>
-                <i style={{ width: questDone ? '100%' : '0%' }} />
-              </div>
-            </div>
-            <div className="quest-actions">
-              <button
-                className="btn-plush primary"
-                type="button"
-                onClick={() => navigate(`/scenario/${questTarget.id}`)}
-                disabled={questDone}
-                style={{ minHeight: '42px', padding: '8px 16px', fontSize: '14px' }}
-              >
-                <Play size={15} aria-hidden="true" />
-                {questDone ? 'Выполнено' : 'Выполнить'}
-              </button>
-              <span className="reward-badge">+{quest.reward} XP</span>
-            </div>
-          </div>
-        </article>
-
-        {/* Focus today widget */}
-        <aside className="coach-card plush popin" style={{ animationDelay: '0.4s' }}>
-          <div className="coach-avatar" aria-hidden="true">
-            ✨
-          </div>
-          <h2 style={{ fontSize: '1.2rem' }}>Фокус сегодня</h2>
-          <p style={{ fontSize: '0.88rem', lineHeight: 1.4 }}>Сохранять ровный тон, уточнять факты и закрывать разговор понятной договорённостью.</p>
-          <div className="coach-mini-stats" style={{ marginTop: '10px', fontSize: '0.8rem' }}>
-            <span>Монеты: 🪙 {progress.coins}</span>
-            <span>Открыто: 🔓 {Object.keys(progress.completed).length + 1}</span>
-          </div>
-        </aside>
-      </div>
-
       <div className="home-screen-actions popin">
         {[
-          { icon: '📊', label: 'Мой прогресс', onClick: () => navigate('/progress'), bg: 'white' },
-          { icon: '👤', label: 'Мой профиль',  onClick: () => navigate('/profile'), bg: 'var(--butter)' },
+          { icon: '📊', label: t.progress, onClick: () => navigate('/progress'), bg: 'white' },
+          { icon: '👤', label: t.profile,  onClick: () => navigate('/profile'), bg: 'var(--butter)' },
         ].map((item, i) => (
           <button
             key={i}
@@ -1530,6 +1720,9 @@ function ProfilePage({ progress, setProgress }) {
 
 export function CommTrainerExperience() {
   const [progress, setProgressState] = useState(loadProgress);
+  const [lang, setLang] = useInterfaceLanguage();
+  const navigate = useNavigate();
+  const t = text[lang] || text.ru;
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
@@ -1537,6 +1730,18 @@ export function CommTrainerExperience() {
 
   function setProgress(updater) {
     setProgressState((current) => (typeof updater === 'function' ? updater(current) : { ...current, ...updater }));
+  }
+
+  async function handleLogout() {
+    try {
+      await supabase.auth.signOut();
+    } catch {}
+
+    try {
+      window.localStorage.removeItem(MOCK_SESSION_KEY);
+    } catch {}
+
+    navigate('/signin', { replace: true });
   }
 
   return (
@@ -1549,10 +1754,11 @@ export function CommTrainerExperience() {
         <span />
         <span />
       </div>
+      <TrainerToolbar progress={progress} lang={lang} setLang={setLang} t={t} onLogout={handleLogout} />
       <main className="trainer-main">
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />
-          <Route path="/home" element={<HomePage progress={progress} />} />
+          <Route path="/home" element={<HomePage progress={progress} t={t} />} />
           <Route path="/plan" element={<PlanPage progress={progress} />} />
           <Route path="/scenario/:id" element={<ScenarioPage progress={progress} setProgress={setProgress} />} />
           <Route path="/results/:id" element={<ResultsPage progress={progress} />} />
