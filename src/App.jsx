@@ -171,11 +171,81 @@ const EMOTION_TONES = {
   },
 };
 
+const DESK_SUBCASES = [
+  {
+    id: 'default',
+    label: 'Default',
+    description: 'Initial working desk pose',
+    boneRotations: DESK_POSE.boneRotations,
+  },
+  {
+    id: 'happy',
+    label: 'Happy',
+    description: 'Open shoulders, lifted head, light smile',
+    boneRotations: {
+      ...DESK_POSE.boneRotations,
+      base_9: { x: -28, y: 0, z: 0 },
+      Torso1_82: { x: -1, y: 0, z: 0 },
+      Torso2_71: { x: -2, y: 0, z: 0 },
+      Neck_33: { x: 4, y: 0, z: 0 },
+      Head_31: { x: -24, y: -2, z: 0 },
+      ShoulderL_50: { x: -8, y: 0, z: 14 },
+      ShoulderR_68: { x: -6, y: 0, z: -12 },
+      ForearmL_49: { x: -38, y: -22, z: 3 },
+      ForearmR_67: { x: -28, y: 10, z: -4 },
+      brow2R_22: { x: -8, y: 0, z: 0 },
+    },
+  },
+  {
+    id: 'listening',
+    label: 'Listening',
+    description: 'Leaning in with attentive head angle',
+    boneRotations: {
+      ...DESK_POSE.boneRotations,
+      base_9: { x: -38, y: 0, z: 0 },
+      Torso1_82: { x: 9, y: 0, z: 0 },
+      Torso2_71: { x: 7, y: -4, z: 0 },
+      Neck_33: { x: 18, y: 7, z: 0 },
+      Head_31: { x: -36, y: 8, z: 0 },
+      ShoulderL_50: { x: -17, y: 0, z: 13 },
+      ShoulderR_68: { x: -14, y: 0, z: -10 },
+      ForearmL_49: { x: -56, y: -9, z: 0 },
+      ForearmR_67: { x: -46, y: 8, z: 0 },
+    },
+  },
+  {
+    id: 'speaking',
+    label: 'Speaking',
+    description: 'Looking at camera, open mouth, gesturing',
+    boneRotations: {
+      ...DESK_POSE.boneRotations,
+      base_9: { x: -10, y: 0, z: 0 },
+      Torso1_82: { x: -2, y: 0, z: 0 },
+      Torso2_71: { x: -1, y: 0, z: 0 },
+      Neck_33: { x: -10, y: 0, z: 0 },
+      Head_31: { x: 20, y: 0, z: 0 },
+      ShoulderL_50: { x: -20, y: 0, z: 28 },
+      ForearmL_49: { x: -30, y: -28, z: 12 },
+      ShoulderR_68: { x: -10, y: 0, z: -14 },
+      ForearmR_67: { x: -26, y: 24, z: -8 },
+      brow2R_22: { x: 10, y: 0, z: 0 },
+      brow2L_10: { x: 10, y: 0, z: 0 },
+      Bottom_Lip_13: { x: -45, y: 0, z: 30 },
+      Bottom_lipL_14: { x: -45, y: 0, z: 30 },
+      Bottom_lipR_24: { x: -45, y: 0, z: -30 },
+      Teeth1_19: { x: -40, y: 0, z: 0 },
+      teeth_close_32: { x: -60, y: 0, z: 0 },
+    },
+  },
+];
+
 const NEUTRAL_BONE_ROTATION = {
   x: 0,
   y: 0,
   z: 0,
 };
+
+const FACE_BONE_PATTERN = /mouth|lip|teeth|brow|eye|head|neck|jaw|smile|frown|tongue/i;
 
 function cloneBoneRotations(boneRotations = {}) {
   return Object.fromEntries(
@@ -185,6 +255,80 @@ function cloneBoneRotations(boneRotations = {}) {
 
 function cloneChaiseShape(chaiseShape = DEFAULT_CHAISE_SHAPE) {
   return chaiseShape.map((point) => ({ ...point }));
+}
+
+function getRotationForBone(boneRotations, boneName) {
+  return boneRotations[boneName] || NEUTRAL_BONE_ROTATION;
+}
+
+function rotationsAreEqual(first = NEUTRAL_BONE_ROTATION, second = NEUTRAL_BONE_ROTATION) {
+  return first.x === second.x && first.y === second.y && first.z === second.z;
+}
+
+function getChangedBoneCount(defaultRotations, currentRotations) {
+  const boneNames = new Set([...Object.keys(defaultRotations || {}), ...Object.keys(currentRotations || {})]);
+
+  return [...boneNames].filter((boneName) => {
+    const from = getRotationForBone(defaultRotations, boneName);
+    const to = getRotationForBone(currentRotations, boneName);
+    return !rotationsAreEqual(from, to);
+  }).length;
+}
+
+function isFaceBone(bone) {
+  return FACE_BONE_PATTERN.test(bone.name) || FACE_BONE_PATTERN.test(bone.label);
+}
+
+function getAnimationKeypoints({ activeCase, sceneName, bones, defaultRotations, currentRotations }) {
+  const boneLabels = new Map(bones.map((bone) => [bone.name, bone.label]));
+  const boneNames = new Set([...Object.keys(defaultRotations || {}), ...Object.keys(currentRotations || {})]);
+  const changedBones = {};
+
+  for (const boneName of boneNames) {
+    const from = getRotationForBone(defaultRotations, boneName);
+    const to = getRotationForBone(currentRotations, boneName);
+    if (rotationsAreEqual(from, to)) {
+      continue;
+    }
+
+    changedBones[boneName] = {
+      label: boneLabels.get(boneName) || boneName,
+      from: { ...from },
+      to: { ...to },
+    };
+  }
+
+  return {
+    schemaVersion: 1,
+    caseId: activeCase.id,
+    scene: activeCase.scene,
+    modelFileName: activeCase.modelFileName,
+    sceneName,
+    durationMs: 1000,
+    easing: 'easeInOut',
+    createdAt: new Date().toISOString(),
+    bones: changedBones,
+  };
+}
+
+function downloadJsonFile(fileName, payload) {
+  const blob = new Blob([`${JSON.stringify(payload, null, 2)}\n`], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = fileName;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function createPoseFileName(activeCase, sceneName) {
+  const safeSceneName = sceneName.trim().toLowerCase().replace(/[^a-z0-9а-яё_-]+/gi, '-').replace(/^-|-$/g, '');
+  const date = new Date().toISOString().replace(/[:.]/g, '-');
+
+  return `${activeCase.modelFileName.replace(/\.glb$/i, '')}-${activeCase.id}-${safeSceneName || 'pose'}-${date}.json`;
 }
 
 function resolveActiveCase(caseId) {
@@ -1350,9 +1494,147 @@ function applyPoseState(caseItem, loadedBones, setters) {
   setters.setResetToken((currentToken) => currentToken + 1);
 }
 
+function AxisSlider({ axis, label, value, onChange }) {
+  return (
+    <label className="slider-control">
+      <span>
+        {label}
+        <strong>{Math.round(value)}°</strong>
+      </span>
+      <input
+        type="range"
+        min="-180"
+        max="180"
+        step="1"
+        value={value}
+        onChange={(event) => onChange(axis, Number(event.target.value))}
+      />
+    </label>
+  );
+}
+
+function PoseControlPanel({
+  activeCase,
+  activeDeskSubcaseId,
+  bones,
+  boneRotations,
+  defaultRotations,
+  selectedBoneName,
+  sceneName,
+  onSelectBone,
+  onChangeBoneAxis,
+  onResetCurrentBone,
+  onResetPose,
+  onChangeSceneName,
+  onExportJson,
+  onSelectDeskSubcase,
+}) {
+  const selectedBone = bones.find((bone) => bone.name === selectedBoneName) || bones[0];
+  const selectedRotation = getRotationForBone(boneRotations, selectedBone?.name);
+  const faceBones = bones.filter(isFaceBone);
+  const changedBoneCount = getChangedBoneCount(defaultRotations, boneRotations);
+
+  return (
+    <aside className="rig-panel pose-editor" aria-label="Pose and emotion controls">
+      <div className="panel-heading">
+        <div>
+          <h2>Pose controls</h2>
+          <p>{activeCase.label}</p>
+        </div>
+      </div>
+
+      {activeCase.id === 'desk' ? (
+        <div className="control-block">
+          <h3>Рабочий стол cases</h3>
+          <div className="subcase-tabs">
+            {DESK_SUBCASES.map((subcase) => (
+              <button
+                key={subcase.id}
+                type="button"
+                className={subcase.id === activeDeskSubcaseId ? 'is-active' : ''}
+                onClick={() => onSelectDeskSubcase(subcase.id)}
+              >
+                <span>{subcase.label}</span>
+                <small>{subcase.description}</small>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="control-block">
+        <label className="bone-select">
+          Bone
+          <select value={selectedBone?.name || ''} onChange={(event) => onSelectBone(event.target.value)}>
+            {bones.map((bone) => (
+              <option key={bone.name} value={bone.name}>
+                {bone.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div className="bone-control-card">
+          <div className="bone-card-heading">
+            <span>{selectedBone?.label || 'No bone loaded'}</span>
+            <strong>{selectedBone?.name || 'Waiting for model'}</strong>
+          </div>
+          <AxisSlider axis="x" label="X rotation" value={selectedRotation.x} onChange={onChangeBoneAxis} />
+          <AxisSlider axis="y" label="Y rotation" value={selectedRotation.y} onChange={onChangeBoneAxis} />
+          <AxisSlider axis="z" label="Z rotation" value={selectedRotation.z} onChange={onChangeBoneAxis} />
+        </div>
+
+        <button type="button" className="reset-button" onClick={onResetCurrentBone} disabled={!selectedBone}>
+          Reset selected bone
+        </button>
+      </div>
+
+      <div className="control-block">
+        <h3>Face / mouth shortcuts</h3>
+        {faceBones.length ? (
+          <div className="quick-bone-list">
+            {faceBones.map((bone) => (
+              <button
+                key={bone.name}
+                type="button"
+                className={bone.name === selectedBone?.name ? 'is-active' : ''}
+                onClick={() => onSelectBone(bone.name)}
+              >
+                {bone.label}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="empty-state">No face or mouth bones detected for this model.</p>
+        )}
+      </div>
+
+      <div className="control-block">
+        <h3>Export animation JSON</h3>
+        <label className="bone-select">
+          Scene name
+          <input value={sceneName} onChange={(event) => onChangeSceneName(event.target.value)} placeholder="happy" />
+        </label>
+        <p className="empty-state">Changed bones: {changedBoneCount}</p>
+        <div className="pose-actions">
+          <button type="button" className="reset-button" onClick={onExportJson}>
+            Export JSON
+          </button>
+          <button type="button" className="reset-button" onClick={onResetPose}>
+            Reset pose
+          </button>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
 function SimulationScene({ onBackToDashboard }) {
   const [activeCaseId, setActiveCaseId] = useState('desk');
+  const [activeDeskSubcaseId, setActiveDeskSubcaseId] = useState('default');
   const [bones, setBones] = useState([]);
+  const [selectedBoneName, setSelectedBoneName] = useState('');
+  const [sceneName, setSceneName] = useState('happy');
   const [modelTransform, setModelTransform] = useState(() => ({ ...CHAISE_POSE.modelTransform }));
   const [chaiseTransform, setChaiseTransform] = useState(() => ({ ...CHAISE_POSE.chaiseTransform }));
   const [chaiseShape, setChaiseShape] = useState(() => sanitizeChaiseShape(CHAISE_POSE.chaiseShape));
@@ -1366,6 +1648,8 @@ function SimulationScene({ onBackToDashboard }) {
   );
   const activeCameraSettings = useMemo(() => getCameraPreset(activeCase.id), [activeCase.id]);
   const activeAuroraSettings = useMemo(() => getAuroraPreset(activeCase.id), [activeCase.id]);
+  const defaultPose = useMemo(() => getPoseForCase(activeCase.id), [activeCase.id]);
+  const defaultRotations = defaultPose.boneRotations || {};
 
   const poseSetters = useMemo(
     () => ({
@@ -1382,6 +1666,9 @@ function SimulationScene({ onBackToDashboard }) {
   const handleBonesReady = useCallback(
     (loadedBones) => {
       setBones(loadedBones);
+      setSelectedBoneName((currentBoneName) =>
+        loadedBones.some((bone) => bone.name === currentBoneName) ? currentBoneName : loadedBones[0]?.name || '',
+      );
 
       if (!loadedBones.length) {
         return;
@@ -1400,7 +1687,15 @@ function SimulationScene({ onBackToDashboard }) {
     }
 
     applyPoseState(activeCase, bones, poseSetters);
-  }, [activeCase, bones, poseSetters, CHAISE_POSE_REVISION, STANDING_POSE_REVISION, DESK_POSE_REVISION]);
+    setActiveDeskSubcaseId('default');
+  }, [
+    activeCase,
+    bones,
+    poseSetters,
+    CHAISE_POSE_REVISION,
+    STANDING_POSE_REVISION,
+    DESK_POSE_REVISION,
+  ]);
 
   const switchCase = useCallback(
     (caseId) => {
@@ -1411,6 +1706,7 @@ function SimulationScene({ onBackToDashboard }) {
 
       setActiveCaseId(nextCase.id);
       setBones([]);
+      setActiveDeskSubcaseId('default');
       pendingCaseRef.current = nextCase;
       setResetToken((currentToken) => currentToken + 1);
     },
@@ -1418,6 +1714,75 @@ function SimulationScene({ onBackToDashboard }) {
   );
 
   const emotionTone = EMOTION_TONES[activeCase.scene] || EMOTION_TONES.chaise;
+
+  const resetActivePose = useCallback(() => {
+    applyPoseState(activeCase, bones, poseSetters);
+    setActiveDeskSubcaseId('default');
+  }, [activeCase, bones, poseSetters]);
+
+  const handleChangeBoneAxis = useCallback(
+    (axis, value) => {
+      if (!selectedBoneName) {
+        return;
+      }
+
+      setBoneRotations((currentRotations) => ({
+        ...currentRotations,
+        [selectedBoneName]: {
+          ...NEUTRAL_BONE_ROTATION,
+          ...currentRotations[selectedBoneName],
+          [axis]: value,
+        },
+      }));
+      setActiveDeskSubcaseId('custom');
+    },
+    [selectedBoneName],
+  );
+
+  const handleResetCurrentBone = useCallback(() => {
+    if (!selectedBoneName) {
+      return;
+    }
+
+    setBoneRotations((currentRotations) => {
+      const nextRotations = { ...currentRotations };
+      const defaultRotation = defaultRotations[selectedBoneName];
+
+      if (defaultRotation) {
+        nextRotations[selectedBoneName] = { ...defaultRotation };
+      } else {
+        delete nextRotations[selectedBoneName];
+      }
+
+      return nextRotations;
+    });
+    setActiveDeskSubcaseId('custom');
+  }, [defaultRotations, selectedBoneName]);
+
+  const handleSelectDeskSubcase = useCallback((subcaseId) => {
+    const subcase = DESK_SUBCASES.find((item) => item.id === subcaseId);
+    if (!subcase) {
+      return;
+    }
+
+    setActiveDeskSubcaseId(subcase.id);
+    setSceneName(subcase.id === 'default' ? 'desk-default' : subcase.id);
+    setBoneRotations(cloneBoneRotations(subcase.boneRotations));
+    setResetToken((currentToken) => currentToken + 1);
+  }, []);
+
+  const handleExportJson = useCallback(() => {
+    const payload = getAnimationKeypoints({
+      activeCase,
+      sceneName,
+      bones,
+      defaultRotations,
+      currentRotations: boneRotations,
+    });
+
+    downloadJsonFile(createPoseFileName(activeCase, sceneName), payload);
+    resetActivePose();
+  }, [activeCase, boneRotations, bones, defaultRotations, resetActivePose, sceneName]);
 
   return (
     <main className={`app app--${activeCase.scene}`}>
@@ -1487,6 +1852,22 @@ function SimulationScene({ onBackToDashboard }) {
         <Environment preset="apartment" />
         <SceneCameraControls settings={activeCameraSettings} />
       </Canvas>
+      <PoseControlPanel
+        activeCase={activeCase}
+        activeDeskSubcaseId={activeDeskSubcaseId}
+        bones={bones}
+        boneRotations={boneRotations}
+        defaultRotations={defaultRotations}
+        selectedBoneName={selectedBoneName}
+        sceneName={sceneName}
+        onSelectBone={setSelectedBoneName}
+        onChangeBoneAxis={handleChangeBoneAxis}
+        onResetCurrentBone={handleResetCurrentBone}
+        onResetPose={resetActivePose}
+        onChangeSceneName={setSceneName}
+        onExportJson={handleExportJson}
+        onSelectDeskSubcase={handleSelectDeskSubcase}
+      />
     </main>
   );
 }
