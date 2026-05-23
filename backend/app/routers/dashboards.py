@@ -9,6 +9,7 @@ from ..schemas import (
     AdminDashboard,
     AdminDashboardEmployee,
     AdminDashboardScenario,
+    DashboardTotals,
     EmployeeDashboard,
     EmployeeDashboardItem,
     Profile,
@@ -20,7 +21,7 @@ router = APIRouter(prefix="/api", tags=["dashboards"])
 
 @router.get("/employee/dashboard", response_model=EmployeeDashboard)
 def get_employee_dashboard(
-    current_user: Profile = Depends(require_roles(Role.employee, Role.solo)),
+    current_user: Profile = Depends(require_roles(Role.admin, Role.employee, Role.solo)),
     repository: Repository = Depends(get_repository),
 ) -> EmployeeDashboard:
     assignments = repository.list_employee_assignments(current_user.id, current_user.organization_id)
@@ -58,6 +59,7 @@ def get_admin_dashboard(
     }
     weak_skill_counts: dict[str, int] = defaultdict(int)
     scenarios = []
+    all_scores: list[int] = []
 
     for assignment in rows["assignments"]:
         employees = []
@@ -83,6 +85,7 @@ def get_admin_dashboard(
             )
 
         completion_rate = sum(1 for employee in employees if employee.completed) / len(employees) if employees else 0
+        all_scores.extend(scores)
         scenarios.append(
             AdminDashboardScenario(
                 scenario_id=assignment["scenario_id"],
@@ -97,8 +100,28 @@ def get_admin_dashboard(
         skill
         for skill, _count in sorted(weak_skill_counts.items(), key=lambda item: item[1], reverse=True)
     ]
+
+    average_score = round(mean(all_scores), 2) if all_scores else None
+    completion_rate = round(
+        sum(1 for s in scenarios for e in s.assigned_employees if e.completed)
+        / max(sum(len(s.assigned_employees) for s in scenarios), 1),
+        2,
+    )
+
+    unique_employees = set()
+    for assignment in rows["assignments"]:
+        for ae in assignment.get("assignment_employees", []):
+            unique_employees.add(ae["employee_id"])
+
     return AdminDashboard(
         organization_id=current_user.organization_id,
         scenarios=scenarios,
         weak_skills=weak_skills,
+        completion_rate=completion_rate,
+        average_score=average_score,
+        totals=DashboardTotals(
+            attempts=len(attempts),
+            assignments=len(rows["assignments"]),
+            employees=len(unique_employees),
+        ),
     )

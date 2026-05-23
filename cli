@@ -1,0 +1,270 @@
+#!/usr/bin/env node
+import { createInterface } from "node:readline/promises";
+import { stdin as input, stdout as output } from "node:process";
+
+const API_BASE_URL = process.env.API_BASE_URL || "http://127.0.0.1:3001";
+const DEMO_USER = "employee1@demo.com";
+
+const colors = {
+  cyan: "\x1b[36m",
+  yellow: "\x1b[33m",
+  bold: "\x1b[1m",
+  reset: "\x1b[0m",
+};
+
+let rl;
+let activeSession;
+let isFinishing = false;
+
+function color(value, ansiColor) {
+  return `${ansiColor}${value}${colors.reset}`;
+}
+
+function titleCase(value) {
+  return value.replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+async function request(path, options = {}) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      "X-Demo-User": DEMO_USER,
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
+
+  let body;
+  try {
+    body = await response.json();
+  } catch {
+    body = null;
+  }
+
+  if (!response.ok) {
+    const detail = body?.detail || body?.message || response.statusText;
+    throw new Error(`${response.status} ${detail}`);
+  }
+
+  return body;
+}
+
+function pickPersonaMessage(body) {
+  return body?.personaMessage || body?.message?.message || body?.reply?.content || "";
+}
+
+function startThinking() {
+  const frames = ["Thinking.  ", "Thinking.. ", "Thinking..."];
+  let index = 0;
+
+  output.write(color(frames[index], colors.yellow));
+  const interval = setInterval(() => {
+    index = (index + 1) % frames.length;
+    output.write(`\r${color(frames[index], colors.yellow)}`);
+  }, 220);
+
+  return () => {
+    clearInterval(interval);
+    output.write("\r\x1b[K");
+  };
+}
+
+function renderBanner(scenario) {
+  console.clear();
+  console.log(color(scenario.title, colors.bold));
+  console.log(`Persona: ${scenario.persona}`);
+  console.log(`Target Goals: ${scenario.goal || scenario.evaluationSkills?.join(", ") || "Complete the simulation"}`);
+  console.log("");
+}
+
+function renderPersona(message) {
+  console.log(`${color("[Persona]:", colors.cyan)} ${color(message, colors.cyan)}`);
+}
+
+function normalizeEvaluation(body) {
+  const attempt = body?.attempt || {};
+  return {
+    attemptId: body?.attemptId || attempt.id,
+    score: body?.score ?? attempt.score ?? 0,
+    skillScores: body?.skillScores || attempt.skillScores || {},
+    feedback: body?.feedback || attempt.feedback || {},
+  };
+}
+
+function renderScore(evaluationBody) {
+  const evaluation = normalizeEvaluation(evaluationBody);
+  const skillScores = evaluation.skillScores;
+  const feedback = evaluation.feedback;
+
+  console.log("==================================================");
+  console.log("                 SIMULATION SCORE");
+  console.log("==================================================");
+  console.log(`FINAL SCORE: ${evaluation.score}/100`);
+  console.log("");
+  console.log("SKILL BREAKDOWN:");
+  console.log(`- Knowledge Accuracy: ${skillScores["knowledge accuracy"] ?? "N/A"}/5`);
+  console.log(`- Objection Handling: ${skillScores["objection handling"] ?? "N/A"}/5`);
+  console.log(`- Confidence:         ${skillScores.confidence ?? "N/A"}/5`);
+  console.log(`- Structure:          ${skillScores.structure ?? "N/A"}/5`);
+  console.log(`- Policy Adherence:   ${skillScores["policy adherence"] ?? "N/A"}/5`);
+  console.log("");
+  console.log("STRENGTHS:");
+  console.log(`* ${feedback.strengths?.[0] || "No strength feedback returned."}`);
+  console.log(`* ${feedback.strengths?.[1] || "No second strength feedback returned."}`);
+  console.log("");
+  console.log("AREAS FOR IMPROVEMENT:");
+  console.log(`* ${feedback.improvements?.[0] || "No improvement feedback returned."}`);
+  console.log("==================================================");
+}
+
+async function evaluateAndExit(exitCode = 0) {
+  if (isFinishing) {
+    return;
+  }
+
+  isFinishing = true;
+  rl?.close();
+
+  const session = activeSession;
+  if (!session || session.transcript.length === 0) {
+    process.exit(exitCode);
+  }
+
+  console.log("");
+  console.log("-".repeat(Math.max(3, output.columns || 50)));
+  console.log(color("Sending transcript to evaluation engine...", colors.yellow));
+
+  try {
+    const body = await request("/api/attempts/evaluate", {
+      method: "POST",
+      body: JSON.stringify({
+        userId: session.userId,
+        scenarioId: session.scenario.id,
+        transcript: session.transcript,
+      }),
+    });
+    renderScore(body);
+  } catch (error) {
+    console.error(`Evaluation failed: ${error.message}`);
+    process.exitCode = 1;
+  }
+
+  process.exit(exitCode);
+}
+
+async function selectAssignment(assignments) {
+  if (assignments.length === 1) {
+    return assignments[0];
+  }
+
+  console.log("Available assignments:");
+  assignments.forEach((item, index) => {
+    const scenario = item.scenario || {};
+    console.log(`${index + 1}. ${scenario.title || item.assignment?.scenarioId} (${item.status})`);
+  });
+  console.log("");
+
+  while (true) {
+    const answer = (await rl.question("[Select assignment]: ")).trim();
+    const selectedIndex = Number.parseInt(answer, 10) - 1;
+
+    if (Number.isInteger(selectedIndex) && assignments[selectedIndex]) {
+      return assignments[selectedIndex];
+    }
+
+    console.log("Enter a valid assignment number.");
+  }
+}
+
+async function play() {
+  rl = createInterface({ input, output });
+  rl.on("SIGINT", () => {
+    evaluateAndExit(0);
+  });
+
+  const dashboard = await request(`/api/employee/dashboard?userId=${encodeURIComponent(DEMO_USER)}`);
+  const assignments = (dashboard.assignments || []).filter((item) => item.scenario);
+
+  if (assignments.length === 0) {
+    console.log(`No assignments found for ${DEMO_USER}.`);
+    console.log(`Start the backend with npm run backend:dev, or create an assignment through the API.`);
+    rl.close();
+    return;
+  }
+
+  const item = await selectAssignment(assignments);
+  const scenario = item.scenario;
+  const userId = dashboard.user?.id || DEMO_USER;
+  const transcript = [{ role: "persona", message: scenario.openingMessage }];
+  activeSession = { userId, scenario, transcript };
+
+  renderBanner(scenario);
+  renderPersona(scenario.openingMessage);
+
+  while (!isFinishing) {
+    const userMessage = (await rl.question("[You]: ")).trim();
+
+    if (!userMessage) {
+      continue;
+    }
+
+    if (["exit", "quit"].includes(userMessage.toLowerCase())) {
+      await evaluateAndExit(0);
+      return;
+    }
+
+    transcript.push({ role: "user", message: userMessage });
+    const stopThinking = startThinking();
+
+    try {
+      const body = await request("/api/simulation/message", {
+        method: "POST",
+        body: JSON.stringify({
+          userId,
+          scenarioId: scenario.id,
+          transcript,
+          userMessage,
+        }),
+      });
+      stopThinking();
+
+      const personaMessage = pickPersonaMessage(body);
+      if (!personaMessage) {
+        throw new Error("Backend did not return personaMessage.");
+      }
+
+      renderPersona(personaMessage);
+      transcript.push({ role: "persona", message: personaMessage });
+
+      if (body.shouldEnd) {
+        await evaluateAndExit(0);
+        return;
+      }
+    } catch (error) {
+      stopThinking();
+      console.error(`Request failed: ${error.message}`);
+      console.error(`Check that the backend is running at ${API_BASE_URL}.`);
+      await evaluateAndExit(1);
+      return;
+    }
+  }
+}
+
+async function main() {
+  const command = process.argv[2] || "play";
+
+  if (command !== "play") {
+    console.log(`Unknown command: ${command}`);
+    console.log(`Usage: ${titleCase("cli")} play`);
+    process.exit(1);
+  }
+
+  try {
+    await play();
+  } catch (error) {
+    console.error(`CLI failed: ${error.message}`);
+    process.exit(1);
+  }
+}
+
+main();

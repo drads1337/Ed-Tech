@@ -24,7 +24,7 @@ def test_roleplay_and_evaluation_are_deterministic():
     message = continue_roleplay(scenario, transcript, "The price is fair.")
     evaluation = evaluate_attempt(scenario, [*transcript, message])
 
-    assert message.role == "assistant"
+    assert message.role == "persona"
     assert "Cost" in message.content
     assert 0 <= evaluation["score"] <= 100
     assert evaluation["skill_scores"]

@@ -2,7 +2,18 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { BrowserRouter, Navigate, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { Canvas, useThree } from '@react-three/fiber';
 import { ContactShadows, Environment, OrbitControls, useGLTF } from '@react-three/drei';
-import { ArrowLeft } from 'lucide-react';
+import {
+  ArrowLeft,
+  BarChart3,
+  ClipboardCheck,
+  Play,
+  RefreshCw,
+  Send,
+  Sparkles,
+  UploadCloud,
+  Wifi,
+  WifiOff,
+} from 'lucide-react';
 import * as THREE from 'three';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { assignments as mockAssignments, organization as mockOrganization, scenarios as mockScenarios } from './mockData.js';
@@ -29,6 +40,11 @@ const DEFAULT_DESK_TRANSFORM = { ...DESK_POSE.deskTransform };
 const DEFAULT_CHAISE_SHAPE = CHAISE_POSE.chaiseShape.map((point) => ({ ...point }));
 
 const CAMERA_ZOOM_SLACK = 0.2;
+const DEMO_EMPLOYEE_ID = 'user_employee_1';
+const DEMO_ADMIN_ID = 'user_admin';
+const DEFAULT_MATERIAL = `Enterprise customers ask about security, procurement, implementation value, contract guarantees, and operational savings.
+
+Sales reps must acknowledge the customer's concern, connect the answer to approved policy, explain the next step, and avoid unsupported savings promises.`;
 
 const ORDINARY_MODEL_ROTATION = [-Math.PI / 2, 0, -Math.PI / 2];
 const BEARDED_MODEL_ROTATION = ORDINARY_MODEL_ROTATION;
@@ -986,6 +1002,373 @@ CASES.forEach((caseItem) => {
   useGLTF.preload(caseItem.modelUrl);
 });
 
+function formatPercent(value) {
+  return `${Math.round(Number(value || 0) * 100)}%`;
+}
+
+function transcriptForEvaluation(detail) {
+  return (detail?.transcript || []).map((message) => ({
+    role: message.role,
+    message: message.message || message.content,
+  }));
+}
+
+function normalizeScenario(value) {
+  if (!value) {
+    return null;
+  }
+
+  return {
+    ...value,
+    materialId: value.materialId || value.material_id,
+    openingMessage: value.openingMessage || value.opening_message,
+    evaluationSkills: value.evaluationSkills || value.evaluation_skills || [],
+  };
+}
+
+function normalizeAssignment(value) {
+  if (!value) {
+    return null;
+  }
+
+  return {
+    ...value,
+    scenarioId: value.scenarioId || value.scenario_id,
+    employeeIds: value.employeeIds || value.employee_ids || [],
+    requiredScore: value.requiredScore || value.required_score,
+  };
+}
+
+function TrainingConsole() {
+  const [health, setHealth] = useState(null);
+  const [aiStatus, setAiStatus] = useState(null);
+  const [contract, setContract] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState(DEMO_EMPLOYEE_ID);
+  const [materialTitle, setMaterialTitle] = useState('Enterprise Sales FAQ');
+  const [materialContent, setMaterialContent] = useState(DEFAULT_MATERIAL);
+  const [goal, setGoal] = useState('Handle enterprise objections');
+  const [skills, setSkills] = useState('knowledge accuracy, objection handling, confidence');
+  const [material, setMaterial] = useState(null);
+  const [chunks, setChunks] = useState([]);
+  const [scenario, setScenario] = useState(null);
+  const [assignment, setAssignment] = useState(null);
+  const [session, setSession] = useState(null);
+  const [sessionDetail, setSessionDetail] = useState(null);
+  const [transcript, setTranscript] = useState([]);
+  const [userMessage, setUserMessage] = useState('I understand the concern. First, our security policy requires review before procurement, and next I can map the value to your operating goals.');
+  const [evaluation, setEvaluation] = useState(null);
+  const [dashboard, setDashboard] = useState(null);
+  const [busyAction, setBusyAction] = useState('');
+  const [error, setError] = useState('');
+
+  const selectedUser = users.find((user) => user.id === selectedUserId) || users.find((user) => user.role === 'employee');
+  const canGenerate = Boolean(material);
+  const canAssign = Boolean(scenario && selectedUserId);
+  const canStart = Boolean(scenario && selectedUserId);
+  const canSend = Boolean(session?.id && userMessage.trim());
+  const canEvaluate = Boolean(scenario?.id && sessionDetail?.transcript?.length);
+
+  const refreshDashboard = useCallback(async () => {
+    const dashboardPayload = await apiRequest('/api/admin/dashboard', { demoUser: DEMO_ADMIN_ID });
+    setDashboard(dashboardPayload);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadBackendState() {
+      try {
+        const [healthPayload, aiPayload, contractPayload, usersPayload, dashboardPayload] = await Promise.all([
+          apiRequest('/api/health'),
+          apiRequest('/api/ai/status'),
+          apiRequest('/api/contracts/scenario'),
+          apiRequest('/api/demo-users'),
+          apiRequest('/api/admin/dashboard', { demoUser: DEMO_ADMIN_ID }),
+        ]);
+
+        if (!active) {
+          return;
+        }
+
+        setHealth(healthPayload);
+        setAiStatus(aiPayload);
+        setContract(contractPayload);
+        setUsers(usersPayload.users || []);
+        setDashboard(dashboardPayload);
+      } catch (requestError) {
+        if (active) {
+          setError(requestError.message);
+          setHealth({ ok: false });
+        }
+      }
+    }
+
+    loadBackendState();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const runAction = useCallback(async (actionName, action) => {
+    setBusyAction(actionName);
+    setError('');
+
+    try {
+      await action();
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setBusyAction('');
+    }
+  }, []);
+
+  const createMaterial = () =>
+    runAction('material', async () => {
+      const payload = await apiRequest('/api/materials', {
+        demoUser: DEMO_ADMIN_ID,
+        method: 'POST',
+        body: {
+          title: materialTitle,
+          content: materialContent,
+        },
+      });
+      const savedMaterial = payload.material || payload;
+      const chunkPayload = await apiRequest(`/api/materials/${savedMaterial.id}/chunks`, { demoUser: DEMO_ADMIN_ID });
+      setMaterial(savedMaterial);
+      setChunks(chunkPayload.chunks || []);
+      setScenario(null);
+      setAssignment(null);
+      setSession(null);
+      setSessionDetail(null);
+      setTranscript([]);
+      setEvaluation(null);
+      await refreshDashboard();
+    });
+
+  const generateScenario = () =>
+    runAction('scenario', async () => {
+      const payload = await apiRequest('/api/scenarios/generate', {
+        demoUser: DEMO_ADMIN_ID,
+        method: 'POST',
+        body: {
+          materialId: material.id,
+          goal,
+          skills: skills
+            .split(',')
+            .map((skill) => skill.trim())
+            .filter(Boolean),
+        },
+      });
+      setScenario(normalizeScenario(payload.scenario || payload));
+      setAssignment(null);
+      setSession(null);
+      setSessionDetail(null);
+      setTranscript([]);
+      setEvaluation(null);
+      await refreshDashboard();
+    });
+
+  const assignScenario = () =>
+    runAction('assignment', async () => {
+      const payload = await apiRequest('/api/assignments', {
+        demoUser: DEMO_ADMIN_ID,
+        method: 'POST',
+        body: {
+          scenarioId: scenario.id,
+          employeeIds: [selectedUserId],
+          requiredScore: 75,
+        },
+      });
+      setAssignment(normalizeAssignment(payload.assignment || payload));
+      await refreshDashboard();
+    });
+
+  const startSession = () =>
+    runAction('session', async () => {
+      const openingMessage = scenario.openingMessage || scenario.opening_message;
+      const nextTranscript = openingMessage ? [{ role: 'persona', message: openingMessage }] : [];
+      setSession({ id: `local-${scenario.id}`, scenarioId: scenario.id, status: 'active' });
+      setTranscript(nextTranscript);
+      setSessionDetail({ transcript: nextTranscript });
+      setEvaluation(null);
+    });
+
+  const sendMessage = () =>
+    runAction('message', async () => {
+      const payload = await apiRequest('/api/simulation/message', {
+        demoUser: selectedUserId,
+        method: 'POST',
+        body: {
+          scenarioId: scenario.id,
+          transcript,
+          userMessage,
+        },
+      });
+      const nextTranscript = payload.transcript || [
+        ...transcript,
+        { role: 'user', message: userMessage },
+        { role: 'persona', message: payload.personaMessage || payload.persona_message },
+      ];
+      setTranscript(nextTranscript);
+      setSessionDetail({ transcript: nextTranscript });
+      setUserMessage('');
+    });
+
+  const evaluateSession = () =>
+    runAction('evaluation', async () => {
+      const payload = await apiRequest('/api/attempts/evaluate', {
+        demoUser: selectedUserId,
+        method: 'POST',
+        body: {
+          scenarioId: scenario.id,
+          transcript: transcriptForEvaluation(sessionDetail),
+          assignmentId: assignment?.id,
+        },
+      });
+      setEvaluation(payload);
+      await refreshDashboard();
+    });
+
+  return (
+    <section className="training-console" aria-label="Training backend console">
+      <div className="console-header">
+        <div>
+          <h1>AI Training Loop</h1>
+          <p>{scenario?.title || contract?.title || 'Scenario contract loading'}</p>
+        </div>
+        <div className={`connection-pill ${health?.ok ? 'is-online' : 'is-offline'}`}>
+          {health?.ok ? <Wifi size={15} /> : <WifiOff size={15} />}
+          <span>{health?.ok ? aiStatus?.provider || 'online' : 'offline'}</span>
+        </div>
+      </div>
+
+      <div className="console-grid">
+        <div className="console-block">
+          <div className="block-title">
+            <UploadCloud size={16} />
+            <span>Material</span>
+          </div>
+          <input value={materialTitle} onChange={(event) => setMaterialTitle(event.target.value)} />
+          <textarea value={materialContent} onChange={(event) => setMaterialContent(event.target.value)} rows={5} />
+          <button type="button" onClick={createMaterial} disabled={busyAction === 'material'}>
+            {busyAction === 'material' ? 'Saving...' : 'Save material'}
+          </button>
+          {material ? <small>{chunks.length} source chunk{chunks.length === 1 ? '' : 's'} indexed</small> : null}
+        </div>
+
+        <div className="console-block">
+          <div className="block-title">
+            <Sparkles size={16} />
+            <span>Scenario</span>
+          </div>
+          <input value={goal} onChange={(event) => setGoal(event.target.value)} />
+          <input value={skills} onChange={(event) => setSkills(event.target.value)} />
+          <button type="button" onClick={generateScenario} disabled={!canGenerate || busyAction === 'scenario'}>
+            {busyAction === 'scenario' ? 'Generating...' : 'Generate scenario'}
+          </button>
+          {scenario ? (
+            <div className="scenario-card">
+              <strong>{scenario.persona}</strong>
+              <span>{scenario.openingMessage}</span>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="console-block">
+          <div className="block-title">
+            <ClipboardCheck size={16} />
+            <span>Assignment</span>
+          </div>
+          <select value={selectedUserId} onChange={(event) => setSelectedUserId(event.target.value)}>
+            {users
+              .filter((user) => user.role === 'employee' || user.role === 'solo')
+              .map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name}
+                </option>
+              ))}
+          </select>
+          <button type="button" onClick={assignScenario} disabled={!canAssign || busyAction === 'assignment'}>
+            {busyAction === 'assignment' ? 'Assigning...' : 'Assign training'}
+          </button>
+          <button type="button" onClick={startSession} disabled={!canStart || busyAction === 'session'}>
+            <Play size={15} />
+            {busyAction === 'session' ? 'Starting...' : 'Start session'}
+          </button>
+          {assignment ? <small>Assigned to {selectedUser?.name || selectedUserId}</small> : null}
+        </div>
+      </div>
+
+      <div className="session-row">
+        <div className="chat-panel">
+          <div className="chat-feed">
+            {(sessionDetail?.transcript || []).map((message, index) => (
+              <div key={`${message.role}-${index}`} className={`chat-message chat-message--${message.role}`}>
+                <span>{message.role}</span>
+                <p>{message.message || message.content}</p>
+              </div>
+            ))}
+            {!sessionDetail?.transcript?.length ? <p className="empty-state">Start a session to receive the persona opening.</p> : null}
+          </div>
+          <div className="chat-input">
+            <textarea
+              value={userMessage}
+              onChange={(event) => setUserMessage(event.target.value)}
+              rows={2}
+              disabled={!session?.id}
+            />
+            <button type="button" onClick={sendMessage} disabled={!canSend || busyAction === 'message'} aria-label="Send message">
+              <Send size={17} />
+            </button>
+          </div>
+        </div>
+
+        <div className="results-panel">
+          <div className="metric-strip">
+            <div>
+              <span>Completion</span>
+              <strong>{formatPercent(dashboard?.completionRate)}</strong>
+            </div>
+            <div>
+              <span>Average</span>
+              <strong>{dashboard?.averageScore ?? '-'}</strong>
+            </div>
+            <div>
+              <span>Attempts</span>
+              <strong>{dashboard?.totals?.attempts ?? 0}</strong>
+            </div>
+          </div>
+          <button type="button" onClick={evaluateSession} disabled={!canEvaluate || busyAction === 'evaluation'}>
+            <BarChart3 size={15} />
+            {busyAction === 'evaluation' ? 'Scoring...' : 'Evaluate attempt'}
+          </button>
+          {evaluation ? (
+            <div className="feedback-card">
+              <strong>{evaluation.score}/100</strong>
+              <p>{evaluation.feedback?.summary}</p>
+              <div className="skill-list">
+                {Object.entries(evaluation.skillScores || {}).map(([skill, score]) => (
+                  <span key={skill}>
+                    {skill}: {score}/5
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          <button type="button" className="ghost-button" onClick={() => runAction('refresh', refreshDashboard)}>
+            <RefreshCw size={14} />
+            Refresh dashboard
+          </button>
+        </div>
+      </div>
+
+      {error ? <div className="console-error">{error}</div> : null}
+    </section>
+  );
+}
+
 function applyPoseState(caseItem, loadedBones, setters) {
   const poseConfig = getPoseForCase(caseItem.id);
   const nextPose = createPoseFromConfig(poseConfig, loadedBones, poseConfig);
@@ -1135,6 +1518,7 @@ function SimulationScene({ onBackToDashboard }) {
         <Environment preset="apartment" />
         <SceneCameraControls settings={activeCameraSettings} />
       </Canvas>
+      <TrainingConsole />
     </main>
   );
 }

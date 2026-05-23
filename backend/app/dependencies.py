@@ -2,9 +2,17 @@ from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, status
 
-from .repositories import Repository, get_repository
+from .repositories import DEMO_ADMIN_ID, DEMO_EMPLOYEE_ID, Repository, get_repository
 from .schemas import Profile, Role
 from .supabase_client import get_supabase_client
+
+
+DEMO_USER_ALIASES = {
+    "admin@demo.com": DEMO_ADMIN_ID,
+    "employee1@demo.com": DEMO_EMPLOYEE_ID,
+    "user_admin": DEMO_ADMIN_ID,
+    "user_employee_1": DEMO_EMPLOYEE_ID,
+}
 
 
 def _extract_bearer_token(authorization: str | None) -> str:
@@ -15,8 +23,16 @@ def _extract_bearer_token(authorization: str | None) -> str:
 
 def get_current_user(
     authorization: Annotated[str | None, Header()] = None,
+    x_demo_user: Annotated[str | None, Header(alias="X-Demo-User")] = None,
     repository: Repository = Depends(get_repository),
 ) -> Profile:
+    if x_demo_user:
+        demo_user_id = DEMO_USER_ALIASES.get(x_demo_user, x_demo_user)
+        profile = repository.get_profile(demo_user_id)
+        if profile:
+            return Profile.model_validate(profile)
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Demo user profile is missing.")
+
     token = _extract_bearer_token(authorization)
     try:
         auth_user = get_supabase_client().auth.get_user(token)

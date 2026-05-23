@@ -1,12 +1,30 @@
 from abc import ABC, abstractmethod
 from uuid import uuid4
 
+from .config import get_settings
 from .supabase_client import get_supabase_client
+
+
+DEMO_ORG_ID = "00000000-0000-0000-0000-000000000001"
+DEMO_ADMIN_ID = "00000000-0000-0000-0000-000000000010"
+DEMO_EMPLOYEE_ID = "00000000-0000-0000-0000-000000000011"
 
 
 class Repository(ABC):
     @abstractmethod
     def create_organization(self, name: str) -> dict:
+        raise NotImplementedError
+
+    @abstractmethod
+    def create_session(self, payload: dict) -> dict:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_session(self, session_id: str) -> dict | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def update_session_transcript(self, session_id: str, transcript: list[dict]) -> dict:
         raise NotImplementedError
 
     @abstractmethod
@@ -160,14 +178,109 @@ class SupabaseRepository(Repository):
         ]
         return {"assignments": assignments, "attempts": attempts}
 
+    def create_session(self, payload: dict) -> dict:
+        result = self.client.table("simulation_sessions").insert(payload).execute()
+        return result.data[0]
+
+    def get_session(self, session_id: str) -> dict | None:
+        result = (
+            self.client.table("simulation_sessions")
+            .select("*, scenario:scenarios(*)")
+            .eq("id", session_id)
+            .maybe_single()
+            .execute()
+        )
+        return result.data
+
+    def update_session_transcript(self, session_id: str, transcript: list[dict]) -> dict:
+        result = (
+            self.client.table("simulation_sessions")
+            .update({"transcript": transcript})
+            .eq("id", session_id)
+            .execute()
+        )
+        return result.data[0]
+
 
 class InMemoryRepository(Repository):
-    def __init__(self) -> None:
+    def __init__(self, seed_demo: bool = False) -> None:
         self.profiles: dict[str, dict] = {}
         self.materials: dict[str, dict] = {}
         self.scenarios: dict[str, dict] = {}
         self.assignments: dict[str, dict] = {}
         self.attempts: dict[str, dict] = {}
+        self.sessions: dict[str, dict] = {}
+
+        if seed_demo:
+            self._seed_demo()
+
+    def _seed_demo(self) -> None:
+        self.profiles[DEMO_ADMIN_ID] = {
+            "id": DEMO_ADMIN_ID,
+            "email": "admin@demo.com",
+            "name": "Demo Admin",
+            "role": "admin",
+            "organization_id": DEMO_ORG_ID,
+            "xp": 0,
+            "streak": 0,
+        }
+        self.profiles[DEMO_EMPLOYEE_ID] = {
+            "id": DEMO_EMPLOYEE_ID,
+            "email": "employee1@demo.com",
+            "name": "Employee One",
+            "role": "employee",
+            "organization_id": DEMO_ORG_ID,
+            "xp": 120,
+            "streak": 3,
+        }
+        material = self.create_material(
+            {
+                "organization_id": DEMO_ORG_ID,
+                "title": "Enterprise Sales FAQ",
+                "type": "text",
+                "content": (
+                    "Enterprise customers ask about security, procurement, implementation value, "
+                    "contract guarantees, and operational savings."
+                ),
+            }
+        )
+        scenario = self.create_scenario(
+            {
+                "organization_id": DEMO_ORG_ID,
+                "material_id": material["id"],
+                "title": "Handle enterprise objections: Enterprise Sales FAQ",
+                "goal": "Handle enterprise objections",
+                "difficulty": "medium",
+                "persona": "Skeptical enterprise customer",
+                "opening_message": (
+                    "I don't see why we need this product. We already have a solution, "
+                    "and every vendor claims they can save us money."
+                ),
+                "evaluation_skills": [
+                    "knowledge accuracy",
+                    "objection handling",
+                    "confidence",
+                    "structure",
+                    "policy adherence",
+                ],
+                "rubric": {
+                    "accuracy": "Did the employee use correct product facts?",
+                    "objectionHandling": "Did they handle resistance clearly?",
+                    "confidence": "Did they sound confident?",
+                    "structure": "Did they organize the answer in a clear sequence?",
+                    "policyAdherence": "Did they stay within the training material and company policy?",
+                },
+            }
+        )
+        self.create_assignment(
+            {
+                "organization_id": DEMO_ORG_ID,
+                "scenario_id": scenario["id"],
+                "due_date": None,
+                "required_score": 75,
+            },
+            [DEMO_EMPLOYEE_ID],
+        )
 
     def create_organization(self, name: str) -> dict:
         row = {"id": str(uuid4()), "name": name}
@@ -243,6 +356,31 @@ class InMemoryRepository(Repository):
         ]
         return {"assignments": assignments, "attempts": attempts}
 
+    def create_session(self, payload: dict) -> dict:
+        row = {"id": str(uuid4()), **payload}
+        if "transcript" not in row:
+            row["transcript"] = []
+        self.sessions[row["id"]] = row
+        return row
+
+    def get_session(self, session_id: str) -> dict | None:
+        row = self.sessions.get(session_id)
+        if row:
+            scenario = self.scenarios.get(row["scenario_id"])
+            if scenario:
+                row = {**row, "scenario": scenario}
+        return row
+
+    def update_session_transcript(self, session_id: str, transcript: list[dict]) -> dict:
+        self.sessions[session_id]["transcript"] = transcript
+        return self.sessions[session_id]
+
+
+_demo_repository = InMemoryRepository(seed_demo=True)
+
 
 def get_repository() -> Repository:
+    settings = get_settings()
+    if not settings.supabase_url or not settings.supabase_service_role_key:
+        return _demo_repository
     return SupabaseRepository()

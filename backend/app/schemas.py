@@ -94,7 +94,7 @@ class Assignment(ApiModel):
 
 class TranscriptMessage(ApiModel):
     role: str
-    content: str
+    content: str = Field(..., alias="message")
 
 
 class SimulationMessageRequest(ApiModel):
@@ -106,12 +106,41 @@ class SimulationMessageRequest(ApiModel):
 class SimulationMessageResponse(ApiModel):
     message: TranscriptMessage
     transcript: list[TranscriptMessage]
+    persona_message: str | None = None
+    should_end: bool = False
+
+
+class SimulationSessionCreate(ApiModel):
+    scenario_id: str
+    user_id: str | None = None
+
+
+class SimulationSession(ApiModel):
+    id: str
+    scenario_id: str
+    user_id: str | None = None
+    scenario: Scenario
+    transcript: list[TranscriptMessage]
+
+
+class SimulationSessionMessageRequest(ApiModel):
+    user_message: str
+
+
+class SimulationSessionCreated(ApiModel):
+    session: SimulationSession
+    detail: dict
+
+
+class SimulationSessionMessaged(ApiModel):
+    detail: dict
 
 
 class AttemptEvaluateRequest(ApiModel):
     scenario_id: str
     transcript: list[TranscriptMessage]
     assignment_id: str | None = None
+    user_id: str | None = None
 
 
 class Attempt(ApiModel):
@@ -156,7 +185,16 @@ class AdminDashboardScenario(ApiModel):
     average_score: float | None = None
 
 
+class DashboardTotals(ApiModel):
+    attempts: int = 0
+    assignments: int = 0
+    employees: int = 0
+
+
 class AdminDashboard(ApiModel):
     organization_id: str
     scenarios: list[AdminDashboardScenario]
     weak_skills: list[str]
+    completion_rate: float = 0.0
+    average_score: float | None = None
+    totals: DashboardTotals = Field(default_factory=DashboardTotals)

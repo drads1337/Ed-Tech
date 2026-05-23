@@ -10,11 +10,16 @@ material -> scenario -> assignment -> employee attempt -> score -> admin dashboa
 
 ```bash
 cd backend
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-copy .env.example .env
-uvicorn app.main:app --reload --port 3001
+python3.12 -m venv ../.venv
+../.venv/bin/python -m pip install -r requirements.txt
+cp .env.example .env
+../.venv/bin/python -m uvicorn app.main:app --reload --port 3001
+```
+
+From the project root you can also run:
+
+```bash
+npm run backend:dev
 ```
 
 Create the Supabase tables with `supabase/schema.sql`.
