@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+.venv/
 
 # Build output
 dist/
@@ -43,3 +44,7 @@ venv/
 
 # Optional local overrides
 *.local
+
+# Local backend data
+*.sqlite3
+*.sqlite3-*
