@@ -128,9 +128,28 @@ export const DESK_POSE = {
 export const DESK_POSE_REVISION =
   '2026-05-22T16:07:06.809Z|{"x":-1,"y":-0.8,"z":0,"scale":0.38}|{"x":0,"y":0,"z":0,"width":1.25,"height":1,"depth":1.22,"rotationY":0}|{"base_9":{"x":-32,"y":0,"z":0},"Torso1_82":{"x":3,"y":0,"z":0},"Torso2_71":{"x":2,"y":0,"z":0},"Neck_33":{"x":12,"y":0,"z":0},"ShoulderL_50":{"x":-15,"y":0,"z":18},"ForearmL_49":{"x":-48,"y":-13,"z":0},"ShoulderR_68":{"x":-10,"y":0,"z":-14},"ForearmR_67":{"x":-38,"y":0,"z":0},"ThighL_75":{"x":-55,"y":0,"z":0},"ThighR_80":{"x":-52,"y":0,"z":0},"ClavicleL_51":{"x":16,"y":0,"z":0},"Head_31":{"x":-48,"y":-9,"z":0},"brow2R_22":{"x":0,"y":0,"z":0}}|{"Neck_33":{"x":3,"y":0,"z":0},"Head_31":{"x":8,"y":0,"z":0}}';
 
+
+/** Сцена Сидя - note.glb uses its built-in sitting pose. */
+export const SITTING_POSE = {
+  name: "sitting",
+  schemaVersion: 1,
+  selectedBoneName: "base",
+  modelTransform: {
+    x: 0,
+    y: 0.55,
+    z: 0,
+    scale: 0.38,
+  },
+  boneRotations: {},
+  restPoseAdjustments: {},
+};
+
+export const SITTING_POSE_REVISION = "2026-05-23|note.glb|{\"x\":0,\"y\":0.55,\"z\":0,\"scale\":0.38}|{}";
+
 export const CASE_POSES = {
   chaise: CHAISE_POSE,
   standing: STANDING_POSE,
+  sitting: SITTING_POSE,
   desk: DESK_POSE,
 };
 
@@ -138,6 +157,8 @@ export function getPoseForCase(caseId) {
   switch (caseId) {
     case 'standing':
       return STANDING_POSE;
+    case 'sitting':
+      return SITTING_POSE;
     case 'desk':
       return DESK_POSE;
     case 'chaise':

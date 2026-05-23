@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import ordinaryModelUrl from '../ordinary.glb?url';
 import beardedModelUrl from '../bearded.glb?url';
+import sittingModelUrl from '../note.glb?url';
 import tableModelUrl from '../table.glb?url';
 import './Aurora.css';
 import {
@@ -13,6 +14,7 @@ import {
   DESK_POSE,
   DESK_POSE_REVISION,
   getPoseForCase,
+  SITTING_POSE_REVISION,
   STANDING_POSE_REVISION,
 } from './casePoses.js';
 
@@ -45,6 +47,13 @@ const CAMERA_PRESETS = {
     minPolarAngle: 10,
     maxPolarAngle: 170,
   },
+  sitting: {
+    position: { x: 5.2, y: 1.8, z: 7.3 },
+    target: { x: 0, y: 0.32, z: 0.05 },
+    fov: 47,
+    minPolarAngle: 10,
+    maxPolarAngle: 170,
+  },
   desk: {
     position: { x: -6.1, y: 2.8, z: 8 },
     target: { x: -1.1, y: 0.04, z: 0.08 },
@@ -64,6 +73,11 @@ const AURORA_PRESETS = {
     length: 6.25,
     position: { x: 0, y: 1.4, z: 0 },
     rotation: { x: 2, y: 1, z: -1 },
+  },
+  sitting: {
+    length: 6.5,
+    position: { x: 0.1, y: 1.2, z: 0 },
+    rotation: { x: 1, y: -5, z: 0 },
   },
   desk: {
     length: 10,
@@ -107,6 +121,14 @@ const CASES = [
     restPoseAdjustments: {},
   },
   {
+    id: 'sitting',
+    label: 'Сидя',
+    scene: 'sitting',
+    modelUrl: sittingModelUrl,
+    modelFileName: 'note.glb',
+    modelRotation: TABLE_MODEL_ROTATION,
+  },
+  {
     id: 'desk',
     label: 'Рабочий стол',
     scene: 'desk',
@@ -138,6 +160,16 @@ const EMOTION_TONES = {
       amplitude: 1.2,
       blend: 0.72,
       speed: 0.82,
+    },
+  },
+  sitting: {
+    emotion: 'Внимание',
+    tone: 'спокойный',
+    veil: {
+      colorStops: ['#3454d1', '#7cff67', '#46c9ff'],
+      amplitude: 1.16,
+      blend: 0.72,
+      speed: 0.78,
     },
   },
   desk: {
@@ -976,7 +1008,7 @@ export default function App() {
   const pendingCaseRef = useRef(null);
   const activeCase = useMemo(
     () => resolveActiveCase(activeCaseId),
-    [activeCaseId, CHAISE_POSE_REVISION, STANDING_POSE_REVISION, DESK_POSE_REVISION],
+    [activeCaseId, CHAISE_POSE_REVISION, STANDING_POSE_REVISION, SITTING_POSE_REVISION, DESK_POSE_REVISION],
   );
   const activeCameraSettings = useMemo(() => getCameraPreset(activeCase.id), [activeCase.id]);
   const activeAuroraSettings = useMemo(() => getAuroraPreset(activeCase.id), [activeCase.id]);
@@ -1014,7 +1046,7 @@ export default function App() {
     }
 
     applyPoseState(activeCase, bones, poseSetters);
-  }, [activeCase, bones, poseSetters, CHAISE_POSE_REVISION, STANDING_POSE_REVISION, DESK_POSE_REVISION]);
+  }, [activeCase, bones, poseSetters, CHAISE_POSE_REVISION, STANDING_POSE_REVISION, SITTING_POSE_REVISION, DESK_POSE_REVISION]);
 
   const switchCase = useCallback(
     (caseId) => {

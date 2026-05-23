@@ -31,6 +31,7 @@ const [, , configPath] = process.argv;
 const BUILTIN_CHECKS = [
   { label: 'chaise', pose: CASE_POSES.chaise, modelFileName: 'ordinary.glb' },
   { label: 'standing', pose: CASE_POSES.standing, modelFileName: 'bearded.glb' },
+  { label: 'sitting', pose: CASE_POSES.sitting, modelFileName: 'note.glb' },
   { label: 'desk', pose: CASE_POSES.desk, modelFileName: 'table.glb' },
 ];
 
@@ -133,7 +134,11 @@ if (configPath) {
     pose.scene === 'standing' ||
     pose.model?.fileName === 'bearded.glb'
       ? 'bearded.glb'
-      : pose.caseId === 'desk' ||
+      : pose.caseId === 'sitting' ||
+          pose.scene === 'sitting' ||
+          pose.model?.fileName === 'note.glb'
+        ? 'note.glb'
+        : pose.caseId === 'desk' ||
           pose.scene === 'desk' ||
           pose.model?.fileName === 'table.glb'
         ? 'table.glb'

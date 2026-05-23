@@ -91,6 +91,11 @@ select {
   border-color: #3f4d63;
 }
 
+.app--sitting .case-tabs button.is-active {
+  background: #2f5f6f;
+  border-color: #2f5f6f;
+}
+
 .app--desk .case-tabs button.is-active {
   background: #5a4d3f;
   border-color: #5a4d3f;
