@@ -22,9 +22,37 @@ import {
 
 const STORAGE_KEY = 'pro-communication-trainer:v1';
 const LANG_KEY = 'app_lang';
+const MOCK_USER_KEY = 'training_loop_mock_user';
 const MOCK_SESSION_KEY = 'training_loop_mock_session';
 const todayKey = () => new Date().toISOString().slice(0, 10);
 const DAILY_FOCUS_COIN_REWARD = 15;
+
+const COMPANY_ASSIGNMENTS = [
+  {
+    id: 'company-policy-1',
+    scenarioId: 'edu_02',
+    badge: 'Правила компании',
+    title: 'Обязательный вводный кейс',
+    description: 'Отработайте разговор с сотрудником, который не проходит обучение по внутренним стандартам.',
+    checkpoint: 'Открывает доступ к клиентским сценам',
+  },
+  {
+    id: 'company-policy-2',
+    scenarioId: 'psy_01',
+    badge: 'Коммуникация',
+    title: 'Конфликт по регламенту',
+    description: 'Снизьте напряжение и верните диалог к правилам компании без спора.',
+    checkpoint: 'Нужно пройти после вводного кейса',
+  },
+  {
+    id: 'company-policy-3',
+    scenarioId: 'med_02',
+    badge: 'Контроль качества',
+    title: 'Сложный разговор с ожиданиями',
+    description: 'Объясните ограничения, проверьте понимание и согласуйте следующий шаг.',
+    checkpoint: 'Финальный рубеж обязательного трека',
+  },
+];
 
 const DEFAULT_PROGRESS = {
   name: 'Александр',
@@ -521,6 +549,47 @@ function loadProgress() {
   }
 }
 
+function getStoredAppUser() {
+  try {
+    return JSON.parse(window.localStorage.getItem(MOCK_USER_KEY) || 'null');
+  } catch {
+    return null;
+  }
+}
+
+function isEmployeeUser() {
+  return getStoredAppUser()?.role === 'employee';
+}
+
+function getCompanyAssignmentScenario(assignment) {
+  return scenarios.find((scenario) => scenario.id === assignment.scenarioId) || scenarios[0];
+}
+
+function getCompanyAssignmentState(assignment, index, progress) {
+  const scenario = getCompanyAssignmentScenario(assignment);
+  if (progress.completed[scenario.id]) {
+    return { label: 'completed', text: 'Пройдено' };
+  }
+
+  const previous = COMPANY_ASSIGNMENTS[index - 1];
+  const previousScenario = previous ? getCompanyAssignmentScenario(previous) : null;
+  const isOpen = index === 0 || !previousScenario || progress.completed[previousScenario.id];
+  return isOpen ? { label: 'open', text: 'Обязательно пройти' } : { label: 'locked', text: 'Откроется позже' };
+}
+
+function getCompanyTrackStats(progress) {
+  const completed = COMPANY_ASSIGNMENTS.filter((assignment) => {
+    const scenario = getCompanyAssignmentScenario(assignment);
+    return Boolean(progress.completed[scenario.id]);
+  }).length;
+
+  return {
+    completed,
+    total: COMPANY_ASSIGNMENTS.length,
+    isComplete: completed >= COMPANY_ASSIGNMENTS.length,
+  };
+}
+
 function getIndustry(industryId) {
   return industries.find((industry) => industry.id === industryId) || industries[0];
 }
@@ -805,6 +874,36 @@ function HomePage({ progress, setProgress, t }) {
   const focusDone = progress.focusDoneDate === todayKey();
   const questTarget = scenarios.find((scenario) => scenario.skill === quest.targetSkill) || scenarios[0];
   const dailyQuestText = quest.text === 'Пройти 1 сценарий на стрессоустойчивость' ? t.questText : quest.text;
+  const showCompanyTrack = isEmployeeUser();
+  const companyTrack = getCompanyTrackStats(progress);
+  const modeCards = [
+    ...(showCompanyTrack
+      ? [{
+          badgeText: 'ОБЯЗАТЕЛЬНО',
+          badgeBg: 'var(--rose)',
+          emoji: '🏢',
+          title: 'От компании',
+          desc: `Пройдите задания по порядку: ${companyTrack.completed}/${companyTrack.total}.`,
+          accent: 'var(--rose)',
+          path: '/company',
+        }]
+      : []),
+    {
+      badgeText: t.modePlanBadge, badgeBg: 'var(--mint)', emoji: '🗺️',
+      title: t.modePlanTitle, desc: t.modePlanDesc,
+      accent: 'var(--mint)', path: '/plan'
+    },
+    {
+      badgeText: t.modeLibraryBadge, badgeBg: 'var(--sky)', emoji: '📚',
+      title: t.modeLibraryTitle, desc: t.modeLibraryDesc,
+      accent: 'var(--sky-deep)', path: '/library'
+    },
+    {
+      badgeText: t.modePracticeBadge, badgeBg: 'var(--butter)', emoji: '🎮',
+      title: t.modePracticeTitle, desc: t.modePracticeDesc,
+      accent: 'var(--butter)', path: '/practice', quickStart: true,
+    },
+  ];
 
   return (
     <section className="home-screen">
@@ -876,6 +975,9 @@ function HomePage({ progress, setProgress, t }) {
             <div className="daily-coach-stats">
               <span>{t.coins}: 🪙 {progress.coins}</span>
               <span>{t.unlocked}: 🔓 {Object.keys(progress.completed).length + 1}</span>
+              {showCompanyTrack ? (
+                <span>🏢 {companyTrack.completed}/{companyTrack.total} обязательно</span>
+              ) : null}
             </div>
           </aside>
         </div>
@@ -883,23 +985,7 @@ function HomePage({ progress, setProgress, t }) {
 
       {/* ── Mode Selection Cards Grid ── */}
       <div className="mode-cards-grid">
-        {[
-          {
-            badgeText: t.modePlanBadge, badgeBg: 'var(--mint)', emoji: '🗺️',
-            title: t.modePlanTitle, desc: t.modePlanDesc,
-            accent: 'var(--mint)', path: '/plan'
-          },
-          {
-            badgeText: t.modeLibraryBadge, badgeBg: 'var(--sky)', emoji: '📚',
-            title: t.modeLibraryTitle, desc: t.modeLibraryDesc,
-            accent: 'var(--sky-deep)', path: '/library'
-          },
-          {
-            badgeText: t.modePracticeBadge, badgeBg: 'var(--butter)', emoji: '🎮',
-            title: t.modePracticeTitle, desc: t.modePracticeDesc,
-            accent: 'var(--butter)', path: '/practice', quickStart: true,
-          }
-        ].map((mode, i) => (
+        {modeCards.map((mode, i) => (
           <div
             key={i}
             className="tap hover-scale popin"
@@ -1686,6 +1772,78 @@ function LibraryPage({ progress, setProgress, t = getText('ru') }) {
   );
 }
 
+function CompanyAssignmentsPage({ progress }) {
+  const navigate = useNavigate();
+  const track = getCompanyTrackStats(progress);
+
+  return (
+    <section className="screen library-screen company-screen">
+      <PageTop title="От компании" subtitle="Обязательные задания открываются по порядку" backTo="/home" />
+
+      <header className="library-offers-head plush-lg company-track-head">
+        <div className="library-offers-head-copy">
+          <h2 className="library-offers-title">
+            <span className="library-offers-title-icon" aria-hidden="true">🏢</span>
+            Корпоративный минимум
+          </h2>
+          <p className="library-offers-subtitle">
+            Эти сцены нужно пройти до контрольной точки. Следующее задание откроется после завершения предыдущего.
+          </p>
+          <p className="library-offers-meta">
+            Прогресс: {track.completed}/{track.total} {track.isComplete ? '· контрольная точка пройдена' : '· продолжайте по порядку'}
+          </p>
+        </div>
+        <div className="library-coins-badge plush-tiny">
+          <span className="library-coins-label">Обязательно</span>
+          <strong className="library-coins-value">{track.completed}/{track.total}</strong>
+        </div>
+      </header>
+
+      <div className="scenario-list company-assignment-list">
+        {COMPANY_ASSIGNMENTS.map((assignment, index) => {
+          const scenario = getCompanyAssignmentScenario(assignment);
+          const industry = getIndustry(scenario.industry);
+          const state = getCompanyAssignmentState(assignment, index, progress);
+          const rating = progress.completed[scenario.id]?.rating || 0;
+          const isLocked = state.label === 'locked';
+
+          return (
+            <article key={assignment.id} className={`library-card plush company-assignment-card ${state.label}`}>
+              <div className="library-icon">
+                {state.label === 'locked' ? '🔒' : state.label === 'completed' ? '✓' : industry.icon}
+              </div>
+              <div>
+                <div className="company-assignment-tags">
+                  <span className={state.label === 'completed' ? 'chip mint' : state.label === 'locked' ? 'chip rose' : 'chip butter'}>
+                    {state.text}
+                  </span>
+                  <span className="chip sky">{assignment.badge}</span>
+                  <span className="chip peach">Шаг {index + 1}</span>
+                </div>
+                <h2>{assignment.title}</h2>
+                <p>{assignment.description}</p>
+                <div className="library-meta">
+                  <span>{scenario.durationMin} мин</span>
+                  <span>{getDifficultyLabel(scenario.difficulty)}</span>
+                  {rating ? <RatingStars rating={rating} /> : <span>{assignment.checkpoint}</span>}
+                </div>
+              </div>
+              <button
+                type="button"
+                className={`btn-plush sm ${state.label === 'completed' ? 'mint' : 'primary'} tap`}
+                disabled={isLocked}
+                onClick={() => navigate(`/scenario/${scenario.id}`)}
+              >
+                {state.label === 'completed' ? 'Повторить' : isLocked ? 'Закрыто' : 'Пройти'}
+              </button>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function ProgressPage({ progress }) {
   const completedCount = Object.keys(progress.completed).length;
   const attempts = progress.attempts || [];
@@ -2366,6 +2524,7 @@ export function CommTrainerExperience() {
           <Route path="/scenario/:id" element={<ScenarioPage progress={progress} />} />
           <Route path="/results/:id" element={<ResultsPage progress={progress} />} />
           <Route path="/library" element={<LibraryPage progress={progress} setProgress={setProgress} t={t} />} />
+          <Route path="/company" element={<CompanyAssignmentsPage progress={progress} />} />
           <Route path="/results-page" element={<ProgressPage progress={progress} />} />
           <Route path="/practice" element={<PracticePage progress={progress} setProgress={setProgress} t={t} />} />
           <Route path="/profile" element={<ProfilePage progress={progress} setProgress={setProgress} />} />

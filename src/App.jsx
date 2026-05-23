@@ -1,15 +1,22 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserRouter, Navigate, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { ContactShadows, Environment, OrbitControls, useGLTF } from '@react-three/drei';
+import { ContactShadows, Environment, Html, OrbitControls, useGLTF } from '@react-three/drei';
 import {
   ArrowLeft,
   BarChart3,
+  Building2,
   ClipboardCheck,
+  FileText,
   Play,
   RefreshCw,
   Send,
   Sparkles,
+  Settings,
+  ShieldCheck,
+  Target,
+  TrendingUp,
+  Users,
   UploadCloud,
   Wifi,
   WifiOff,
@@ -18,6 +25,13 @@ import * as THREE from 'three';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { apiRequest, getSessionToken, supabase } from './backendApi.js';
 import { CommTrainerExperience } from './CommTrainerApp.jsx';
+import {
+  EmotionStatusPanel,
+  getEmotionAdjustments,
+  getSpeechBubbleText,
+  getLiveMotionAdjustments,
+  LiveMotionPanel,
+} from './LiveMotion.jsx';
 import { QUICK_CASE_IDS } from './quickPractice.js';
 import { assignments as mockAssignments, organization as mockOrganization, scenarios as mockScenarios } from './mockData.js';
 import ordinaryModelUrl from '../ordinary.glb?url';
@@ -46,6 +60,102 @@ const DEMO_ADMIN_ID = 'user_admin';
 const DEFAULT_MATERIAL = `Enterprise customers ask about security, procurement, implementation value, contract guarantees, and operational savings.
 
 Sales reps must acknowledge the customer's concern, connect the answer to approved policy, explain the next step, and avoid unsupported savings promises.`;
+
+const CORPORATE_INDUSTRY_CHOICES = [
+  { id: 'business', label: 'Бизнес', icon: '💼' },
+  { id: 'medicine', label: 'Медицина', icon: '🏥' },
+  { id: 'education', label: 'Образование', icon: '🎓' },
+  { id: 'finance', label: 'Финансы', icon: '💳' },
+  { id: 'hospitality', label: 'Сервис', icon: '🏨' },
+];
+
+const CORPORATE_RULE_SCENES = [
+  {
+    id: 'refund-policy',
+    title: 'Возврат по правилам компании',
+    rule: 'Сначала признать эмоцию клиента, затем назвать срок проверки и не обещать компенсацию без подтверждения.',
+    scene: 'Клиент требует немедленный возврат после истечения гарантийного окна.',
+    success: 'Сотрудник сохраняет тон, объясняет процесс и фиксирует следующий шаг.',
+  },
+  {
+    id: 'security-objection',
+    title: 'Возражение по безопасности',
+    rule: 'Использовать только утвержденные формулировки по хранению данных и переводить разговор к compliance-документам.',
+    scene: 'Корпоративный клиент просит устную гарантию, которой нет в договоре.',
+    success: 'Сотрудник не придумывает обещания и уверенно предлагает официальный пакет документов.',
+  },
+  {
+    id: 'angry-vip',
+    title: 'Разговор с раздраженным VIP-клиентом',
+    rule: 'Не спорить, не перебивать, собрать факты и предложить один понятный путь эскалации.',
+    scene: 'Постоянный клиент угрожает уйти к конкурентам из-за задержки сервиса.',
+    success: 'Сотрудник снижает напряжение и переводит диалог в управляемый план.',
+  },
+];
+
+const EMPLOYEE_SKILL_PROFILES = [
+  {
+    id: 'lena',
+    name: 'Лена',
+    role: 'Support lead',
+    score: 86,
+    growth: '+12%',
+    forecast: 'Готова вести сложные обращения и обучать новичков через 3 недели.',
+    nextAbility: 'Доводить конфликт до согласованного плана без помощи руководителя.',
+    skills: [
+      { label: 'Эмпатия', value: 91 },
+      { label: 'Правила компании', value: 84 },
+      { label: 'Структура ответа', value: 79 },
+    ],
+  },
+  {
+    id: 'noah',
+    name: 'Ной',
+    role: 'Sales rep',
+    score: 74,
+    growth: '+7%',
+    forecast: 'Через 5 тренировок сможет закрывать типовые security-возражения.',
+    nextAbility: 'Связывать ценность продукта с политиками без неподтвержденных обещаний.',
+    skills: [
+      { label: 'Возражения', value: 76 },
+      { label: 'Факты продукта', value: 71 },
+      { label: 'Следующий шаг', value: 82 },
+    ],
+  },
+  {
+    id: 'ivy',
+    name: 'Айви',
+    role: 'Client manager',
+    score: 68,
+    growth: '+4%',
+    forecast: 'Нужна практика эскалации: высокий риск потерять темп в конфликте.',
+    nextAbility: 'Быстро отделять эмоции клиента от операционной проблемы.',
+    skills: [
+      { label: 'Спокойствие', value: 64 },
+      { label: 'Эскалация', value: 70 },
+      { label: 'Точность', value: 73 },
+    ],
+  },
+];
+
+const EMPLOYEE_COMPANY_TASKS = [
+  {
+    id: 'task-refund',
+    title: 'Отработать возврат по политике',
+    source: 'Назначено админом',
+    due: 'Сегодня',
+    requiredScore: 80,
+    scenario: CORPORATE_RULE_SCENES[0],
+  },
+  {
+    id: 'task-security',
+    title: 'Security objection drill',
+    source: 'Правила отдела продаж',
+    due: 'До пятницы',
+    requiredScore: 75,
+    scenario: CORPORATE_RULE_SCENES[1],
+  },
+];
 
 const ORDINARY_MODEL_ROTATION = [-Math.PI / 2, 0, -Math.PI / 2];
 const BEARDED_MODEL_ROTATION = ORDINARY_MODEL_ROTATION;
@@ -1237,55 +1347,40 @@ function SceneDressing({ propsLayout }) {
   );
 }
 
-const LIVE_MOTION_MODES = [
-  { id: 'idle', label: 'Покой' },
-  { id: 'listening', label: 'Слушает' },
-  { id: 'thinking', label: 'Думает' },
-  { id: 'talking', label: 'Говорит' },
-  { id: 'gesture', label: 'Жест рукой' },
-];
+const SPEECH_BUBBLE_ANCHORS = {
+  chaise: { offset: [-3.65, 4.85, -0.2], distanceFactor: 8.8, className: 'chaise' },
+  standing: { offset: [0, 1.34, 0], distanceFactor: 6.6, className: 'standing' },
+  desk: { offset: [0.06, 1.48, 0], distanceFactor: 6.8, className: 'desk' },
+};
 
-const EMOTION_MODES = [
-  { id: 'neutral', label: 'Нейтрально' },
-  { id: 'happy', label: 'Радостный' },
-  { id: 'angry', label: 'Злой' },
-  { id: 'sad', label: 'Расстроенный' },
-];
+function ModelSpeechBubble({ activeCase, modelTransform, liveMotion, emotionMode }) {
+  const text = getSpeechBubbleText(liveMotion, emotionMode);
+  const anchor = SPEECH_BUBBLE_ANCHORS[activeCase.scene] || SPEECH_BUBBLE_ANCHORS.chaise;
+  const bubblePosition = [
+    modelTransform.x + anchor.offset[0],
+    modelTransform.y + anchor.offset[1],
+    modelTransform.z + anchor.offset[2],
+  ];
 
-function LiveMotionPanel({ activeMode, activeEmotion, onChangeMode, onChangeEmotion }) {
   return (
-    <aside className="motion-panel" aria-label="Live motion controls">
-      <div className="panel-heading">
-        <Sparkles size={16} />
-        <h2>Живость модели</h2>
+    <Html position={bubblePosition} center distanceFactor={anchor.distanceFactor} transform sprite occlude={false}>
+      <div className={`model-speech-bubble model-speech-bubble--${anchor.className} model-speech-bubble--${emotionMode}`}>
+        {text}
       </div>
-      <div className="motion-buttons">
-        {LIVE_MOTION_MODES.map((mode) => (
-          <button
-            key={mode.id}
-            type="button"
-            className={`motion-button ${activeMode === mode.id ? 'is-active' : ''}`}
-            onClick={() => onChangeMode(mode.id)}
-          >
-            {mode.label}
-          </button>
-        ))}
-      </div>
-      <div className="motion-section">
-        <strong>Эмоция</strong>
-        <div className="motion-buttons">
-          {EMOTION_MODES.map((emotion) => (
-            <button
-              key={emotion.id}
-              type="button"
-              className={`motion-button ${activeEmotion === emotion.id ? 'is-active' : ''}`}
-              onClick={() => onChangeEmotion(emotion.id)}
-            >
-              {emotion.label}
-            </button>
-          ))}
-        </div>
-      </div>
+    </Html>
+  );
+}
+
+function CountdownTimerPanel({ secondsLeft }) {
+  const safeSeconds = Math.max(0, secondsLeft);
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
+  const value = `${minutes}:${String(seconds).padStart(2, '0')}`;
+
+  return (
+    <aside className="scene-countdown-panel" aria-label="Scene countdown timer">
+      <span>Осталось времени</span>
+      <strong>{value}</strong>
     </aside>
   );
 }
@@ -1346,6 +1441,12 @@ function StoneChaise({
           emotionMode={emotionMode}
           onBonesReady={onBonesReady}
         />
+        <ModelSpeechBubble
+          activeCase={activeCase}
+          modelTransform={modelTransform}
+          liveMotion={liveMotion}
+          emotionMode={emotionMode}
+        />
       </Suspense>
     </group>
   );
@@ -1401,178 +1502,6 @@ function prepareLoadedScene(scene, { preserveModelOrigin, centerOnObject, alignT
   });
 
   return copiedScene;
-}
-
-function getLiveMotionAdjustments(boneName, motionMode, time) {
-  const name = String(boneName || '').toLowerCase();
-  const wave = Math.sin(time * 2.4);
-  const fastWave = Math.sin(time * 7.2);
-  const slowWave = Math.sin(time * 1.35);
-  const isHead = name.includes('head');
-  const isNeck = name.includes('neck');
-  const isSpine = name.includes('spine') || name.includes('torso') || name.includes('chest');
-  const isLeftArm = name.includes('left') || name.endsWith('l') || name.includes('_l');
-  const isRightArm = name.includes('right') || name.endsWith('r') || name.includes('_r');
-  const isArm =
-    name.includes('arm') ||
-    name.includes('shoulder') ||
-    name.includes('forearm') ||
-    name.includes('hand') ||
-    name.includes('wrist');
-  const isMouth =
-    name.includes('jaw') ||
-    name.includes('mouth') ||
-    name.includes('lip') ||
-    name.includes('chin') ||
-    name.includes('brow');
-
-  switch (motionMode) {
-    case 'idle':
-      if (isHead) {
-        return { x: THREE.MathUtils.degToRad(wave * 0.9), y: THREE.MathUtils.degToRad(slowWave * 1.2), z: THREE.MathUtils.degToRad(slowWave * 0.7) };
-      }
-      if (isNeck) {
-        return { x: THREE.MathUtils.degToRad(wave * 0.7), y: THREE.MathUtils.degToRad(slowWave * 0.9), z: 0 };
-      }
-      if (isSpine) {
-        return { x: THREE.MathUtils.degToRad(slowWave * 1.2), y: THREE.MathUtils.degToRad(wave * 0.45), z: THREE.MathUtils.degToRad(slowWave * 0.55) };
-      }
-      if (isArm && (isLeftArm || isRightArm)) {
-        const side = isLeftArm ? -1 : 1;
-        return { x: THREE.MathUtils.degToRad(slowWave * 1.1), y: 0, z: THREE.MathUtils.degToRad(side * slowWave * 0.9) };
-      }
-      break;
-    case 'listening':
-      if (isHead) {
-        return { x: THREE.MathUtils.degToRad(5 + wave * 3.8), y: THREE.MathUtils.degToRad(slowWave * 3.4), z: THREE.MathUtils.degToRad(slowWave * 1.4) };
-      }
-      if (isNeck) {
-        return { x: THREE.MathUtils.degToRad(3 + wave * 2.4), y: THREE.MathUtils.degToRad(slowWave * 2), z: 0 };
-      }
-      if (isSpine) {
-        return { x: THREE.MathUtils.degToRad(slowWave * 1.7), y: THREE.MathUtils.degToRad(wave * 0.8), z: 0 };
-      }
-      break;
-    case 'thinking':
-      if (isHead || isNeck) {
-        return { x: THREE.MathUtils.degToRad(-4.5 + slowWave * 2.6), y: THREE.MathUtils.degToRad(3.8), z: THREE.MathUtils.degToRad(slowWave * 2.8) };
-      }
-      if (isArm && isRightArm) {
-        return { x: THREE.MathUtils.degToRad(-10 + wave * 4.8), y: THREE.MathUtils.degToRad(7.5), z: THREE.MathUtils.degToRad(4.2) };
-      }
-      if (isSpine) {
-        return { x: THREE.MathUtils.degToRad(1.8 + slowWave * 1.2), y: 0, z: THREE.MathUtils.degToRad(slowWave * 0.9) };
-      }
-      break;
-    case 'talking':
-      if (isMouth) {
-        return { x: THREE.MathUtils.degToRad(Math.max(0, fastWave) * 12), y: 0, z: 0 };
-      }
-      if (isHead || isNeck) {
-        return { x: THREE.MathUtils.degToRad(wave * 3), y: THREE.MathUtils.degToRad(slowWave * 2.8), z: THREE.MathUtils.degToRad(slowWave * 1.1) };
-      }
-      if (isArm && (isLeftArm || isRightArm)) {
-        const side = isLeftArm ? -1 : 1;
-        return { x: THREE.MathUtils.degToRad(wave * 6.2), y: THREE.MathUtils.degToRad(side * 3.2), z: THREE.MathUtils.degToRad(side * slowWave * 3.4) };
-      }
-      if (isSpine) {
-        return { x: THREE.MathUtils.degToRad(wave * 1.8), y: THREE.MathUtils.degToRad(slowWave * 1.2), z: 0 };
-      }
-      break;
-    case 'gesture':
-      if (isArm && isRightArm) {
-        return { x: THREE.MathUtils.degToRad(Math.sin(time * 3.4) * 20), y: THREE.MathUtils.degToRad(11), z: THREE.MathUtils.degToRad(Math.cos(time * 3.4) * 14) };
-      }
-      if (isArm && isLeftArm) {
-        return { x: THREE.MathUtils.degToRad(Math.sin(time * 2.1) * 4.5), y: 0, z: THREE.MathUtils.degToRad(-4.6) };
-      }
-      if (isHead || isNeck) {
-        return { x: THREE.MathUtils.degToRad(wave * 2.7), y: THREE.MathUtils.degToRad(slowWave * 2.6), z: THREE.MathUtils.degToRad(slowWave * 1.1) };
-      }
-      if (isSpine) {
-        return { x: THREE.MathUtils.degToRad(slowWave * 2), y: THREE.MathUtils.degToRad(wave * 1.2), z: 0 };
-      }
-      break;
-    default:
-      break;
-  }
-
-  return null;
-}
-
-function getEmotionAdjustments(boneName, emotionMode, time) {
-  const name = String(boneName || '').toLowerCase();
-  const softWave = Math.sin(time * 1.4);
-  const isHead = name.includes('head');
-  const isNeck = name.includes('neck');
-  const isSpine = name.includes('spine') || name.includes('torso') || name.includes('chest');
-  const isLeft = name.includes('left') || name.endsWith('l') || name.includes('_l');
-  const isRight = name.includes('right') || name.endsWith('r') || name.includes('_r');
-  const isShoulder = name.includes('shoulder') || name.includes('clavicle');
-  const isArm = name.includes('arm') || name.includes('forearm') || name.includes('hand') || name.includes('wrist');
-  const isMouth = name.includes('jaw') || name.includes('mouth') || name.includes('lip') || name.includes('chin');
-  const isBrow = name.includes('brow') || name.includes('eyebrow');
-
-  switch (emotionMode) {
-    case 'happy':
-      if (isHead || isNeck) {
-        return { x: THREE.MathUtils.degToRad(-2 + softWave * 0.8), y: THREE.MathUtils.degToRad(softWave * 0.7), z: 0 };
-      }
-      if (isSpine) {
-        return { x: THREE.MathUtils.degToRad(-1.8), y: 0, z: 0 };
-      }
-      if (isShoulder || isArm) {
-        const side = isLeft ? -1 : isRight ? 1 : 0;
-        return { x: THREE.MathUtils.degToRad(-2.4), y: THREE.MathUtils.degToRad(side * 1.5), z: THREE.MathUtils.degToRad(side * 1.2) };
-      }
-      if (isMouth) {
-        return { x: THREE.MathUtils.degToRad(2.8), y: 0, z: 0 };
-      }
-      if (isBrow) {
-        return { x: THREE.MathUtils.degToRad(-2), y: 0, z: 0 };
-      }
-      break;
-    case 'angry':
-      if (isHead || isNeck) {
-        return { x: THREE.MathUtils.degToRad(3.8), y: THREE.MathUtils.degToRad(softWave * 0.35), z: THREE.MathUtils.degToRad(isLeft ? -0.8 : 0.8) };
-      }
-      if (isSpine) {
-        return { x: THREE.MathUtils.degToRad(2.4), y: 0, z: 0 };
-      }
-      if (isShoulder || isArm) {
-        const side = isLeft ? -1 : isRight ? 1 : 0;
-        return { x: THREE.MathUtils.degToRad(2.6), y: THREE.MathUtils.degToRad(side * -2), z: THREE.MathUtils.degToRad(side * -2.8) };
-      }
-      if (isMouth) {
-        return { x: THREE.MathUtils.degToRad(-1.4), y: 0, z: 0 };
-      }
-      if (isBrow) {
-        return { x: THREE.MathUtils.degToRad(4.6), y: 0, z: THREE.MathUtils.degToRad(isLeft ? 2 : -2) };
-      }
-      break;
-    case 'sad':
-      if (isHead || isNeck) {
-        return { x: THREE.MathUtils.degToRad(5.4 + softWave * 0.5), y: THREE.MathUtils.degToRad(-0.7), z: 0 };
-      }
-      if (isSpine) {
-        return { x: THREE.MathUtils.degToRad(3.2), y: 0, z: 0 };
-      }
-      if (isShoulder || isArm) {
-        const side = isLeft ? -1 : isRight ? 1 : 0;
-        return { x: THREE.MathUtils.degToRad(3.8), y: 0, z: THREE.MathUtils.degToRad(side * -1.5) };
-      }
-      if (isMouth) {
-        return { x: THREE.MathUtils.degToRad(-2.2), y: 0, z: 0 };
-      }
-      if (isBrow) {
-        return { x: THREE.MathUtils.degToRad(2.8), y: 0, z: 0 };
-      }
-      break;
-    default:
-      break;
-  }
-
-  return null;
 }
 
 function RigModel({
@@ -2272,6 +2201,7 @@ function SimulationScene({
   const [boneRotations, setBoneRotations] = useState(() => cloneBoneRotations(CHAISE_POSE.boneRotations));
   const [liveMotion, setLiveMotion] = useState('idle');
   const [emotionMode, setEmotionMode] = useState('neutral');
+  const [secondsLeft, setSecondsLeft] = useState(180);
   const [resetToken, setResetToken] = useState(0);
   const pendingCaseRef = useRef(null);
   const activeCase = useMemo(
@@ -2317,37 +2247,23 @@ function SimulationScene({
     applyPoseState(activeCase, bones, poseSetters);
   }, [activeCase, bones, poseSetters, CHAISE_POSE_REVISION, STANDING_POSE_REVISION, DESK_POSE_REVISION]);
 
+  useEffect(() => {
+    setSecondsLeft(180);
+  }, [activeCase.id]);
+
+  useEffect(() => {
+    const timerId = window.setInterval(() => {
+      setSecondsLeft((current) => Math.max(0, current - 1));
+    }, 1000);
+
+    return () => window.clearInterval(timerId);
+  }, []);
+
   const emotionTone = EMOTION_TONES[activeCase.scene] || EMOTION_TONES.chaise;
 
   return (
     <main className={`app app--${activeCase.scene}`}>
       <div className="veil-background" aria-hidden="true" />
-      <div className="toolbar">
-        {scenarioTitle || industryName ? (
-          <div className="simulation-context-banner">
-            {quickPractice ? <span className="chip butter">⚡ Быстрая практика</span> : null}
-            {industryName ? (
-              <span className="chip peach">
-                {industryIcon ? `${industryIcon} ` : ''}
-                {industryName}
-              </span>
-            ) : null}
-            {scenarioTitle ? <strong className="simulation-context-title">{scenarioTitle}</strong> : null}
-            <span className="simulation-scene-label">{activeCase.label}</span>
-          </div>
-        ) : null}
-        {onBackToDashboard && (
-          <button
-            type="button"
-            className="btn-plush sm"
-            style={{ background: 'var(--rose)', marginLeft: 'auto' }}
-            onClick={onBackToDashboard}
-          >
-            <ArrowLeft size={16} /> Назад в меню
-          </button>
-        )}
-      </div>
-
       <Canvas
         className="scene-canvas"
         camera={{
@@ -2395,6 +2311,37 @@ function SimulationScene({
         onChangeMode={setLiveMotion}
         onChangeEmotion={setEmotionMode}
       />
+      <div className="simulation-bottom-bar">
+        <EmotionStatusPanel emotionMode={emotionMode} />
+        <div className="simulation-bottom-center">
+          {scenarioTitle || industryName ? (
+            <div className="simulation-context-banner">
+              {quickPractice ? <span className="chip butter">⚡ Быстрая практика</span> : null}
+              {industryName ? (
+                <span className="chip peach">
+                  {industryIcon ? `${industryIcon} ` : ''}
+                  {industryName}
+                </span>
+              ) : null}
+              {scenarioTitle ? <strong className="simulation-context-title">{scenarioTitle}</strong> : null}
+              <span className="simulation-scene-label">{activeCase.label}</span>
+            </div>
+          ) : null}
+          <CountdownTimerPanel secondsLeft={secondsLeft} />
+        </div>
+        {onBackToDashboard ? (
+          <button
+            type="button"
+            className="btn-plush sm simulation-back-button"
+            style={{ background: 'var(--rose)' }}
+            onClick={onBackToDashboard}
+          >
+            <ArrowLeft size={16} /> Назад в меню
+          </button>
+        ) : (
+          <div className="simulation-bottom-spacer" aria-hidden="true" />
+        )}
+      </div>
     </main>
   );
 }
@@ -2911,8 +2858,55 @@ function saveOnboardingMemory(memory) {
   writeJsonStorage(ONBOARDING_MEMORY_KEY, memory);
 }
 
+function completeRoleWithoutOnboarding(user) {
+  if (!user || user.role === 'solo') {
+    return;
+  }
+
+  const completedAt = new Date().toISOString();
+  const draft = {
+    ...EMPTY_ONBOARDING_DRAFT,
+    industry: user.role === 'admin' ? 'business' : 'optional',
+    industryLabel: user.role === 'admin' ? 'Корпоративное обучение' : 'Можно выбрать позже',
+    role: user.role,
+    roleLabel: user.role === 'admin' ? 'Admin corporate' : 'Employee',
+    goal: user.role === 'admin' ? 'company-training' : 'company-assignment',
+    goalLabel: user.role === 'admin' ? 'Создавать задания компании' : 'Выполнять задания компании',
+    experience: 'team',
+    experienceLabel: 'Командный режим',
+    currentStep: 4,
+    completedAt,
+  };
+
+  saveOnboardingMemory({
+    version: 1,
+    completed: true,
+    completedAt,
+    language: getOnboardingLang(),
+    userEmail: user.email || '',
+    userId: user.id || '',
+    draft,
+    aiSummary: {
+      roleLine: user.role === 'admin'
+        ? 'Вы управляете корпоративными тренировками и правилами компании.'
+        : 'Вы сотрудник команды и можете сразу перейти к заданиям компании.',
+      goalLine: draft.goalLabel,
+      targetLine: user.role === 'admin'
+        ? 'Фокус: сценарии по правилам, навыки сотрудников и прогноз роста.'
+        : 'Фокус: выполнить назначенные сцены и настроить личный режим тренировки.',
+      modeLine: 'Без обязательного solo-опроса.',
+      starterScenarioTitle: EMPLOYEE_COMPANY_TASKS[0].title,
+    },
+    rewards: {
+      xpAwarded: 0,
+      streak: Math.max(Number(user.streak) || 0, 1),
+      unlockedScenarioIds: user.unlockedScenarioIds || [],
+    },
+  });
+}
+
 function hasCompletedOnboarding(user) {
-  return Boolean(getOnboardingMemory(user));
+  return Boolean(getOnboardingMemory(user) || user?.onboardingCompleted === true || user?.onboardingRequired === false);
 }
 
 function mergeBackendProfileWithLocalState(profile, localUser = null) {
@@ -3406,14 +3400,22 @@ function RegisterPage() {
         onboardingCompleted: false,
       });
 
+      if (appUser.role !== 'solo') {
+        completeRoleWithoutOnboarding(appUser);
+      }
+
       saveMockUser(appUser);
       setMockSession(appUser.email);
-      saveOnboardingDraft({
-        ...EMPTY_ONBOARDING_DRAFT,
-        currentStep: 0,
-        startedAt: new Date().toISOString(),
-      });
-      navigate('/onboarding');
+      if (appUser.role === 'solo') {
+        saveOnboardingDraft({
+          ...EMPTY_ONBOARDING_DRAFT,
+          currentStep: 0,
+          startedAt: new Date().toISOString(),
+        });
+        navigate('/onboarding');
+      } else {
+        navigate('/home');
+      }
     } catch (registerError) {
       setError(registerError?.message || 'Не удалось создать аккаунт.');
       setIsSubmitting(false);
@@ -4258,81 +4260,199 @@ function DashboardPage() {
 
 function AdminDashboardView({ dashboard }) {
   const scenarios = dashboard?.scenarios || [];
+  const [companyRule, setCompanyRule] = useState(CORPORATE_RULE_SCENES[0].rule);
+  const [sceneBrief, setSceneBrief] = useState(CORPORATE_RULE_SCENES[0].scene);
+  const [selectedSkill, setSelectedSkill] = useState('rules');
 
   return (
-    <div className="dashboard-grid">
-      <div className="stat-card">
-        <span>Organization</span>
-        <strong>{dashboard?.organizationId || 'No organization'}</strong>
-      </div>
-      <div className="stat-card">
-        <span>Scenarios</span>
-        <strong>{scenarios.length}</strong>
-      </div>
-      <div className="stat-card">
-        <span>Weak skills</span>
-        <strong>{dashboard?.weakSkills?.length || 0}</strong>
+    <div className="corporate-dashboard">
+      <div className="corporate-stats">
+        <div className="stat-card">
+          <span><Building2 size={18} /> Компания</span>
+          <strong>{dashboard?.organizationId || 'Training Loop Corp'}</strong>
+        </div>
+        <div className="stat-card">
+          <span><FileText size={18} /> Сцены</span>
+          <strong>{Math.max(scenarios.length, CORPORATE_RULE_SCENES.length)}</strong>
+        </div>
+        <div className="stat-card">
+          <span><TrendingUp size={18} /> Прогноз роста</span>
+          <strong>+18%</strong>
+        </div>
       </div>
 
-      {scenarios.map((scenario) => (
-        <article key={scenario.scenarioId} className="dashboard-card">
+      <section className="corporate-panel admin-builder">
+        <div className="panel-heading">
+          <span className="chip butter"><ShieldCheck size={14} /> Задание компании</span>
+          <h3>Сцены по правилам компании</h3>
+          <p>Админ описывает правило, рабочую ситуацию и критерий успеха. Из этого собирается тренировка для сотрудников.</p>
+        </div>
+
+        <div className="admin-builder-grid">
+          <label className="builder-field">
+            <span>Правило компании</span>
+            <textarea value={companyRule} onChange={(event) => setCompanyRule(event.target.value)} />
+          </label>
+          <label className="builder-field">
+            <span>Сцена для тренировки</span>
+            <textarea value={sceneBrief} onChange={(event) => setSceneBrief(event.target.value)} />
+          </label>
+        </div>
+
+        <div className="rule-scene-list">
+          {CORPORATE_RULE_SCENES.map((item) => (
+            <article key={item.id} className="rule-scene-card">
+              <span className="chip sky">Сцена</span>
+              <h4>{item.title}</h4>
+              <p>{item.rule}</p>
+              <small>{item.success}</small>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="corporate-panel">
+        <div className="panel-heading inline">
           <div>
-            <span className="chip butter">Scenario</span>
-            <h3>{scenario.title}</h3>
+            <span className="chip mint"><Users size={14} /> Навыки сотрудников</span>
+            <h3>Подробные возможности и прогноз</h3>
           </div>
-          <div className="stat-grid">
-            <div className="stat-card">
-              <span>Completion</span>
-              <strong>{Math.round((scenario.completionRate || 0) * 100)}%</strong>
-            </div>
-            <div className="stat-card">
-              <span>Average</span>
-              <strong>{scenario.averageScore ?? 'N/A'}</strong>
-            </div>
-            <div className="stat-card">
-              <span>Employees</span>
-              <strong>{scenario.assignedEmployees.length}</strong>
-            </div>
-          </div>
-        </article>
-      ))}
+          <select className="compact-select" value={selectedSkill} onChange={(event) => setSelectedSkill(event.target.value)}>
+            <option value="rules">Правила компании</option>
+            <option value="sales">Продажи</option>
+            <option value="support">Поддержка</option>
+          </select>
+        </div>
+
+        <div className="employee-skill-grid">
+          {EMPLOYEE_SKILL_PROFILES.map((employee) => (
+            <article key={employee.id} className="employee-skill-card">
+              <div className="employee-skill-top">
+                <span className="employee-avatar">{employee.name[0]}</span>
+                <div>
+                  <h4>{employee.name}</h4>
+                  <p>{employee.role}</p>
+                </div>
+                <strong>{employee.score}</strong>
+              </div>
+              <div className="skill-bars">
+                {employee.skills.map((skill) => (
+                  <div key={skill.label} className="skill-row">
+                    <span>{skill.label}</span>
+                    <div className="skill-track"><i style={{ width: `${skill.value}%` }} /></div>
+                    <b>{skill.value}%</b>
+                  </div>
+                ))}
+              </div>
+              <p className="prediction"><TrendingUp size={16} /> {employee.forecast}</p>
+              <small>Следующая возможность: {employee.nextAbility}</small>
+            </article>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
 
 function EmployeeDashboardView({ dashboard }) {
+  const navigate = useNavigate();
   const assignments = dashboard?.assignments || [];
+  const [industry, setIndustry] = useState('optional');
+  const [trainingMode, setTrainingMode] = useState('gentle');
+  const [showHints, setShowHints] = useState(true);
+  const companyTasks = EMPLOYEE_COMPANY_TASKS.map((task, index) => ({
+    ...task,
+    backendAssignment: assignments[index],
+  }));
+
+  const startTask = (task) => {
+    navigate('/simulation', {
+      state: {
+        scenarioTitle: task.title,
+        industryName: industry === 'optional'
+          ? 'Задание компании'
+          : CORPORATE_INDUSTRY_CHOICES.find((item) => item.id === industry)?.label,
+        industryIcon: industry === 'optional'
+          ? '🏢'
+          : CORPORATE_INDUSTRY_CHOICES.find((item) => item.id === industry)?.icon,
+      },
+    });
+  };
 
   return (
-    <div className="dashboard-grid">
-      <div className="stat-card">
-        <span>Assignments</span>
-        <strong>{assignments.length}</strong>
-      </div>
-      <div className="stat-card">
-        <span>Completed</span>
-        <strong>{assignments.filter((assignment) => assignment.status === 'completed').length}</strong>
-      </div>
-      <div className="stat-card">
-        <span>Required score</span>
-        <strong>{assignments[0]?.requiredScore || 'N/A'}</strong>
-      </div>
+    <div className="employee-home">
+      <section className="corporate-panel employee-settings">
+        <div className="panel-heading">
+          <span className="chip sky"><Settings size={14} /> Настройки</span>
+          <h3>Личный режим как у solo</h3>
+          <p>Можно сразу тренироваться по заданиям компании или выбрать отрасль для дополнительных сценариев.</p>
+        </div>
 
-      {assignments.length ? assignments.map((assignment) => (
-        <article key={assignment.assignmentId} className="dashboard-card">
+        <div className="settings-grid">
+          <label className="builder-field">
+            <span>Отрасль, если нужна</span>
+            <select value={industry} onChange={(event) => setIndustry(event.target.value)}>
+              <option value="optional">Не выбирать сейчас</option>
+              {CORPORATE_INDUSTRY_CHOICES.map((item) => (
+                <option key={item.id} value={item.id}>{item.icon} {item.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="builder-field">
+            <span>Сложность</span>
+            <select value={trainingMode} onChange={(event) => setTrainingMode(event.target.value)}>
+              <option value="gentle">Мягко, с подсказками</option>
+              <option value="realistic">Реалистично</option>
+              <option value="hard">Сложный клиент</option>
+            </select>
+          </label>
+          <label className="toggle-row">
+            <input type="checkbox" checked={showHints} onChange={(event) => setShowHints(event.target.checked)} />
+            <span>Показывать подсказки во время сцены</span>
+          </label>
+        </div>
+      </section>
+
+      <section className="corporate-panel">
+        <div className="panel-heading inline">
           <div>
-            <span className="chip mint">{assignment.status}</span>
-            <h3>{assignment.scenario.title}</h3>
-            <p>{assignment.scenario.openingMessage}</p>
+            <span className="chip butter"><Target size={14} /> Задания компании</span>
+            <h3>Сцены от админа</h3>
           </div>
-          <button type="button" className="btn-plush sm primary">Start training</button>
-        </article>
-      )) : (
-        <article className="dashboard-card">
-          <h3>No assignments yet</h3>
-          <p>Your coach has not assigned a scenario to this account.</p>
-        </article>
-      )}
+          <span className="chip mint">{companyTasks.length} активных</span>
+        </div>
+
+        <div className="company-task-list">
+          {companyTasks.map((task) => (
+            <article key={task.id} className="company-task-card">
+              <div>
+                <span className="chip rose">{task.due}</span>
+                <h4>{task.title}</h4>
+                <p>{task.scenario.scene}</p>
+                <small>{task.source} · Нужно набрать {task.requiredScore}%</small>
+              </div>
+              <button type="button" className="btn-plush sm primary" onClick={() => startTask(task)}>
+                <Play size={15} /> Начать
+              </button>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="corporate-panel employee-progress">
+        <div className="stat-card">
+          <span>Назначено</span>
+          <strong>{Math.max(assignments.length, companyTasks.length)}</strong>
+        </div>
+        <div className="stat-card">
+          <span>Выполнено</span>
+          <strong>{assignments.filter((assignment) => assignment.status === 'completed').length}</strong>
+        </div>
+        <div className="stat-card">
+          <span>Режим</span>
+          <strong>{trainingMode === 'hard' ? 'Hard' : trainingMode === 'realistic' ? 'Real' : 'Soft'}</strong>
+        </div>
+      </section>
     </div>
   );
 }
@@ -4370,7 +4490,18 @@ function TrainerSessionGate() {
   if (!hasCompletedOnboarding(user)) {
     return <Navigate to="/onboarding" replace />;
   }
-  return <CommTrainerExperience />;
+  return user.role === 'admin' ? <DashboardPage /> : <CommTrainerExperience />;
+}
+
+function CorporateHomeGate() {
+  const user = getMockUser();
+  if (!hasMockSession() || !user) {
+    return <Navigate to="/signin" replace />;
+  }
+  if (!hasCompletedOnboarding(user)) {
+    return <Navigate to="/onboarding" replace />;
+  }
+  return user.role === 'admin' ? <DashboardPage /> : <Navigate to="/home" replace />;
 }
 
 function SimulationGate() {
@@ -4392,7 +4523,7 @@ export default function App() {
         <Route path="/signin" element={<LoginPage />} />
         <Route path="/signup" element={<RegisterPage />} />
         <Route path="/onboarding" element={<OnboardingPage />} />
-        <Route path="/dashboard" element={<Navigate to="/home" replace />} />
+        <Route path="/dashboard" element={<CorporateHomeGate />} />
         <Route path="/simulation" element={<SimulationGate />} />
         <Route path="*" element={<TrainerSessionGate />} />
       </Routes>
