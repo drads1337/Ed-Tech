@@ -39,6 +39,29 @@ class RegisterRequest(ApiModel):
     room_key: str | None = None
 
 
+class OnboardingAiSummaryRequest(ApiModel):
+    role: str | None = None
+    role_label: str | None = None
+    industry: str | None = None
+    industry_label: str | None = None
+    team_size: str | None = None
+    goal: str | None = None
+    goal_label: str | None = None
+    experience: str | None = None
+    experience_label: str | None = None
+    custom_goal: str | None = None
+    language: str = "en"
+
+
+class OnboardingAiSummary(ApiModel):
+    role_line: str
+    goal_line: str
+    target_line: str
+    mode_line: str = ""
+    recommended_skills: list[str] = Field(default_factory=list)
+    starter_scenario_title: str | None = None
+
+
 class MaterialCreate(ApiModel):
     title: str
     type: str = "text"
@@ -59,6 +82,7 @@ class ScenarioGenerateRequest(ApiModel):
     goal: str = "Practice handling customer objections"
     skills: list[str] = Field(default_factory=list)
     difficulty: str = "medium"
+    language: str = "en"
 
 
 class Scenario(ApiModel):
@@ -101,6 +125,7 @@ class SimulationMessageRequest(ApiModel):
     scenario_id: str
     transcript: list[TranscriptMessage] = Field(default_factory=list)
     user_message: str
+    language: str = "en"
 
 
 class SimulationMessageResponse(ApiModel):
@@ -141,6 +166,7 @@ class AttemptEvaluateRequest(ApiModel):
     transcript: list[TranscriptMessage]
     assignment_id: str | None = None
     user_id: str | None = None
+    language: str = "en"
 
 
 class Attempt(ApiModel):

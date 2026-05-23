@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
-from .routers import assignments, attempts, auth, dashboards, materials, scenarios, simulation
+from .routers import assignments, attempts, auth, dashboards, materials, onboarding, scenarios, simulation
 from .services.mock_ai import DEFAULT_SKILLS
 
 
@@ -49,6 +49,7 @@ def create_app() -> FastAPI:
     app.include_router(materials.router)
     app.include_router(auth.router)
     app.include_router(scenarios.router)
+    app.include_router(onboarding.router)
     app.include_router(assignments.router)
     app.include_router(dashboards.router)
     app.include_router(simulation.router)
@@ -60,7 +61,11 @@ def create_app() -> FastAPI:
 
     @app.get("/api/ai/status")
     def ai_status() -> dict:
-        return {"provider": "deterministic", "model": "mock-ai", "fallback": "deterministic"}
+        return {
+            "provider": "openrouter" if settings.openrouter_api_key else "deterministic",
+            "model": settings.openrouter_model if settings.openrouter_api_key else "mock-ai",
+            "fallback": "deterministic",
+        }
 
     @app.get("/api/contracts/scenario")
     def scenario_contract() -> dict:

@@ -24,11 +24,17 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 SUPABASE_JWT_SECRET=your-legacy-jwt-secret
+OPENROUTER_API_KEY=your-openrouter-api-key
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+OPENROUTER_MODEL=openai/gpt-oss-120b:free
+OPENROUTER_APP_URL=http://localhost:5173
+OPENROUTER_APP_NAME=Ed-Tech Training Loop
 BACKEND_CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 PORT=3001
 ```
 
 Use the legacy `service_role` API key for `SUPABASE_SERVICE_ROLE_KEY`. Do not commit `.env`.
+`OPENROUTER_BASE_URL` is the OpenRouter API root. `OPENROUTER_APP_URL` is only the optional frontend referer sent in OpenRouter headers; keep it as `http://localhost:5173` for local development and use your deployed frontend URL in production. If `OPENROUTER_API_KEY` is missing or OpenRouter is unavailable, onboarding AI falls back to the deterministic local summary.
 
 ## 3. Prepare Supabase
 

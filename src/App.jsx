@@ -16,10 +16,10 @@ import {
 } from 'lucide-react';
 import * as THREE from 'three';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { apiRequest, getSessionToken, supabase } from './backendApi.js';
 import { assignments as mockAssignments, organization as mockOrganization, scenarios as mockScenarios } from './mockData.js';
 import ordinaryModelUrl from '../ordinary.glb?url';
 import beardedModelUrl from '../bearded.glb?url';
-import sittingModelUrl from '../note.glb?url';
 import tableModelUrl from '../table.glb?url';
 import './Aurora.css';
 import {
@@ -28,7 +28,6 @@ import {
   DESK_POSE,
   DESK_POSE_REVISION,
   getPoseForCase,
-  SITTING_POSE_REVISION,
   STANDING_POSE_REVISION,
 } from './casePoses.js';
 const NEUTRAL_TRANSFORM = { x: 0, y: 0, z: 0, scale: 1 };
@@ -65,13 +64,6 @@ const CAMERA_PRESETS = {
     minPolarAngle: 10,
     maxPolarAngle: 170,
   },
-  sitting: {
-    position: { x: 5.2, y: 1.8, z: 7.3 },
-    target: { x: 0, y: 0.32, z: 0.05 },
-    fov: 47,
-    minPolarAngle: 10,
-    maxPolarAngle: 170,
-  },
   desk: {
     position: { x: -6.1, y: 2.8, z: 8 },
     target: { x: -1.1, y: 0.04, z: 0.08 },
@@ -84,18 +76,13 @@ const CAMERA_PRESETS = {
 const AURORA_PRESETS = {
   chaise: {
     length: 5,
-    position: { x: -0.2, y: 1.05, z: 4 },
+    position: { x: -0.2, y: 1.05, z: -1 },
     rotation: { x: 0, y: 26, z: 0 },
   },
   standing: {
     length: 6.25,
     position: { x: 0, y: 1.4, z: 0 },
     rotation: { x: 2, y: 1, z: -1 },
-  },
-  sitting: {
-    length: 6.5,
-    position: { x: 0.1, y: 1.2, z: 0 },
-    rotation: { x: 1, y: -5, z: 0 },
   },
   desk: {
     length: 10,
@@ -139,14 +126,6 @@ const CASES = [
     restPoseAdjustments: {},
   },
   {
-    id: 'sitting',
-    label: 'Сидя',
-    scene: 'sitting',
-    modelUrl: sittingModelUrl,
-    modelFileName: 'note.glb',
-    modelRotation: TABLE_MODEL_ROTATION,
-  },
-  {
     id: 'desk',
     label: 'Рабочий стол',
     scene: 'desk',
@@ -178,16 +157,6 @@ const EMOTION_TONES = {
       amplitude: 1.2,
       blend: 0.72,
       speed: 0.82,
-    },
-  },
-  sitting: {
-    emotion: 'Внимание',
-    tone: 'спокойный',
-    veil: {
-      colorStops: ['#3454d1', '#7cff67', '#46c9ff'],
-      amplitude: 1.16,
-      blend: 0.72,
-      speed: 0.78,
     },
   },
   desk: {
@@ -1159,6 +1128,7 @@ function TrainingConsole() {
             .split(',')
             .map((skill) => skill.trim())
             .filter(Boolean),
+          language: localStorage.getItem('app_lang') || 'ru',
         },
       });
       setScenario(normalizeScenario(payload.scenario || payload));
@@ -1204,6 +1174,7 @@ function TrainingConsole() {
           scenarioId: scenario.id,
           transcript,
           userMessage,
+          language: localStorage.getItem('app_lang') || 'ru',
         },
       });
       const nextTranscript = payload.transcript || [
@@ -1225,6 +1196,7 @@ function TrainingConsole() {
           scenarioId: scenario.id,
           transcript: transcriptForEvaluation(sessionDetail),
           assignmentId: assignment?.id,
+          language: localStorage.getItem('app_lang') || 'ru',
         },
       });
       setEvaluation(payload);
@@ -1393,7 +1365,7 @@ function SimulationScene({ onBackToDashboard }) {
   const pendingCaseRef = useRef(null);
   const activeCase = useMemo(
     () => resolveActiveCase(activeCaseId),
-    [activeCaseId, CHAISE_POSE_REVISION, STANDING_POSE_REVISION, SITTING_POSE_REVISION, DESK_POSE_REVISION],
+    [activeCaseId, CHAISE_POSE_REVISION, STANDING_POSE_REVISION, DESK_POSE_REVISION],
   );
   const activeCameraSettings = useMemo(() => getCameraPreset(activeCase.id), [activeCase.id]);
   const activeAuroraSettings = useMemo(() => getAuroraPreset(activeCase.id), [activeCase.id]);
@@ -1431,7 +1403,7 @@ function SimulationScene({ onBackToDashboard }) {
     }
 
     applyPoseState(activeCase, bones, poseSetters);
-  }, [activeCase, bones, poseSetters, CHAISE_POSE_REVISION, STANDING_POSE_REVISION, SITTING_POSE_REVISION, DESK_POSE_REVISION]);
+  }, [activeCase, bones, poseSetters, CHAISE_POSE_REVISION, STANDING_POSE_REVISION, DESK_POSE_REVISION]);
 
   const switchCase = useCallback(
     (caseId) => {
@@ -1518,7 +1490,6 @@ function SimulationScene({ onBackToDashboard }) {
         <Environment preset="apartment" />
         <SceneCameraControls settings={activeCameraSettings} />
       </Canvas>
-      <TrainingConsole />
     </main>
   );
 }
@@ -1552,7 +1523,43 @@ const TRANSLATIONS = {
     errorOrg: "Пожалуйста, укажите название вашей организации",
     errorRoom: "Пожалуйста, введите ключ комнаты из приглашения",
     successLogin: "Вход выполнен успешно для:",
-    successRegister: "Регистрация успешна для:"
+    successRegister: "Регистрация успешна для:",
+    onboardingBack: "Назад",
+    onboardingProgress: "Прогресс",
+    onboardingSkip: "Не сейчас",
+    onboardingStep1Eyebrow: "Шаг 1 из 5",
+    onboardingStep1Title: "В какой сфере вы работаете или хотите развиваться?",
+    onboardingStep1Subtitle: "Выберите ближайший контекст, чтобы сценарии сразу звучали по делу.",
+    onboardingStep2Eyebrow: "Шаг 2 из 5",
+    onboardingStep2Title: "Кем вы работаете в этой сфере?",
+    onboardingStep2Subtitle: "Роли подстраиваются под выбранную отрасль.",
+    onboardingStep3Eyebrow: "Шаг 3 из 5",
+    onboardingStep3Title: "Что хотите прокачать в первую очередь?",
+    onboardingStep3Subtitle: "Выберите результат, который хочется почувствовать уже в первых тренировках.",
+    onboardingStep4Eyebrow: "Шаг 4 из 5",
+    onboardingStep4Title: "Как будете тренироваться?",
+    onboardingStep4Subtitle: "Выберите уровень давления: от спокойной поддержки до сложных кейсов.",
+    onboardingStep5Eyebrow: "Шаг 5 из 5",
+    onboardingStep5Title: "Как мы вас поняли",
+    onboardingStep5Subtitle: "Проверьте профиль. Если всё верно — откроем главное меню.",
+    onboardingSummaryIndustry: "Сфера выбрана",
+    onboardingSummaryRole: "Роль выбрана",
+    onboardingSummaryGoal: "Цель выбрана",
+    onboardingSummaryExperience: "Формат выбран",
+    onboardingStarterScenario: "Стартовый сценарий",
+    onboardingEditGoalLabel: "Уточните цель",
+    onboardingEditGoalPlaceholder: "Например: уверенно вести сложные разговоры",
+    onboardingSaveGoal: "Сохранить и перейти в меню",
+    onboardingConfirm: "Да, всё верно",
+    onboardingEditGoal: "Нет, исправить цель",
+    onboardingFallbackRole: "специалист",
+    onboardingFallbackIndustry: "вашей отрасли",
+    onboardingFallbackGoal: "Прокачать ключевые навыки",
+    onboardingFallbackFocus: "собрать персональный трек под вашу роль",
+    onboardingFirstGoal: "Первая тренировка",
+    onboardingSkipGoalTone: "Вернёмся к цели позже",
+    onboardingSkipExperienceTone: "Начнём с мягкого режима",
+    onboardingAiLoading: "AI summary loading"
   },
   uz: {
     signInTitle: "Xush kelibsiz!",
@@ -1582,7 +1589,43 @@ const TRANSLATIONS = {
     errorOrg: "Iltimos, tashkilotingiz nomini ko'rsating",
     errorRoom: "Iltimos, taklifnomadagi xona kalitini kiriting",
     successLogin: "Tizimga muvaffaqiyatli kirildi:",
-    successRegister: "Muvaffaqiyatli ro'yxatdan o'tildi:"
+    successRegister: "Muvaffaqiyatli ro'yxatdan o'tildi:",
+    onboardingBack: "Orqaga",
+    onboardingProgress: "Jarayon",
+    onboardingSkip: "Hozir emas",
+    onboardingStep1Eyebrow: "1-qadam / 5",
+    onboardingStep1Title: "Qaysi sohada ishlaysiz yoki rivojlanmoqchisiz?",
+    onboardingStep1Subtitle: "Ssenariylar darhol mos bo'lishi uchun eng yaqin kontekstni tanlang.",
+    onboardingStep2Eyebrow: "2-qadam / 5",
+    onboardingStep2Title: "Bu sohada rolingiz qanday?",
+    onboardingStep2Subtitle: "Rollar tanlangan sohaga moslashadi.",
+    onboardingStep3Eyebrow: "3-qadam / 5",
+    onboardingStep3Title: "Avval qaysi ko'nikmani kuchaytirmoqchisiz?",
+    onboardingStep3Subtitle: "Birinchi mashqlardayoq sezmoqchi bo'lgan natijani tanlang.",
+    onboardingStep4Eyebrow: "4-qadam / 5",
+    onboardingStep4Title: "Qanday mashq qilasiz?",
+    onboardingStep4Subtitle: "Yumshoq yordamdan murakkab vaziyatlargacha bosim darajasini tanlang.",
+    onboardingStep5Eyebrow: "5-qadam / 5",
+    onboardingStep5Title: "Sizni qanday tushundik",
+    onboardingStep5Subtitle: "Profilni tekshiring. Hammasi to'g'ri bo'lsa, asosiy menyuni ochamiz.",
+    onboardingSummaryIndustry: "Soha tanlandi",
+    onboardingSummaryRole: "Rol tanlandi",
+    onboardingSummaryGoal: "Maqsad tanlandi",
+    onboardingSummaryExperience: "Format tanlandi",
+    onboardingStarterScenario: "Boshlang'ich ssenariy",
+    onboardingEditGoalLabel: "Maqsadni aniqlang",
+    onboardingEditGoalPlaceholder: "Masalan: murakkab suhbatlarni ishonch bilan olib borish",
+    onboardingSaveGoal: "Saqlash va menyuga o'tish",
+    onboardingConfirm: "Ha, hammasi to'g'ri",
+    onboardingEditGoal: "Yo'q, maqsadni tuzatish",
+    onboardingFallbackRole: "mutaxassis",
+    onboardingFallbackIndustry: "sohangiz",
+    onboardingFallbackGoal: "Asosiy ko'nikmalarni kuchaytirish",
+    onboardingFallbackFocus: "rolingizga mos shaxsiy trek tuzish",
+    onboardingFirstGoal: "Birinchi mashq",
+    onboardingSkipGoalTone: "Maqsadga keyin qaytamiz",
+    onboardingSkipExperienceTone: "Yumshoq rejimdan boshlaymiz",
+    onboardingAiLoading: "AI xulosasi yuklanmoqda"
   },
   en: {
     signInTitle: "Welcome back!",
@@ -1612,13 +1655,50 @@ const TRANSLATIONS = {
     errorOrg: "Please specify your organization name",
     errorRoom: "Please enter your invitation room key",
     successLogin: "Signed in successfully for:",
-    successRegister: "Registration successful for:"
+    successRegister: "Registration successful for:",
+    onboardingBack: "Back",
+    onboardingProgress: "Progress",
+    onboardingSkip: "Not now",
+    onboardingStep1Eyebrow: "Step 1 of 5",
+    onboardingStep1Title: "What field do you work in or want to grow into?",
+    onboardingStep1Subtitle: "Choose the closest context so scenarios feel useful right away.",
+    onboardingStep2Eyebrow: "Step 2 of 5",
+    onboardingStep2Title: "What is your role in this field?",
+    onboardingStep2Subtitle: "Roles adapt to the industry you selected.",
+    onboardingStep3Eyebrow: "Step 3 of 5",
+    onboardingStep3Title: "What do you want to improve first?",
+    onboardingStep3Subtitle: "Choose the result you want to feel in the first training sessions.",
+    onboardingStep4Eyebrow: "Step 4 of 5",
+    onboardingStep4Title: "How do you want to train?",
+    onboardingStep4Subtitle: "Choose the pressure level, from gentle support to tougher cases.",
+    onboardingStep5Eyebrow: "Step 5 of 5",
+    onboardingStep5Title: "How we understood you",
+    onboardingStep5Subtitle: "Review your profile. If everything is right, we will open the main menu.",
+    onboardingSummaryIndustry: "Industry selected",
+    onboardingSummaryRole: "Role selected",
+    onboardingSummaryGoal: "Goal selected",
+    onboardingSummaryExperience: "Mode selected",
+    onboardingStarterScenario: "Starter scenario",
+    onboardingEditGoalLabel: "Refine your goal",
+    onboardingEditGoalPlaceholder: "Example: handle difficult conversations with confidence",
+    onboardingSaveGoal: "Save and open menu",
+    onboardingConfirm: "Yes, looks right",
+    onboardingEditGoal: "No, edit goal",
+    onboardingFallbackRole: "specialist",
+    onboardingFallbackIndustry: "your field",
+    onboardingFallbackGoal: "Build key skills",
+    onboardingFallbackFocus: "build a personal track for your role",
+    onboardingFirstGoal: "First training",
+    onboardingSkipGoalTone: "We will return to the goal later",
+    onboardingSkipExperienceTone: "We will start with a gentle mode",
+    onboardingAiLoading: "AI summary loading"
   }
 };
 
 const MOCK_USER_KEY = 'training_loop_mock_user';
 const MOCK_SESSION_KEY = 'training_loop_mock_session';
 const ONBOARDING_KEY = 'training_loop_onboarding';
+const ONBOARDING_MEMORY_KEY = 'training_loop_onboarding_memory';
 const ONBOARDING_TOTAL_STEPS = 5;
 
 const INDUSTRY_OPTIONS = [
@@ -1699,6 +1779,166 @@ const EXPERIENCE_OPTIONS = [
   { id: 'other', icon: '✨', label: 'Другое', tone: 'Выберу темп по ходу' },
 ];
 
+const ONBOARDING_OPTIONS = {
+  ru: {
+    industries: INDUSTRY_OPTIONS,
+    rolesByIndustry: ROLE_OPTIONS_BY_INDUSTRY,
+    fallbackRole: FALLBACK_ROLE_OPTION,
+    goals: GOAL_OPTIONS,
+    experiences: EXPERIENCE_OPTIONS,
+  },
+  en: {
+    industries: [
+      { id: 'medicine', icon: '🏥', label: 'Medicine', tone: 'Care and precision' },
+      { id: 'psychology', icon: '🧠', label: 'Psychology', tone: 'Empathy and trust' },
+      { id: 'law', icon: '⚖️', label: 'Law', tone: 'Arguments and clarity' },
+      { id: 'education', icon: '🎓', label: 'Education', tone: 'Delivery and engagement' },
+      { id: 'business', icon: '💼', label: 'Business', tone: 'Sales and negotiation' },
+      { id: 'emergency', icon: '🚨', label: 'Emergency services', tone: 'Calm under pressure' },
+      { id: 'other', icon: '✨', label: 'Other', tone: 'We will shape it around your goal' },
+    ],
+    rolesByIndustry: {
+      medicine: [
+        { id: 'doctor-nurse', icon: '👨‍⚕️', label: 'Doctor / Nurse', tone: 'Explain clearly without panic' },
+        { id: 'ambulance-dispatcher', icon: '🚑', label: 'Ambulance dispatcher', tone: 'Collect the essentials fast' },
+        { id: 'pharma-rep', icon: '💊', label: 'Pharma rep', tone: 'Answer objections with confidence' },
+        { id: 'medical-student', icon: '🎓', label: 'Medical student', tone: 'Practice first conversations' },
+      ],
+      psychology: [
+        { id: 'psychologist', icon: '🧘', label: 'Psychologist', tone: 'Keep contact in a difficult topic' },
+        { id: 'coach', icon: '🌱', label: 'Coach / Consultant', tone: 'Guide the client toward a decision' },
+        { id: 'hr-specialist', icon: '🤝', label: 'HR specialist', tone: 'Run careful conversations' },
+        { id: 'psychology-student', icon: '🎓', label: 'Student', tone: 'Build practical experience' },
+      ],
+      law: [
+        { id: 'lawyer', icon: '⚖️', label: 'Lawyer', tone: 'Explain your position persuasively' },
+        { id: 'advocate', icon: '🧾', label: 'Advocate', tone: 'Hold a clear defense line' },
+        { id: 'compliance', icon: '📋', label: 'Compliance', tone: 'Clarify rules without conflict' },
+        { id: 'law-student', icon: '🎓', label: 'Law student', tone: 'Practice cases' },
+      ],
+      education: [
+        { id: 'teacher', icon: '👩‍🏫', label: 'Teacher', tone: 'Engage and explain simply' },
+        { id: 'methodologist', icon: '📚', label: 'Methodologist', tone: 'Design clear scenarios' },
+        { id: 'tutor', icon: '🧩', label: 'Tutor', tone: 'Motivate the learner' },
+        { id: 'student', icon: '🎓', label: 'Student', tone: 'Improve communication practice' },
+      ],
+      business: [
+        { id: 'sales', icon: '💬', label: 'Sales', tone: 'Close objections' },
+        { id: 'manager', icon: '📈', label: 'Manager', tone: 'Lead team conversations' },
+        { id: 'support', icon: '🎧', label: 'Customer support', tone: 'Calm the client' },
+        { id: 'founder', icon: '🚀', label: 'Founder', tone: 'Pitch and negotiate' },
+      ],
+      emergency: [
+        { id: 'dispatcher', icon: '📞', label: 'Dispatcher', tone: 'Keep a calm pace' },
+        { id: 'rescuer', icon: '🛟', label: 'Rescuer', tone: 'Give clear instructions' },
+        { id: 'police', icon: '🛡️', label: 'Service officer', tone: 'Reduce tension' },
+        { id: 'volunteer', icon: '🤲', label: 'Volunteer', tone: 'Help without freezing' },
+      ],
+      other: [
+        { id: 'specialist', icon: '🧭', label: 'Specialist', tone: 'Build a personal track' },
+        { id: 'student-other', icon: '🎓', label: 'Learner', tone: 'Start with simple cases' },
+        { id: 'career-switcher', icon: '🔁', label: 'Career switcher', tone: 'Enter the context fast' },
+      ],
+    },
+    fallbackRole: {
+      id: 'unsure',
+      icon: '❔',
+      label: 'Other / Not sure',
+      tone: 'We will adapt the training later',
+    },
+    goals: [
+      { id: 'calm-client', icon: '🗣️', label: 'Calm client', tone: 'Speak in a way that builds trust' },
+      { id: 'close-deal', icon: '🤝', label: 'Close a deal', tone: 'Guide confidently to the next step' },
+      { id: 'handle-stress', icon: '🧘', label: 'Handle stress', tone: 'Keep tone and focus' },
+      { id: 'follow-protocol', icon: '📋', label: 'Follow protocol', tone: 'Do not miss important steps' },
+      { id: 'career-growth', icon: '🎯', label: 'Grow in career', tone: 'Build a strong professional delivery' },
+      { id: 'all-at-once', icon: '⚡', label: 'All at once', tone: 'Open a universal start' },
+      { id: 'other', icon: '✨', label: 'Other', tone: 'Set the goal manually later' },
+    ],
+    experiences: [
+      { id: 'beginner', icon: '🔰', label: 'Beginner', tone: 'Explain and support me' },
+      { id: 'practitioner', icon: '⚡', label: 'Practitioner', tone: 'Give me harder cases' },
+      { id: 'pro', icon: '🎓', label: 'Pro', tone: 'Hard mode, no hints' },
+      { id: 'other', icon: '✨', label: 'Other', tone: 'I will choose the pace as I go' },
+    ],
+  },
+  uz: {
+    industries: [
+      { id: 'medicine', icon: '🏥', label: 'Tibbiyot', tone: "G'amxo'rlik va aniqlik" },
+      { id: 'psychology', icon: '🧠', label: 'Psixologiya', tone: 'Empatiya va ishonch' },
+      { id: 'law', icon: '⚖️', label: 'Huquq', tone: 'Dalillar va ravshanlik' },
+      { id: 'education', icon: '🎓', label: "Ta'lim", tone: 'Tushuntirish va jalb qilish' },
+      { id: 'business', icon: '💼', label: 'Biznes', tone: 'Savdo va muzokara' },
+      { id: 'emergency', icon: '🚨', label: 'Favqulodda xizmatlar', tone: 'Bosim ostida xotirjamlik' },
+      { id: 'other', icon: '✨', label: 'Boshqa', tone: 'Maqsadingizga moslaymiz' },
+    ],
+    rolesByIndustry: {
+      medicine: [
+        { id: 'doctor-nurse', icon: '👨‍⚕️', label: 'Shifokor / Hamshira', tone: 'Bemorga vahimasiz tushuntirish' },
+        { id: 'ambulance-dispatcher', icon: '🚑', label: 'Tez yordam dispetcheri', tone: 'Asosiy narsani tez yigish' },
+        { id: 'pharma-rep', icon: '💊', label: 'Farmatsevtika vakili', tone: "E'tirozlarga ishonch bilan javob berish" },
+        { id: 'medical-student', icon: '🎓', label: 'Tibbiyot talabasi', tone: 'Birinchi suhbatlarni mashq qilish' },
+      ],
+      psychology: [
+        { id: 'psychologist', icon: '🧘', label: 'Psixolog', tone: 'Murakkab mavzuda aloqani ushlash' },
+        { id: 'coach', icon: '🌱', label: 'Kouch / Maslahatchi', tone: 'Mijozni qarorga olib borish' },
+        { id: 'hr-specialist', icon: '🤝', label: 'HR mutaxassisi', tone: 'Ehtiyotkor suhbatlar olib borish' },
+        { id: 'psychology-student', icon: '🎓', label: 'Talaba', tone: "Amaliyotni ko'paytirish" },
+      ],
+      law: [
+        { id: 'lawyer', icon: '⚖️', label: 'Yurist', tone: 'Pozitsiyani ishonchli tushuntirish' },
+        { id: 'advocate', icon: '🧾', label: 'Advokat', tone: 'Himoya chizigini ushlash' },
+        { id: 'compliance', icon: '📋', label: 'Komplayens', tone: 'Qoidalarni konfliktsiz tushuntirish' },
+        { id: 'law-student', icon: '🎓', label: 'Huquq talabasi', tone: 'Keyslarni mashq qilish' },
+      ],
+      education: [
+        { id: 'teacher', icon: '👩‍🏫', label: "O'qituvchi", tone: 'Jalb qilish va sodda tushuntirish' },
+        { id: 'methodologist', icon: '📚', label: 'Metodist', tone: 'Tushunarli ssenariylar loyihalash' },
+        { id: 'tutor', icon: '🧩', label: 'Repetitor', tone: "O'quvchini motivatsiya qilish" },
+        { id: 'student', icon: '🎓', label: 'Talaba', tone: 'Muloqot amaliyotini kuchaytirish' },
+      ],
+      business: [
+        { id: 'sales', icon: '💬', label: 'Savdo', tone: "E'tirozlarni yopish" },
+        { id: 'manager', icon: '📈', label: 'Menejer', tone: 'Jamoaviy suhbatlarni olib borish' },
+        { id: 'support', icon: '🎧', label: "Mijozlarni qo'llab-quvvatlash", tone: 'Mijozni tinchlantirish' },
+        { id: 'founder', icon: '🚀', label: 'Asoschi', tone: 'Pitch qilish va kelishish' },
+      ],
+      emergency: [
+        { id: 'dispatcher', icon: '📞', label: 'Dispetcher', tone: 'Xotirjam tempni ushlash' },
+        { id: 'rescuer', icon: '🛟', label: 'Qutqaruvchi', tone: "Aniq ko'rsatmalar berish" },
+        { id: 'police', icon: '🛡️', label: 'Xizmat xodimi', tone: 'Tanglikni pasaytirish' },
+        { id: 'volunteer', icon: '🤲', label: "Ko'ngilli", tone: 'Sarosimasiz yordam berish' },
+      ],
+      other: [
+        { id: 'specialist', icon: '🧭', label: 'Mutaxassis', tone: 'Shaxsiy trek tuzish' },
+        { id: 'student-other', icon: '🎓', label: "O'quvchi", tone: 'Oddiy keyslardan boshlash' },
+        { id: 'career-switcher', icon: '🔁', label: "Kasbini o'zgartirayotgan", tone: 'Kontekstga tez kirish' },
+      ],
+    },
+    fallbackRole: {
+      id: 'unsure',
+      icon: '❔',
+      label: 'Boshqa / Aniq emas',
+      tone: 'Mashgulotni keyin moslaymiz',
+    },
+    goals: [
+      { id: 'calm-client', icon: '🗣️', label: 'Mijozni tinchlantirish', tone: 'Ishonch uygotadigan tarzda gapirish' },
+      { id: 'close-deal', icon: '🤝', label: 'Bitimni yopish', tone: 'Keyingi qadamga ishonch bilan olib borish' },
+      { id: 'handle-stress', icon: '🧘', label: "Stressda yo'qolmaslik", tone: 'Ohang va fokusni ushlash' },
+      { id: 'follow-protocol', icon: '📋', label: 'Protokolga amal qilish', tone: 'Muhim qadamlarni otkazib yubormaslik' },
+      { id: 'career-growth', icon: '🎯', label: "Karyerada o'sish", tone: 'Kuchli professional taqdimotni rivojlantirish' },
+      { id: 'all-at-once', icon: '⚡', label: 'Hammasi birga', tone: 'Universal startni ochamiz' },
+      { id: 'other', icon: '✨', label: 'Boshqa', tone: 'Maqsadni keyin qolda sozlaymiz' },
+    ],
+    experiences: [
+      { id: 'beginner', icon: '🔰', label: 'Boshlovchi', tone: 'Tushuntir va yordam ber' },
+      { id: 'practitioner', icon: '⚡', label: 'Amaliyotchi', tone: 'Murakkab keyslar ber' },
+      { id: 'pro', icon: '🎓', label: 'Professional', tone: 'Qiyin rejim, maslahatsiz' },
+      { id: 'other', icon: '✨', label: 'Boshqa', tone: 'Tempni jarayonda tanlayman' },
+    ],
+  },
+};
+
 const EMPTY_ONBOARDING_DRAFT = {
   industry: null,
   industryLabel: '',
@@ -1731,6 +1971,72 @@ function getMockUser() {
 
 function saveMockUser(user) {
   writeJsonStorage(MOCK_USER_KEY, user);
+}
+
+function getUserKey(user) {
+  return {
+    id: user?.id || '',
+    email: user?.email?.trim?.().toLowerCase?.() || '',
+  };
+}
+
+function onboardingMemoryBelongsToUser(memory, user) {
+  if (!memory?.completed || !user) {
+    return false;
+  }
+
+  const userKey = getUserKey(user);
+  const memoryEmail = memory.userEmail?.trim?.().toLowerCase?.() || '';
+  return Boolean(
+    (memory.userId && userKey.id && memory.userId === userKey.id) ||
+      (memoryEmail && userKey.email && memoryEmail === userKey.email),
+  );
+}
+
+function getOnboardingMemory(user = null) {
+  const memory = readJsonStorage(ONBOARDING_MEMORY_KEY);
+  if (!memory) {
+    return null;
+  }
+
+  return user ? (onboardingMemoryBelongsToUser(memory, user) ? memory : null) : memory;
+}
+
+function saveOnboardingMemory(memory) {
+  writeJsonStorage(ONBOARDING_MEMORY_KEY, memory);
+}
+
+function hasCompletedOnboarding(user) {
+  return Boolean(getOnboardingMemory(user));
+}
+
+function mergeBackendProfileWithLocalState(profile, localUser = null) {
+  const normalizedEmail = profile?.email?.trim?.().toLowerCase?.() || localUser?.email || '';
+  const localMatches =
+    localUser &&
+    (localUser.id === profile?.id || (normalizedEmail && localUser.email === normalizedEmail));
+  const memory = getOnboardingMemory({ id: profile.id, email: normalizedEmail }) || (localMatches ? getOnboardingMemory(localUser) : null);
+
+  return {
+    ...(localMatches ? localUser : {}),
+    id: profile.id,
+    name: profile.name,
+    email: normalizedEmail,
+    role: profile.role,
+    organizationId: profile.organizationId,
+    xp: profile.xp ?? localUser?.xp ?? 0,
+    streak: profile.streak ?? localUser?.streak ?? 0,
+    level: localUser?.level || 'Старт',
+    goal: localUser?.goal || '',
+    weakestSkill: localUser?.weakestSkill || 'Первый диалог',
+    unlockedScenarioIds: memory?.rewards?.unlockedScenarioIds || localUser?.unlockedScenarioIds || [],
+    onboardingRequired: memory ? false : localMatches ? localUser.onboardingRequired !== false : true,
+    onboardingCompleted: memory ? true : localMatches ? localUser.onboardingCompleted === true : false,
+    onboarding: memory?.draft || (localMatches ? localUser.onboarding || null : null),
+    onboardingAiSummary: memory?.aiSummary || localUser?.onboardingAiSummary || null,
+    createdAt: localUser?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 function hasMockSession() {
@@ -1786,8 +2092,65 @@ function createMockUser({ name, email, role, organizationName, roomKey }) {
   };
 }
 
-function getRoleOptions(industryId) {
-  return [...(ROLE_OPTIONS_BY_INDUSTRY[industryId] || ROLE_OPTIONS_BY_INDUSTRY.other), FALLBACK_ROLE_OPTION];
+function getOnboardingLang() {
+  const lang = localStorage.getItem('app_lang') || 'ru';
+  return ONBOARDING_OPTIONS[lang] ? lang : 'ru';
+}
+
+function getOnboardingText(lang = getOnboardingLang()) {
+  return {
+    ...TRANSLATIONS.ru,
+    ...(TRANSLATIONS[lang] || {}),
+  };
+}
+
+function getOnboardingOptions(lang = getOnboardingLang()) {
+  return ONBOARDING_OPTIONS[lang] || ONBOARDING_OPTIONS.ru;
+}
+
+function getIndustryOptions(lang = getOnboardingLang()) {
+  return getOnboardingOptions(lang).industries;
+}
+
+function getRoleOptions(industryId, lang = getOnboardingLang()) {
+  const options = getOnboardingOptions(lang);
+  return [...(options.rolesByIndustry[industryId] || options.rolesByIndustry.other), options.fallbackRole];
+}
+
+function getGoalOptions(lang = getOnboardingLang()) {
+  return getOnboardingOptions(lang).goals;
+}
+
+function getExperienceOptions(lang = getOnboardingLang()) {
+  return getOnboardingOptions(lang).experiences;
+}
+
+function getGoalOption(goalId, lang = getOnboardingLang()) {
+  return getGoalOptions(lang).find((option) => option.id === goalId);
+}
+
+function getIndustryOption(industryId, lang = getOnboardingLang()) {
+  return getIndustryOptions(lang).find((option) => option.id === industryId);
+}
+
+function getExperienceOption(experienceId, lang = getOnboardingLang()) {
+  return getExperienceOptions(lang).find((option) => option.id === experienceId);
+}
+
+function getLocalizedOnboardingDraft(draft, lang = getOnboardingLang()) {
+  const text = getOnboardingText(lang);
+  const industryOption = getIndustryOption(draft.industry, lang);
+  const roleOption = getRoleOptions(draft.industry, lang).find((option) => option.id === draft.role);
+  const goalOption = getGoalOption(draft.goal, lang);
+  const experienceOption = getExperienceOption(draft.experience, lang);
+
+  return {
+    ...draft,
+    industryLabel: industryOption?.label || draft.industryLabel,
+    roleLabel: roleOption?.label || draft.roleLabel,
+    goalLabel: draft.goal === 'not-now' ? text.onboardingSkip : goalOption?.label || draft.goalLabel,
+    experienceLabel: draft.experience === 'not-now' ? text.onboardingSkip : experienceOption?.label || draft.experienceLabel,
+  };
 }
 
 function normalizeOnboardingStep(draft) {
@@ -1807,19 +2170,44 @@ function normalizeOnboardingStep(draft) {
   return Math.min(requestedStep, firstIncompleteStep);
 }
 
-function buildOnboardingAiSummary(draft, goalLabelOverride = '') {
-  const goalLabel = goalLabelOverride || draft.goalLabel || 'Прокачать ключевые навыки';
-  const goalOption = GOAL_OPTIONS.find((option) => option.id === draft.goal);
+function buildOnboardingAiSummary(draft, goalLabelOverride = '', lang = getOnboardingLang()) {
+  const text = getOnboardingText(lang);
+  const localizedDraft = getLocalizedOnboardingDraft(draft, lang);
+  const goalLabel = goalLabelOverride || localizedDraft.goalLabel || text.onboardingFallbackGoal;
+  const goalOption = getGoalOption(draft.goal, lang);
+  const roleLabel = localizedDraft.roleLabel || text.onboardingFallbackRole;
+  const industryLabel = localizedDraft.industryLabel || text.onboardingFallbackIndustry;
+  const experienceLabel = localizedDraft.experienceLabel || '';
+  const focus = goalOption?.tone || text.onboardingFallbackFocus;
+
+  if (lang === 'en') {
+    return {
+      roleLine: `You are ${roleLabel} in ${industryLabel}.`,
+      goalLine: `Your goal is "${goalLabel}".`,
+      targetLine: `To reach that result, focus: ${focus}.`,
+      modeLine: experienceLabel ? `Training mode - "${experienceLabel}".` : '',
+    };
+  }
+
+  if (lang === 'uz') {
+    return {
+      roleLine: `Siz - "${industryLabel}" sohasida ${roleLabel}.`,
+      goalLine: `Maqsadingiz - "${goalLabel}".`,
+      targetLine: `Natijaga chiqish uchun fokus: ${focus}.`,
+      modeLine: experienceLabel ? `Mashg'ulot rejimi - "${experienceLabel}".` : '',
+    };
+  }
 
   return {
-    roleLine: `Вы — ${draft.roleLabel || 'специалист'} в сфере «${draft.industryLabel || 'вашей отрасли'}».`,
+    roleLine: `Вы — ${roleLabel} в сфере «${industryLabel}».`,
     goalLine: `Ваша цель — «${goalLabel}».`,
-    targetLine: `Чтобы выйти на результат, фокус: ${goalOption?.tone || 'собрать персональный трек под вашу роль'}.`,
-    modeLine: draft.experienceLabel ? `Режим тренировок — «${draft.experienceLabel}».` : '',
+    targetLine: `Чтобы выйти на результат, фокус: ${focus}.`,
+    modeLine: experienceLabel ? `Режим тренировок — «${experienceLabel}».` : '',
   };
 }
 
 function buildMockDashboard(user) {
+  const memory = getOnboardingMemory(user);
   if (user.role === 'admin') {
     return {
       organizationId: user.organizationId || mockOrganization.id,
@@ -1836,12 +2224,20 @@ function buildMockDashboard(user) {
 
   const unlockedScenarioIds = new Set(user.unlockedScenarioIds || []);
   const firstScenario = mockScenarios[0];
+  const starterTitle = memory?.aiSummary?.starterScenarioTitle;
+  const personalizedFirstScenario = starterTitle
+    ? {
+        ...firstScenario,
+        title: starterTitle,
+        goal: memory?.draft?.goalLabel || user.goal || firstScenario.goal,
+      }
+    : firstScenario;
   const assignments = mockAssignments.length
     ? mockAssignments.map((assignment) => ({
         ...assignment,
         assignmentId: assignment.id,
         status: assignment.status?.toLowerCase?.() || assignment.status,
-        scenario: mockScenarios.find((scenario) => scenario.id === assignment.scenarioId) || firstScenario,
+        scenario: mockScenarios.find((scenario) => scenario.id === assignment.scenarioId) || personalizedFirstScenario,
       }))
     : [];
 
@@ -1849,9 +2245,9 @@ function buildMockDashboard(user) {
     assignments: [
       {
         assignmentId: 'mock-first-win',
-        status: unlockedScenarioIds.has(firstScenario.id) ? 'unlocked' : 'new',
+        status: unlockedScenarioIds.has(personalizedFirstScenario.id) ? 'unlocked' : 'new',
         requiredScore: 70,
-        scenario: firstScenario,
+        scenario: personalizedFirstScenario,
       },
       ...assignments,
     ],
@@ -1881,15 +2277,35 @@ function LoginPage() {
 
     setIsSubmitting(true);
     setError('');
-    const storedUser = getMockUser();
-    if (!storedUser || storedUser.email !== email.trim().toLowerCase()) {
-      setError('Аккаунт не найден. Сначала зарегистрируйтесь в демо-режиме.');
-      setIsSubmitting(false);
-      return;
-    }
+    const normalizedEmail = email.trim().toLowerCase();
 
-    setMockSession(storedUser.email);
-    navigate(storedUser.onboardingRequired || !storedUser.onboardingCompleted ? '/onboarding' : '/dashboard');
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
+
+      if (signInError) {
+        throw signInError;
+      }
+
+      const token = data.session?.access_token;
+      const profile = await apiRequest('/api/me', { token });
+      const appUser = mergeBackendProfileWithLocalState(profile, getMockUser());
+      saveMockUser(appUser);
+      setMockSession(appUser.email);
+      navigate(hasCompletedOnboarding(appUser) ? '/dashboard' : '/onboarding');
+    } catch (authError) {
+      const storedUser = getMockUser();
+      if (storedUser?.email === normalizedEmail) {
+        setMockSession(storedUser.email);
+        navigate(hasCompletedOnboarding(storedUser) ? '/dashboard' : '/onboarding');
+        return;
+      }
+
+      setError(authError?.message || 'Аккаунт не найден. Сначала зарегистрируйтесь.');
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -2052,22 +2468,51 @@ function RegisterPage() {
 
     setIsSubmitting(true);
     setError('');
-    const mockUser = createMockUser({
-      name,
-      email,
-      role,
-      organizationName: orgName,
-      roomKey,
-    });
+    const normalizedEmail = email.trim().toLowerCase();
 
-    saveMockUser(mockUser);
-    setMockSession(mockUser.email);
-    saveOnboardingDraft({
-      ...EMPTY_ONBOARDING_DRAFT,
-      currentStep: 0,
-      startedAt: new Date().toISOString(),
-    });
-    navigate('/onboarding');
+    try {
+      const profile = await apiRequest('/api/auth/register', {
+        demoUser: null,
+        method: 'POST',
+        body: {
+          name: name.trim(),
+          email: normalizedEmail,
+          password,
+          role,
+          organizationName: orgName.trim(),
+          roomKey: roomKey.trim(),
+        },
+      });
+
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
+
+      if (signInError) {
+        throw signInError;
+      }
+
+      const token = data.session?.access_token;
+      const freshProfile = token ? await apiRequest('/api/me', { token }) : profile;
+      const appUser = mergeBackendProfileWithLocalState(freshProfile, {
+        ...createMockUser({ name, email: normalizedEmail, role, organizationName: orgName, roomKey }),
+        onboardingRequired: true,
+        onboardingCompleted: false,
+      });
+
+      saveMockUser(appUser);
+      setMockSession(appUser.email);
+      saveOnboardingDraft({
+        ...EMPTY_ONBOARDING_DRAFT,
+        currentStep: 0,
+        startedAt: new Date().toISOString(),
+      });
+      navigate('/onboarding');
+    } catch (registerError) {
+      setError(registerError?.message || 'Не удалось создать аккаунт.');
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -2332,16 +2777,41 @@ function OnboardingOptionCard({ option, isSelected, onSelect }) {
 
 function OnboardingPage() {
   const navigate = useNavigate();
+  const [lang, setLang] = useState(() => getOnboardingLang());
   const [draft, setDraft] = useState(() => getOnboardingDraft());
   const [stepIndex, setStepIndex] = useState(() => normalizeOnboardingStep(getOnboardingDraft()));
   const [isEditingGoal, setIsEditingGoal] = useState(false);
   const [customGoalLabel, setCustomGoalLabel] = useState('');
+  const [remoteAiSummary, setRemoteAiSummary] = useState(null);
+  const [isAiSummaryLoading, setIsAiSummaryLoading] = useState(false);
   const progress = Math.round(((stepIndex + 1) / ONBOARDING_TOTAL_STEPS) * 100);
-  const aiSummary = useMemo(
-    () => buildOnboardingAiSummary(draft, customGoalLabel.trim() || draft.goalLabel),
-    [draft, customGoalLabel],
+  const onboardingText = getOnboardingText(lang);
+  const industryOptions = useMemo(() => getIndustryOptions(lang), [lang]);
+  const goalOptions = useMemo(() => getGoalOptions(lang), [lang]);
+  const experienceOptions = useMemo(() => getExperienceOptions(lang), [lang]);
+  const localizedDraft = useMemo(() => getLocalizedOnboardingDraft(draft, lang), [draft, lang]);
+  const fallbackAiSummary = useMemo(
+    () => buildOnboardingAiSummary(localizedDraft, '', lang),
+    [localizedDraft, lang],
   );
-  const roleOptions = useMemo(() => getRoleOptions(draft.industry), [draft.industry]);
+  const editedAiSummary = useMemo(
+    () => buildOnboardingAiSummary(localizedDraft, customGoalLabel.trim(), lang),
+    [customGoalLabel, lang, localizedDraft],
+  );
+  const aiSummary = isEditingGoal && customGoalLabel.trim() ? editedAiSummary : remoteAiSummary;
+  const isAiSummaryPending = stepIndex === 4 && (isAiSummaryLoading || !remoteAiSummary);
+  const roleOptions = useMemo(() => getRoleOptions(draft.industry, lang), [draft.industry, lang]);
+
+  useEffect(() => {
+    const syncLang = () => setLang(getOnboardingLang());
+    window.addEventListener('storage', syncLang);
+    window.addEventListener('focus', syncLang);
+
+    return () => {
+      window.removeEventListener('storage', syncLang);
+      window.removeEventListener('focus', syncLang);
+    };
+  }, []);
 
   useEffect(() => {
     const user = getMockUser();
@@ -2351,7 +2821,7 @@ function OnboardingPage() {
       return;
     }
 
-    if (user.onboardingCompleted && !user.onboardingRequired) {
+    if (hasCompletedOnboarding(user)) {
       navigate('/dashboard', { replace: true });
       return;
     }
@@ -2373,6 +2843,67 @@ function OnboardingPage() {
     setStepIndex(normalizedStep);
     saveOnboardingDraft(draftToSave);
   }, []);
+
+  useEffect(() => {
+    if (stepIndex !== 4) {
+      return undefined;
+    }
+
+    let isActive = true;
+    const timer = window.setTimeout(async () => {
+      setRemoteAiSummary(null);
+      setIsAiSummaryLoading(true);
+      try {
+        const token = await getSessionToken();
+        const payload = await apiRequest('/api/onboarding/ai-summary', {
+          token,
+          demoUser: token ? null : DEMO_ADMIN_ID,
+          method: 'POST',
+          body: {
+            role: draft.role,
+            roleLabel: localizedDraft.roleLabel,
+            industry: draft.industry,
+            industryLabel: localizedDraft.industryLabel,
+            teamSize: getMockUser()?.role === 'solo' ? 'solo' : 'team',
+            goal: draft.goal,
+            goalLabel: localizedDraft.goalLabel,
+            experience: draft.experience,
+            experienceLabel: localizedDraft.experienceLabel,
+            customGoal: '',
+            language: lang,
+          },
+        });
+        if (isActive) {
+          setRemoteAiSummary(payload);
+        }
+      } catch {
+        if (isActive) {
+          setRemoteAiSummary(fallbackAiSummary);
+        }
+      } finally {
+        if (isActive) {
+          setIsAiSummaryLoading(false);
+        }
+      }
+    }, 350);
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timer);
+    };
+  }, [
+    draft.experience,
+    draft.goal,
+    draft.industry,
+    draft.role,
+    fallbackAiSummary,
+    lang,
+    localizedDraft.experienceLabel,
+    localizedDraft.goalLabel,
+    localizedDraft.industryLabel,
+    localizedDraft.roleLabel,
+    stepIndex,
+  ]);
 
   const selectIndustry = (option) => {
     persistDraft({
@@ -2416,8 +2947,8 @@ function OnboardingPage() {
     selectGoal({
       id: 'not-now',
       icon: '⏭️',
-      label: 'Не сейчас',
-      tone: 'Вернёмся к цели позже',
+      label: onboardingText.onboardingSkip,
+      tone: onboardingText.onboardingSkipGoalTone,
     });
   };
 
@@ -2425,8 +2956,8 @@ function OnboardingPage() {
     selectExperience({
       id: 'not-now',
       icon: '⏭️',
-      label: 'Не сейчас',
-      tone: 'Начнём с мягкого режима',
+      label: onboardingText.onboardingSkip,
+      tone: onboardingText.onboardingSkipExperienceTone,
     });
   };
 
@@ -2447,19 +2978,46 @@ function OnboardingPage() {
     const completedAt = new Date().toISOString();
     const firstScenarioId = mockScenarios[0]?.id;
     const unlockedScenarioIds = Array.from(new Set([...(user?.unlockedScenarioIds || []), firstScenarioId].filter(Boolean)));
-    const finalGoalLabel = goalLabelOverride.trim() || draft.goalLabel || 'Первая тренировка';
+    const finalGoalLabel = goalLabelOverride.trim() || localizedDraft.goalLabel || onboardingText.onboardingFirstGoal;
     const completedDraft = {
       ...draft,
       goalLabel: finalGoalLabel,
+      industryLabel: localizedDraft.industryLabel,
+      roleLabel: localizedDraft.roleLabel,
+      experienceLabel: localizedDraft.experienceLabel,
       currentStep: 4,
       completedAt,
+    };
+    const memory = {
+      version: 1,
+      completed: true,
+      completedAt,
+      language: lang,
+      userEmail: user?.email || '',
+      userId: user?.id || '',
+      draft: {
+        industry: completedDraft.industry,
+        industryLabel: localizedDraft.industryLabel,
+        role: completedDraft.role,
+        roleLabel: localizedDraft.roleLabel,
+        goal: completedDraft.goal,
+        goalLabel: finalGoalLabel,
+        experience: completedDraft.experience,
+        experienceLabel: localizedDraft.experienceLabel,
+      },
+      aiSummary: aiSummary || fallbackAiSummary,
+      rewards: {
+        xpAwarded: user?.onboardingCompleted ? 0 : 10,
+        streak: Math.max(Number(user?.streak) || 0, 1),
+        unlockedScenarioIds,
+      },
     };
 
     if (user) {
       saveMockUser({
         ...user,
-        xp: (Number(user.xp) || 0) + (user.onboardingCompleted ? 0 : 10),
-        streak: Math.max(Number(user.streak) || 0, 1),
+        xp: (Number(user.xp) || 0) + memory.rewards.xpAwarded,
+        streak: memory.rewards.streak,
         level: 'Level 1',
         goal: finalGoalLabel,
         weakestSkill: 'Коммуникация',
@@ -2467,10 +3025,12 @@ function OnboardingPage() {
         onboardingRequired: false,
         onboardingCompleted: true,
         onboarding: completedDraft,
+        onboardingAiSummary: aiSummary || fallbackAiSummary,
         updatedAt: completedAt,
       });
     }
 
+    saveOnboardingMemory(memory);
     saveOnboardingDraft(completedDraft);
     navigate('/dashboard', { replace: true });
   };
@@ -2487,9 +3047,9 @@ function OnboardingPage() {
     if (stepIndex === 0) {
       return (
         <>
-          {renderHeader('Шаг 1 из 5', 'В какой сфере вы работаете или хотите развиваться?', 'Выберите ближайший контекст, чтобы сценарии сразу звучали по делу.')}
+          {renderHeader(onboardingText.onboardingStep1Eyebrow, onboardingText.onboardingStep1Title, onboardingText.onboardingStep1Subtitle)}
           <div className="onboarding-grid industry-grid">
-            {INDUSTRY_OPTIONS.map((option) => (
+            {industryOptions.map((option) => (
               <OnboardingOptionCard
                 key={option.id}
                 option={option}
@@ -2505,7 +3065,7 @@ function OnboardingPage() {
     if (stepIndex === 1) {
       return (
         <>
-          {renderHeader('Шаг 2 из 5', 'Кем вы работаете в этой сфере?', 'Роли подстраиваются под выбранную отрасль.')}
+          {renderHeader(onboardingText.onboardingStep2Eyebrow, onboardingText.onboardingStep2Title, onboardingText.onboardingStep2Subtitle)}
           <div className="onboarding-grid">
             {roleOptions.map((option) => (
               <OnboardingOptionCard
@@ -2523,9 +3083,9 @@ function OnboardingPage() {
     if (stepIndex === 2) {
       return (
         <>
-          {renderHeader('Шаг 3 из 5', 'Что хотите прокачать в первую очередь?', 'Выберите результат, который хочется почувствовать уже в первых тренировках.')}
+          {renderHeader(onboardingText.onboardingStep3Eyebrow, onboardingText.onboardingStep3Title, onboardingText.onboardingStep3Subtitle)}
           <div className="onboarding-grid">
-            {GOAL_OPTIONS.map((option) => (
+            {goalOptions.map((option) => (
               <OnboardingOptionCard
                 key={option.id}
                 option={option}
@@ -2535,7 +3095,7 @@ function OnboardingPage() {
             ))}
           </div>
           <button type="button" className="onboarding-skip" onClick={skipGoal}>
-            Не сейчас
+            {onboardingText.onboardingSkip}
           </button>
         </>
       );
@@ -2544,9 +3104,9 @@ function OnboardingPage() {
     if (stepIndex === 3) {
       return (
         <>
-          {renderHeader('Шаг 4 из 5', 'Как будете тренироваться?', 'Выберите уровень давления: от спокойной поддержки до сложных кейсов.')}
+          {renderHeader(onboardingText.onboardingStep4Eyebrow, onboardingText.onboardingStep4Title, onboardingText.onboardingStep4Subtitle)}
           <div className="onboarding-grid">
-            {EXPERIENCE_OPTIONS.map((option) => (
+            {experienceOptions.map((option) => (
               <OnboardingOptionCard
                 key={option.id}
                 option={option}
@@ -2556,37 +3116,47 @@ function OnboardingPage() {
             ))}
           </div>
           <button type="button" className="onboarding-skip" onClick={skipExperience}>
-            Не сейчас
+            {onboardingText.onboardingSkip}
           </button>
         </>
       );
     }
 
-    const activeGoalLabel = customGoalLabel.trim() || draft.goalLabel;
+    const activeGoalLabel = customGoalLabel.trim() || localizedDraft.goalLabel;
 
     return (
       <>
-        {renderHeader('Шаг 5 из 5', 'Как мы вас поняли', 'Проверьте профиль. Если всё верно — откроем главное меню.')}
+        {renderHeader(onboardingText.onboardingStep5Eyebrow, onboardingText.onboardingStep5Title, onboardingText.onboardingStep5Subtitle)}
         <div className="onboarding-summary">
-          <span className="chip sky">{draft.industryLabel || 'Сфера выбрана'}</span>
-          <span className="chip mint">{draft.roleLabel || 'Роль выбрана'}</span>
-          <span className="chip butter">{activeGoalLabel || 'Цель выбрана'}</span>
-          <span className="chip rose">{draft.experienceLabel || 'Формат выбран'}</span>
+          <span className="chip sky">{localizedDraft.industryLabel || onboardingText.onboardingSummaryIndustry}</span>
+          <span className="chip mint">{localizedDraft.roleLabel || onboardingText.onboardingSummaryRole}</span>
+          <span className="chip butter">{activeGoalLabel || onboardingText.onboardingSummaryGoal}</span>
+          <span className="chip rose">{localizedDraft.experienceLabel || onboardingText.onboardingSummaryExperience}</span>
         </div>
 
         <div className="onboarding-ai-card popin">
-          <span className="onboarding-ai-badge">AI</span>
-          <div className="onboarding-ai-lines">
-            <p>{aiSummary.roleLine}</p>
-            <p>{aiSummary.goalLine}</p>
-            <p>{aiSummary.targetLine}</p>
-            {aiSummary.modeLine ? <p>{aiSummary.modeLine}</p> : null}
-          </div>
+          <span className="onboarding-ai-badge">{isAiSummaryPending ? 'AI...' : 'AI'}</span>
+          {isAiSummaryPending ? (
+            <div className="onboarding-ai-lines onboarding-ai-skeleton" aria-label={onboardingText.onboardingAiLoading}>
+              <span className="skeleton-line wide" />
+              <span className="skeleton-line" />
+              <span className="skeleton-line medium" />
+              <span className="skeleton-line short" />
+            </div>
+          ) : (
+            <div className="onboarding-ai-lines">
+              <p>{aiSummary.roleLine}</p>
+              <p>{aiSummary.goalLine}</p>
+              <p>{aiSummary.targetLine}</p>
+              {aiSummary.modeLine ? <p>{aiSummary.modeLine}</p> : null}
+              {aiSummary.starterScenarioTitle ? <p>{onboardingText.onboardingStarterScenario}: {aiSummary.starterScenarioTitle}</p> : null}
+            </div>
+          )}
 
           {isEditingGoal ? (
             <div className="onboarding-goal-edit">
               <label className="form-label" htmlFor="onboarding-goal-edit">
-                Уточните цель
+                {onboardingText.onboardingEditGoalLabel}
               </label>
               <input
                 id="onboarding-goal-edit"
@@ -2594,21 +3164,21 @@ function OnboardingPage() {
                 className="form-input"
                 value={customGoalLabel}
                 onChange={(event) => setCustomGoalLabel(event.target.value)}
-                placeholder="Например: уверенно вести сложные разговоры"
+                placeholder={onboardingText.onboardingEditGoalPlaceholder}
               />
               <button
                 type="button"
                 className="btn-plush primary"
                 onClick={() => completeOnboarding(customGoalLabel)}
-                disabled={!customGoalLabel.trim()}
+                disabled={!customGoalLabel.trim() || isAiSummaryPending}
               >
-                Сохранить и перейти в меню
+                {onboardingText.onboardingSaveGoal}
               </button>
             </div>
           ) : (
             <div className="onboarding-ai-actions">
-              <button type="button" className="btn-plush primary" onClick={() => completeOnboarding()}>
-                Да, всё верно
+              <button type="button" className="btn-plush primary" onClick={() => completeOnboarding()} disabled={isAiSummaryPending}>
+                {onboardingText.onboardingConfirm}
               </button>
               <button
                 type="button"
@@ -2618,7 +3188,7 @@ function OnboardingPage() {
                   setIsEditingGoal(true);
                 }}
               >
-                Нет, исправить цель
+                {onboardingText.onboardingEditGoal}
               </button>
             </div>
           )}
@@ -2633,9 +3203,9 @@ function OnboardingPage() {
       <section className="onboarding-shell plush-lg paper popin">
         <div className="onboarding-topbar">
           <button type="button" className="btn-plush sm" onClick={goBack} disabled={stepIndex === 0}>
-            <ArrowLeft size={16} /> Назад
+            <ArrowLeft size={16} /> {onboardingText.onboardingBack}
           </button>
-          <div className="onboarding-progress" aria-label={`Прогресс ${progress}%`}>
+          <div className="onboarding-progress" aria-label={`${onboardingText.onboardingProgress} ${progress}%`}>
             <span style={{ width: `${progress}%` }} />
           </div>
           <strong>{progress}%</strong>
@@ -2652,28 +3222,70 @@ function DashboardPage() {
   const [dashboard, setDashboard] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isBackendDashboard, setIsBackendDashboard] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const userProfile = getMockUser();
+    let isActive = true;
 
-    if (!hasMockSession() || !userProfile) {
-      navigate('/signin', { replace: true });
-      return;
+    async function loadDashboard() {
+      const localProfile = getMockUser();
+
+      if (!hasMockSession() || !localProfile) {
+        navigate('/signin', { replace: true });
+        return;
+      }
+
+      try {
+        const token = await getSessionToken();
+        if (!token) {
+          throw new Error('No active Supabase session.');
+        }
+
+        const backendProfile = await apiRequest('/api/me', { token });
+        const userProfile = mergeBackendProfileWithLocalState(backendProfile, localProfile);
+        saveMockUser(userProfile);
+
+        if (!hasCompletedOnboarding(userProfile)) {
+          navigate('/onboarding', { replace: true });
+          return;
+        }
+
+        const dashboardPath = userProfile.role === 'admin' ? '/api/admin/dashboard' : '/api/employee/dashboard';
+        const dashboardPayload = await apiRequest(dashboardPath, { token });
+
+        if (isActive) {
+          setProfile(userProfile);
+          setDashboard(dashboardPayload);
+          setIsBackendDashboard(true);
+          setError('');
+          setIsLoading(false);
+        }
+      } catch (loadError) {
+        if (!hasCompletedOnboarding(localProfile)) {
+          navigate('/onboarding', { replace: true });
+          return;
+        }
+
+        if (isActive) {
+          setProfile(localProfile);
+          setDashboard(buildMockDashboard(localProfile));
+          setIsBackendDashboard(false);
+          setError(loadError?.message ? `Backend unavailable: ${loadError.message}` : '');
+          setIsLoading(false);
+        }
+      }
     }
 
-    if (userProfile.onboardingRequired || !userProfile.onboardingCompleted) {
-      navigate('/onboarding', { replace: true });
-      return;
-    }
+    loadDashboard();
 
-    setProfile(userProfile);
-    setDashboard(buildMockDashboard(userProfile));
-    setError('');
-    setIsLoading(false);
+    return () => {
+      isActive = false;
+    };
   }, [navigate]);
 
   const handleSignOut = async () => {
+    await supabase.auth.signOut();
     clearMockSession();
     navigate('/signin', { replace: true });
   };
@@ -2707,10 +3319,23 @@ function DashboardPage() {
 
       <section className="dashboard-shell plush-lg paper popin">
         <div className="preview-heading">
-          <span className="chip peach">Mock profile</span>
+          <span className={`chip ${isBackendDashboard ? 'mint' : 'peach'}`}>
+            {isBackendDashboard ? 'Live backend' : 'Mock profile'}
+          </span>
           <h2>{profile?.role === 'admin' ? 'Admin dashboard' : 'Employee dashboard'}</h2>
+          {profile?.onboarding ? (
+            <div className="summary-chips">
+              <span className="chip sky">{profile.onboarding.industryLabel || profile.onboarding.industry}</span>
+              <span className="chip mint">{profile.goal || profile.onboarding.goalLabel}</span>
+              {profile.onboardingAiSummary?.starterScenarioTitle ? (
+                <span className="chip butter">{profile.onboardingAiSummary.starterScenarioTitle}</span>
+              ) : null}
+            </div>
+          ) : null}
           <p>
-            Данные собраны локально после онбординга. Первый сценарий открыт, а награда уже в профиле.
+            {isBackendDashboard
+              ? 'Данные загружены через FastAPI и Supabase. Онбординг остаётся сохранённым в профиле демо-сессии.'
+              : 'Данные собраны локально после онбординга. Первый сценарий открыт, а награда уже в профиле.'}
           </p>
         </div>
 
@@ -2807,6 +3432,11 @@ function EmployeeDashboardView({ dashboard }) {
   );
 }
 
+function SimulationPage() {
+  const navigate = useNavigate();
+  return <SimulationScene onBackToDashboard={() => navigate('/dashboard', { replace: true })} />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -2816,6 +3446,7 @@ export default function App() {
         <Route path="/signup" element={<RegisterPage />} />
         <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/simulation" element={<SimulationPage />} />
         <Route path="*" element={<Navigate to="/signin" replace />} />
       </Routes>
     </BrowserRouter>
