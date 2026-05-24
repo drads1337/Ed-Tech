@@ -123,6 +123,19 @@ def test_manual_task_draft_can_be_created_without_existing_knowledge_base(client
     assert list_response.status_code == 200
     assert list_response.json()[0]["id"] == draft["id"]
 
+    assign_response = client.post(
+        "/api/corporate/admin/task-drafts/assign",
+        json={
+            "taskDraftIds": [draft["id"]],
+            "employeeIds": [EMPLOYEE_ID],
+            "requiredScore": 80,
+        },
+    )
+
+    assert assign_response.status_code == 200
+    assignment = assign_response.json()["assignments"][0]
+    assert assignment["employeeIds"] == [EMPLOYEE_ID]
+
 
 def test_review_returns_employee_details_after_attempt(client):
     material = client.post(
