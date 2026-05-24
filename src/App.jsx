@@ -5756,16 +5756,15 @@ function CorporatePageSkeleton({ page = 'dashboard', lang = 'ru' }) {
 }
 
 async function fetchCorporateAdminPayload(token) {
-  const [docsPayload, knowledgePayload, reviewPayload, prizesPayload] = await Promise.all([
+  const [docsPayload, reviewPayload, prizesPayload] = await Promise.all([
     apiRequest('/api/corporate/admin/documents', { token }),
-    apiRequest('/api/corporate/admin/knowledge/current', { token }).catch(() => null),
     apiRequest('/api/corporate/admin/review', { token }),
     apiRequest('/api/corporate/admin/prizes', { token }),
   ]);
 
   return {
     docsPayload,
-    knowledgePayload,
+    knowledgePayload: null,
     draftsPayload: [],
     reviewPayload,
     prizesPayload,
@@ -6268,7 +6267,9 @@ function AdminDashboardView({ dashboard, heading, error, token = '', organizatio
   const updateKnowledgeField = (setter, key) => (event) => {
     const value = event.target.value;
     setter(value);
-    persistKnowledgePatch({ [key]: value });
+    if (knowledgeCreated) {
+      persistKnowledgePatch({ [key]: value });
+    }
   };
 
   const createAssignments = async () => {
