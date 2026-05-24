@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .routers import assignments, attempts, auth, dashboards, materials, onboarding, scenarios, simulation, solo
+from .routers.live_sim import router as live_sim_router
 from .services.mock_ai import DEFAULT_SKILLS
 
 
@@ -55,6 +56,7 @@ def create_app() -> FastAPI:
     app.include_router(simulation.router)
     app.include_router(attempts.router)
     app.include_router(solo.router)
+    app.include_router(live_sim_router)
 
     @app.get("/api/health")
     def health() -> dict:

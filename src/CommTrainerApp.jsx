@@ -23,7 +23,12 @@ import {
   pickQuickCaseId,
 } from './quickPractice.js';
 
-const STORAGE_KEY = 'pro-communication-trainer:v1';
+const _BASE_STORAGE_KEY = 'pro-communication-trainer:v1';
+// Called fresh on every read/write so switching accounts always uses the correct key
+function getStorageKey() {
+  const mem = getOnboardingMemory();
+  return mem?.userId ? `${_BASE_STORAGE_KEY}:${mem.userId}` : _BASE_STORAGE_KEY;
+}
 const LANG_KEY = 'app_lang';
 const MOCK_USER_KEY = 'training_loop_mock_user';
 const MOCK_SESSION_KEY = 'training_loop_mock_session';
@@ -66,48 +71,55 @@ const EMPLOYEE_LEADERBOARD_USERS = [
 ];
 
 const DEFAULT_PROGRESS = {
-  name: 'Александр',
+  name: '',
   primaryIndustry: 'medicine',
-  role: 'Врач',
-  goal: 'Сбор анамнеза',
+  role: '',
+  goal: '',
   additionalIndustries: [],
-  streak: 6,
-  xp: 320,
-  coins: 42,
-  notifications: 3,
+  streak: 0,
+  xp: 0,
+  coins: 0,
+  notifications: 0,
   mode: 'keyboard',
   questDoneDate: '',
   focusDoneDate: '',
+  learningPlan: [],       // AI-generated personalised plan cases
   aiGeneratedScenarios: [],
   purchasedSuggestionIds: [],
   lastDailyGeneration: '',
   quickPracticeDate: '',
   quickPracticeUsed: 0,
-  completed: {
-    med_01: { rating: 2, xp: 15, coins: 8, date: '2026-05-21' },
-  },
-  attempts: [
-    {
-      id: 'seed-med-01',
-      scenarioId: 'med_01',
-      date: '2026-05-21',
-      rating: 2,
-      xpGained: 15,
-      coinsGained: 8,
-      transcript: [
-        { role: 'ai', text: 'У меня здесь колет... уже третий день. Что это может быть?' },
-        { role: 'user', text: 'Покажите, где болит, и какая боль по характеру?' },
-      ],
-      checks: [{ expected: ['локализация', 'характер боли', 'иррадиация'], matched: ['локализация', 'характер боли'] }],
-      early: false,
-    },
-  ],
+  completed: {},
+  attempts: [],
   settings: {
     reminders: true,
     sound: true,
     coachTips: true,
   },
 };
+
+// Map onboarding industry IDs to CommTrainer industry IDs
+const ONBOARDING_INDUSTRY_MAP = {
+  medicine: 'medicine',
+  psychology: 'psychology',
+  education: 'education',
+  business: 'finance',
+  finance: 'finance',
+  law: 'public_service',
+  emergency: 'medicine',
+  hospitality: 'hospitality',
+  public_service: 'public_service',
+  other: 'medicine',
+};
+
+// Read onboarding memory once at module load to build user-specific storage key
+function getOnboardingMemory() {
+  try {
+    return JSON.parse(window.localStorage.getItem('training_loop_onboarding_memory') || 'null');
+  } catch {
+    return null;
+  }
+}
 
 const languages = [
   { code: 'ru', label: 'Рус' },
@@ -982,18 +994,32 @@ function TrainerFloatingDecor() {
   );
 }
 
+function progressFromOnboarding() {
+  const mem = getOnboardingMemory();
+  if (!mem?.draft) return null;
+  const d = mem.draft;
+  return {
+    ...DEFAULT_PROGRESS,
+    name: mem.userEmail?.split('@')[0] || '',
+    primaryIndustry: ONBOARDING_INDUSTRY_MAP[d.industry] || 'medicine',
+    role: d.roleLabel || d.role || '',
+    goal: d.goalLabel || d.goal || '',
+    mode: d.experience === 'pro' ? 'keyboard' : d.experience === 'beginner' ? 'guided' : 'keyboard',
+  };
+}
+
 function loadProgress() {
   try {
-    const saved = window.localStorage.getItem(STORAGE_KEY);
+    const saved = window.localStorage.getItem(getStorageKey());
     if (!saved) {
-      return DEFAULT_PROGRESS;
+      return progressFromOnboarding() || DEFAULT_PROGRESS;
     }
 
     const parsed = JSON.parse(saved);
     return {
       ...DEFAULT_PROGRESS,
       ...parsed,
-      completed: { ...DEFAULT_PROGRESS.completed, ...(parsed.completed || {}) },
+      completed: { ...(parsed.completed || {}) },
       attempts: Array.isArray(parsed.attempts) ? parsed.attempts : DEFAULT_PROGRESS.attempts,
       settings: { ...DEFAULT_PROGRESS.settings, ...(parsed.settings || {}) },
       aiGeneratedScenarios: Array.isArray(parsed.aiGeneratedScenarios) ? parsed.aiGeneratedScenarios : DEFAULT_PROGRESS.aiGeneratedScenarios,
@@ -1002,7 +1028,7 @@ function loadProgress() {
         : DEFAULT_PROGRESS.purchasedSuggestionIds,
     };
   } catch {
-    return DEFAULT_PROGRESS;
+    return progressFromOnboarding() || DEFAULT_PROGRESS;
   }
 }
 
@@ -1088,6 +1114,10 @@ function buildSimulationState(scenario, caseId, { quickPractice = false } = {}) 
     industryName: industry.name,
     industryIcon: industry.icon,
     quickPractice,
+    // Live sim data
+    scenarioGoal: scenario.goal || '',
+    aiPersona: scenario.aiPersona || scenario.ai_persona || '',
+    patientType: scenario.patientType || scenario.patient_type || 'neutral',
   };
 }
 
@@ -1102,6 +1132,7 @@ function findScenarioById(id, progress, apiScenarios) {
   const catalog = apiScenarios?.length ? apiScenarios : scenarios;
   return (
     catalog.find((item) => item.id === id) ||
+    (progress.learningPlan || []).find((item) => item.id === id) ||
     (progress.aiGeneratedScenarios || []).find((item) => item.id === id)
   );
 }
@@ -1264,7 +1295,7 @@ function LearningPathMap({ progress, t, scenarios: scenariosProp }) {
             <button
               className="snake-node"
               type="button"
-              onClick={() => !disabled && startScenarioSimulation(scenario, navigate)}
+              onClick={() => !disabled && navigate(`/scenario/${scenario.id}`)}
               disabled={disabled}
               aria-label={`${scenario.title}: ${status.label}`}
             >
@@ -1571,8 +1602,10 @@ function HomePage({ progress, setProgress, t, quest: questProp, apiScenarios }) 
 
 const DEFAULT_QUEST = { id: 'q1', text: 'Пройти 1 сценарий на стрессоустойчивость', reward: 20, type: 'communication', targetSkill: 'Стрессоустойчивость' };
 
-function PlanPage({ progress, t, apiScenarios }) {
-  const planScenarios = apiScenarios?.length ? apiScenarios : scenarios;
+function PlanPage({ progress, t, apiScenarios, planGenerating }) {
+  const planScenarios = progress.learningPlan?.length
+    ? progress.learningPlan
+    : (apiScenarios?.length ? apiScenarios : scenarios);
   const navigate = useNavigate();
   const completedCount = Object.keys(progress.completed).length;
   const completion = Math.round((completedCount / planScenarios.length) * 100);
@@ -1637,7 +1670,15 @@ function PlanPage({ progress, t, apiScenarios }) {
               </div>
             </div>
           </div>
-          <LearningPathMap progress={progress} t={t} scenarios={planScenarios} />
+          {planGenerating && (
+            <div style={{ textAlign: 'center', padding: '24px 0', opacity: 0.7 }}>
+              <span style={{ fontSize: 22 }}>✨</span>
+              <p style={{ margin: '8px 0 0', fontSize: 14 }}>
+                {t.aiGenerating || 'AI is building your learning plan…'}
+              </p>
+            </div>
+          )}
+          {!planGenerating && <LearningPathMap progress={progress} t={t} scenarios={planScenarios} />}
         </section>
 
         <aside className="plan-sidebar">
@@ -2902,7 +2943,7 @@ function ProfilePage({ progress, setProgress, t }) {
 
   const handleReset = () => {
     if (window.confirm(t.resetConfirm)) {
-      window.localStorage.removeItem(STORAGE_KEY);
+      window.localStorage.removeItem(getStorageKey());
       window.location.reload();
     }
   };
@@ -3002,13 +3043,14 @@ export function CommTrainerExperience() {
   const [dailyQuest, setDailyQuest] = useState(null);
   const [apiScenarios, setApiScenarios] = useState(mockScenarios);
   const [industries, setIndustries] = useState(mockIndustries);
+  const [planGenerating, setPlanGenerating] = useState(false);
   const navigate = useNavigate();
   const t = getText(lang);
   const progressSyncTimer = useRef(null);
 
   // Persist progress to localStorage
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+    window.localStorage.setItem(getStorageKey(), JSON.stringify(progress));
   }, [progress]);
 
   // Load API data on mount
@@ -3025,12 +3067,18 @@ export function CommTrainerExperience() {
       if (scenarios.status === 'fulfilled' && scenarios.value?.length) setApiScenarios(scenarios.value);
       if (inds.status === 'fulfilled' && inds.value?.length) setIndustries(inds.value);
     });
-    // Load progress from backend and merge if backend is more recent
-    getSessionToken().then((token) => {
-      apiRequest('/api/solo/progress', { token: token || undefined }).then((remoteProgress) => {
+    // Load progress from backend and merge; if brand-new user, push onboarding data up
+    getSessionToken().then(async (token) => {
+      try {
+        const remoteProgress = await apiRequest('/api/solo/progress', { token: token || undefined });
         if (remoteProgress?.updatedAt) {
+          // Backend has saved state — merge it in, giving backend priority for stats
           setProgressState((local) => ({
             ...local,
+            name: remoteProgress.name || local.name,
+            primaryIndustry: remoteProgress.primaryIndustry || local.primaryIndustry,
+            role: remoteProgress.role || local.role,
+            goal: remoteProgress.goal || local.goal,
             xp: remoteProgress.xp ?? local.xp,
             streak: remoteProgress.streak ?? local.streak,
             coins: remoteProgress.coins ?? local.coins,
@@ -3038,9 +3086,51 @@ export function CommTrainerExperience() {
             focusDoneDate: remoteProgress.focusDoneDate ?? local.focusDoneDate,
             completed: { ...(remoteProgress.completed || {}), ...(local.completed || {}) },
           }));
+        } else {
+          // New user: push the onboarding-derived initial state up to backend
+          const onboardingBase = progressFromOnboarding();
+          if (onboardingBase && token) {
+            apiRequest('/api/solo/progress', {
+              token,
+              method: 'POST',
+              body: {
+                name: onboardingBase.name,
+                primaryIndustry: onboardingBase.primaryIndustry,
+                role: onboardingBase.role,
+                goal: onboardingBase.goal,
+                xp: 0,
+                streak: 0,
+                coins: 0,
+              },
+            }).catch(() => {});
+          }
         }
-      }).catch(() => {});
+      } catch {}
     });
+    // Generate personalised learning plan if none exists yet
+    if (!progress.learningPlan?.length) {
+      const mem = getOnboardingMemory();
+      if (mem?.draft) {
+        const d = mem.draft;
+        setPlanGenerating(true);
+        apiRequest('/api/solo/generate-plan', {
+          method: 'POST',
+          body: {
+            industry: d.industry || 'medicine',
+            role: d.roleLabel || d.role || 'professional',
+            goal: d.goalLabel || d.goal || '',
+            experience: d.experience || 'beginner',
+            language: mem.language || 'en',
+          },
+        }).then((cases) => {
+          if (Array.isArray(cases) && cases.length > 0) {
+            const industry = ONBOARDING_INDUSTRY_MAP[d.industry] || 'medicine';
+            const normalized = cases.map((c) => ({ industry, ...c }));
+            setProgressState((prev) => ({ ...prev, learningPlan: normalized }));
+          }
+        }).catch(() => {}).finally(() => setPlanGenerating(false));
+      }
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync progress to backend (debounced 3 s)
@@ -3099,7 +3189,7 @@ export function CommTrainerExperience() {
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />
           <Route path="/home" element={<HomePage progress={progress} setProgress={setProgress} t={t} quest={dailyQuest} apiScenarios={apiScenarios} />} />
-          <Route path="/plan" element={<PlanPage progress={progress} t={t} apiScenarios={apiScenarios} />} />
+          <Route path="/plan" element={<PlanPage progress={progress} t={t} apiScenarios={apiScenarios} planGenerating={planGenerating} />} />
           <Route path="/scenario/:id" element={<ScenarioPage progress={progress} t={t} apiScenarios={apiScenarios} />} />
           <Route path="/results/:id" element={<ResultsPage progress={progress} t={t} apiScenarios={apiScenarios} />} />
           <Route path="/library" element={<LibraryPage progress={progress} setProgress={setProgress} t={t} dailySuggestions={dailySuggestions} apiScenarios={apiScenarios} industries={industries} />} />

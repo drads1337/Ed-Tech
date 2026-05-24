@@ -326,3 +326,11 @@ class SoloAttempt(ApiModel):
     coins_gained: int
     transcript: list[dict] = Field(default_factory=list)
     created_at: datetime | None = None
+
+
+class GeneratePlanRequest(ApiModel):
+    industry: str
+    role: str
+    goal: str = ""
+    experience: str = "beginner"
+    language: str = "en"

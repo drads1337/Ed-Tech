@@ -4,8 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from ..dependencies import get_current_user
 from ..repositories import Repository, get_repository
+from ..config import get_settings
 from ..schemas import (
     DailySuggestion,
+    GeneratePlanRequest,
     Industry,
     Profile,
     SoloAttempt,
@@ -15,6 +17,7 @@ from ..schemas import (
     UserProgress,
     UserProgressUpdate,
 )
+from ..services.plan_ai import generate_learning_plan
 
 router = APIRouter(prefix="/api/solo", tags=["solo"])
 
@@ -128,3 +131,16 @@ def create_attempt(
     data = payload.model_dump(by_alias=False)
     data["user_id"] = current_user.id
     return repository.create_solo_attempt(data)
+
+
+@router.post("/generate-plan")
+def generate_plan(payload: GeneratePlanRequest) -> list[dict]:
+    settings = get_settings()
+    return generate_learning_plan(
+        industry=payload.industry,
+        role=payload.role,
+        goal=payload.goal,
+        experience=payload.experience,
+        language=payload.language,
+        settings=settings,
+    )

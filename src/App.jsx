@@ -2310,6 +2310,323 @@ function resolveInitialCaseId(caseId) {
   return QUICK_CASE_IDS.includes(caseId) ? caseId : 'chaise';
 }
 
+const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL)
+  ? import.meta.env.VITE_API_BASE_URL
+  : 'http://localhost:3001';
+
+function useAudioPlayer() {
+  const audioRef = useRef(null);
+
+  const play = useCallback((base64Mp3, text, lang) => {
+    return new Promise((resolve) => {
+      if (base64Mp3) {
+        const audio = new Audio(`data:audio/mp3;base64,${base64Mp3}`);
+        audioRef.current = audio;
+        audio.onended = resolve;
+        audio.onerror = () => {
+          // Fall through to speechSynthesis on decode error
+          speakFallback(text, lang, resolve);
+        };
+        audio.play().catch(() => speakFallback(text, lang, resolve));
+      } else {
+        speakFallback(text, lang, resolve);
+      }
+    });
+  }, []);
+
+  const stop = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    window.speechSynthesis?.cancel();
+  }, []);
+
+  return { play, stop };
+}
+
+function speakFallback(text, lang, onEnd) {
+  if (!text || !window.speechSynthesis) { onEnd?.(); return; }
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.lang = lang === 'ru' ? 'ru-RU' : lang === 'uz' ? 'uz-UZ' : 'en-US';
+  utt.rate = 0.95;
+  utt.onend = onEnd;
+  utt.onerror = onEnd;
+  window.speechSynthesis.speak(utt);
+}
+
+function VoiceChat({ scenarioTitle, scenarioGoal, aiPersona, patientType, language, onMotionChange, onEmotionChange }) {
+  const [status, setStatus] = useState('idle'); // idle | loading | listening | thinking | playing
+  const [messages, setMessages] = useState([]);
+  const [liveText, setLiveText] = useState('');
+  const [systemPrompt, setSystemPrompt] = useState('');
+  const transcriptRef = useRef([]);
+  const systemPromptRef = useRef('');   // always-current ref so WS closure isn't stale
+  const deepgramKeyRef = useRef('');    // populated async — WS reads from ref, not state
+  const wsRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const streamRef = useRef(null);
+  const sendMessageRef = useRef(null);  // always-current sendUserMessage for WS handler
+  const { play } = useAudioPlayer();
+
+  // Load Deepgram key and start simulation
+  useEffect(() => {
+    if (!aiPersona) return;
+
+    fetch(`${API_BASE}/api/live-sim/config`)
+      .then((r) => r.json())
+      .then((cfg) => { deepgramKeyRef.current = cfg.deepgramApiKey || ''; })
+      .catch(() => {});
+
+    setStatus('loading');
+    fetch(`${API_BASE}/api/live-sim/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: scenarioTitle || 'Training simulation',
+        goal: scenarioGoal || '',
+        ai_persona: aiPersona,
+        patient_type: patientType || 'neutral',
+        language: language || 'en',
+      }),
+    })
+      .then((r) => r.json())
+      .then(async (data) => {
+        const sp = data.systemPrompt || data.system_prompt || '';
+        setSystemPrompt(sp);
+        systemPromptRef.current = sp;
+        const aiMsg = { role: 'ai', text: data.message };
+        setMessages([aiMsg]);
+        transcriptRef.current = [aiMsg];
+        onEmotionChange?.(data.emotion || 'neutral');
+        onMotionChange?.('talking');
+        setStatus('playing');
+        await play(data.audioBase64 || data.audio_base64, data.message, language);
+        onMotionChange?.('idle');
+        setStatus('idle');
+      })
+      .catch(() => setStatus('idle'));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const stopListening = useCallback(async () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+  }, []);
+
+  const sendUserMessage = useCallback(async (text) => {
+    if (!text.trim()) { setStatus('idle'); onMotionChange?.('idle'); return; }
+
+    const userMsg = { role: 'user', text };
+    setMessages((prev) => [...prev, userMsg]);
+    transcriptRef.current = [...transcriptRef.current, userMsg];
+    setLiveText('');
+
+    onMotionChange?.('thinking');
+    setStatus('thinking');
+
+    try {
+      const resp = await fetch(`${API_BASE}/api/live-sim/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_prompt: systemPromptRef.current,
+          transcript: transcriptRef.current,
+          user_message: text,
+          language: language || 'en',
+        }),
+      });
+      const data = await resp.json();
+      const aiMsg = { role: 'ai', text: data.message };
+      setMessages((prev) => [...prev, aiMsg]);
+      transcriptRef.current = [...transcriptRef.current, aiMsg];
+      onEmotionChange?.(data.emotion || 'neutral');
+      onMotionChange?.('talking');
+      setStatus('playing');
+      await play(data.audioBase64 || data.audio_base64, data.message, language);
+      onMotionChange?.('idle');
+      setStatus('idle');
+    } catch {
+      setStatus('idle');
+      onMotionChange?.('idle');
+    }
+  }, [language, play, onMotionChange, onEmotionChange]);
+
+  // Keep sendMessageRef current so the WebSocket handler always calls the latest version
+  sendMessageRef.current = sendUserMessage;
+
+  const startListening = useCallback(async () => {
+    const key = deepgramKeyRef.current;
+    if (!key) {
+      // No Deepgram key yet — mic icon still shows so user knows to wait
+      setStatus('idle');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      streamRef.current = stream;
+
+      const dgLang = language === 'ru' ? 'ru' : language === 'uz' ? 'uz-IN' : 'en-US';
+      const ws = new WebSocket(
+        `wss://api.deepgram.com/v1/listen?model=nova-2&language=${dgLang}&punctuate=true&endpointing=1000&utterance_end_ms=1500`,
+        ['token', key],
+      );
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : 'audio/webm';
+        const recorder = new MediaRecorder(stream, { mimeType });
+        mediaRecorderRef.current = recorder;
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) ws.send(e.data);
+        };
+        recorder.start(250);
+      };
+
+      let finalText = '';
+      ws.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          const alt = msg.channel?.alternatives?.[0];
+          if (!alt) return;
+
+          if (msg.type === 'Results' && msg.is_final && alt.transcript) {
+            finalText += (finalText ? ' ' : '') + alt.transcript;
+            setLiveText(finalText);
+          } else if (msg.type === 'UtteranceEnd') {
+            const captured = finalText;
+            finalText = '';
+            stopListening();
+            // Use ref so we always call the current sendUserMessage (no stale closure)
+            sendMessageRef.current?.(captured);
+          } else if (!msg.is_final && alt.transcript) {
+            setLiveText(finalText + (finalText ? ' ' : '') + alt.transcript);
+          }
+        } catch {}
+      };
+
+      ws.onerror = () => stopListening();
+
+      setStatus('listening');
+      onMotionChange?.('listening');
+    } catch {
+      setStatus('idle');
+    }
+  }, [language, stopListening, onMotionChange]);
+
+  const handleMicButton = useCallback(() => {
+    if (status === 'listening') {
+      stopListening();
+      // liveText is shown in the bubble; send whatever was captured
+      const captured = liveText;
+      setLiveText('');
+      if (captured.trim()) sendMessageRef.current?.(captured);
+      else { setStatus('idle'); onMotionChange?.('idle'); }
+    } else if (status === 'idle') {
+      startListening();
+    }
+  }, [status, liveText, startListening, stopListening, onMotionChange]);
+
+  if (!aiPersona) return null;
+
+  return (
+    <div className="voice-chat-panel" style={{
+      position: 'absolute',
+      bottom: 90,
+      left: '50%',
+      transform: 'translateX(-50%)',
+      width: 'min(480px, 90vw)',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 10,
+      zIndex: 20,
+    }}>
+      {/* Message bubbles — last 3 */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {messages.slice(-3).map((msg, i) => (
+          <div key={i} style={{
+            alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+            maxWidth: '80%',
+            background: msg.role === 'user' ? 'var(--sky, #A8D8F0)' : 'white',
+            border: '2px solid var(--line, #1a1a1a)',
+            borderRadius: msg.role === 'user' ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
+            padding: '8px 12px',
+            fontSize: 13,
+            boxShadow: '0 3px 0 var(--line, #1a1a1a)',
+            color: 'var(--ink, #1a1a1a)',
+          }}>
+            {msg.text}
+          </div>
+        ))}
+        {liveText && (
+          <div style={{
+            alignSelf: 'flex-end',
+            maxWidth: '80%',
+            background: 'var(--butter, #FFD86B)',
+            border: '2px solid var(--line, #1a1a1a)',
+            borderRadius: '16px 4px 16px 16px',
+            padding: '8px 12px',
+            fontSize: 13,
+            opacity: 0.8,
+            color: 'var(--ink, #1a1a1a)',
+          }}>
+            {liveText}…
+          </div>
+        )}
+      </div>
+
+      {/* Controls */}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
+        {status === 'loading' && (
+          <span style={{ fontSize: 13, opacity: 0.7 }}>⏳ Starting…</span>
+        )}
+        {status === 'thinking' && (
+          <span style={{ fontSize: 13, opacity: 0.7 }}>💭 Thinking…</span>
+        )}
+        {status === 'playing' && (
+          <span style={{ fontSize: 13, opacity: 0.7 }}>🔊 Speaking…</span>
+        )}
+        {(status === 'idle' || status === 'listening') && (
+          <button
+            type="button"
+            onClick={handleMicButton}
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              border: '3px solid var(--line, #1a1a1a)',
+              background: status === 'listening' ? 'var(--rose, #FF8FAB)' : 'var(--mint, #A8F0C8)',
+              boxShadow: status === 'listening'
+                ? '0 0 0 6px rgba(255,100,100,0.25), 0 4px 0 var(--line, #1a1a1a)'
+                : '0 4px 0 var(--line, #1a1a1a)',
+              cursor: 'pointer',
+              fontSize: 22,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s',
+            }}
+          >
+            {status === 'listening' ? '⏹' : '🎤'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SimulationScene({
   onBackToDashboard,
   initialCaseId,
@@ -2317,6 +2634,10 @@ function SimulationScene({
   industryName,
   industryIcon,
   quickPractice,
+  scenarioGoal,
+  aiPersona,
+  patientType,
+  language,
 }) {
   const [activeCaseId, setActiveCaseId] = useState(() => resolveInitialCaseId(initialCaseId));
   const [bones, setBones] = useState([]);
@@ -2469,6 +2790,15 @@ function SimulationScene({
           <div className="simulation-bottom-spacer" aria-hidden="true" />
         )}
       </div>
+      <VoiceChat
+        scenarioTitle={scenarioTitle}
+        scenarioGoal={scenarioGoal}
+        aiPersona={aiPersona}
+        patientType={patientType}
+        language={language}
+        onMotionChange={setLiveMotion}
+        onEmotionChange={setEmotionMode}
+      />
     </main>
   );
 }
@@ -5009,7 +5339,8 @@ function EmployeeDashboardView({ dashboard }) {
 function SimulationPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { caseId, scenarioTitle, industryName, industryIcon, quickPractice } = location.state || {};
+  const { caseId, scenarioTitle, industryName, industryIcon, quickPractice, scenarioGoal, aiPersona, patientType } = location.state || {};
+  const lang = localStorage.getItem('app_lang') || 'ru';
 
   return (
     <SimulationScene
@@ -5019,6 +5350,10 @@ function SimulationPage() {
       industryIcon={industryIcon}
       quickPractice={quickPractice}
       onBackToDashboard={() => navigate('/home', { replace: true })}
+      scenarioGoal={scenarioGoal}
+      aiPersona={aiPersona}
+      patientType={patientType}
+      language={lang}
     />
   );
 }
