@@ -26,6 +26,7 @@ class ChatRequest(BaseModel):
 class LiveSimResponse(BaseModel):
     message: str
     audio_base64: str | None = None
+    audio_mime: str = "audio/mpeg"
     emotion: str
     system_prompt: str = ""
 
@@ -43,9 +44,10 @@ def start_simulation(payload: StartRequest) -> LiveSimResponse:
         "Start the conversation. Introduce yourself or your situation briefly in 1-2 sentences.",
         settings,
     )
-    audio = synthesize_speech(opening, payload.language, settings)
+    audio, mime = synthesize_speech(opening, payload.language, settings)
     return LiveSimResponse(
-        message=opening, audio_base64=audio, emotion=emotion, system_prompt=system_prompt
+        message=opening, audio_base64=audio, audio_mime=mime or "audio/mpeg",
+        emotion=emotion, system_prompt=system_prompt,
     )
 
 
@@ -55,9 +57,10 @@ def chat(payload: ChatRequest) -> LiveSimResponse:
     message, emotion = get_ai_response(
         payload.system_prompt, payload.transcript, payload.user_message, settings
     )
-    audio = synthesize_speech(message, payload.language, settings)
+    audio, mime = synthesize_speech(message, payload.language, settings)
     return LiveSimResponse(
-        message=message, audio_base64=audio, emotion=emotion, system_prompt=payload.system_prompt
+        message=message, audio_base64=audio, audio_mime=mime or "audio/mpeg",
+        emotion=emotion, system_prompt=payload.system_prompt,
     )
 
 
