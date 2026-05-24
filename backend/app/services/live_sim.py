@@ -45,6 +45,9 @@ ALLOWED_MOTIONS = {"idle", "listening", "thinking", "talking", "gesture"}
 BRIEF_SYSTEM_PROMPT = """You are an expert communication coach.
 
 Evaluate the trainee's live roleplay dialogue. Use the full transcript and scenario context.
+The transcript contains assistant/AI character turns and trainee user turns from STT.
+Use assistant/AI turns as context, but score only the trainee's user turns.
+Use emotion_log and motion_log to understand the character state and whether the live avatar states matched the conversation.
 Return ONLY valid JSON with this exact shape:
 {
   "score": 1-100,

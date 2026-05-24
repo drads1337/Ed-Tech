@@ -2762,11 +2762,15 @@ function VoiceChat({
       await play(audioData, data.message, language, audioMime, (progressText) => {
         onBubbleTextChange?.(getSpeechBubbleWindow(progressText));
       });
-      onMotionChange?.('idle');
-      setStatus('idle');
+      if (!finishedRef.current) {
+        onMotionChange?.('idle');
+        setStatus('idle');
+      }
     } catch {
-      setStatus('idle');
-      onMotionChange?.('idle');
+      if (!finishedRef.current) {
+        setStatus('idle');
+        onMotionChange?.('idle');
+      }
     }
   }, [language, play, onMotionChange, onEmotionChange, onBubbleTextChange]);
 

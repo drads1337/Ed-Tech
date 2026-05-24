@@ -5,8 +5,9 @@ CLAUDE.md
 # Build output
 dist/
 
-# Environment
+# Environment (never commit secrets — copy .env.example on the server)
 .env
+backend/.env
 .env.*
 !.env.example
 

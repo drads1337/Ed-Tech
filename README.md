@@ -1,9 +1,19 @@
 # Ed-Tech Training Loop
 
-Full-stack MVP тренажера профессиональной коммуникации для сотрудников и команд.
-Проект сделан как хакатонный прототип: пользователь проходит onboarding, получает персональный план обучения, тренируется в интерактивных кейсах, разговаривает с AI-персонажем в 3D-сцене, а администратор может загружать материалы компании, генерировать сценарии, назначать задания и смотреть прогресс сотрудников.
+## Project Summary
 
-Главная идея продукта: превратить корпоративные регламенты, FAQ, playbook-и и учебные материалы в практические roleplay-сценарии, где сотрудник учится говорить с клиентом, пациентом, студентом или коллегой в сложной ситуации.
+Ed-Tech Training Loop is a full-stack communication training platform for employees and teams. It turns company materials, policies, FAQs, and playbooks into interactive AI roleplay scenarios where users practice difficult conversations in a 3D simulation.
+
+The MVP includes a React/Vite frontend, FastAPI backend, Supabase integration, AI/fallback scenario generation, live roleplay responses, progress tracking, admin dashboards, and automated checks. It supports both solo learners and corporate training flows: admins create or upload training content, generate scenarios, assign them to employees, and review results.
+
+## Notes for Organizers
+
+- This is a working full-stack MVP, not a static mockup. The repo includes frontend, backend, API routes, tests, SQL schema, and 3D assets.
+- The project can be reviewed without paid AI access: if `OPENROUTER_API_KEY` is missing, the backend uses deterministic fallback responses.
+- Recommended demo path: start the backend, start the frontend, open the learner flow, then show the admin flow where a material becomes a scenario, assignment, attempt, score, and dashboard result.
+- The live simulation demonstrates the core product idea: AI roleplay responses are connected to emotion/motion states that drive the 3D character experience.
+- Supabase is used for the production-style auth/data layer, while tests use an in-memory repository to keep the review flow reproducible.
+- Current MVP scope focuses on communication practice, scenario generation, scoring, progress, and dashboards. Voice input, full deployment config, and advanced HR analytics are planned next steps.
 
 ## Что уже работает
 
@@ -199,6 +209,72 @@ Scenario context
 - Python 3.11+ или 3.12
 - Supabase проект нужен для полноценного Auth/DB-режима
 - OpenRouter API key нужен только для реальных AI-ответов; без него работают fallback-ответы
+
+## Docker / VPS deploy
+
+Для VPS достаточно Docker и Docker Compose.
+
+### 1. Подготовить env
+
+```bash
+cp .env.example .env
+```
+
+Для запуска через `docker-compose` оставьте `VITE_API_BASE_URL` пустым или закомментированным: frontend будет обращаться к backend через Nginx по тому же домену на `/api`.
+
+Минимально:
+
+```env
+APP_PORT=80
+BACKEND_CORS_ORIGINS=http://your-domain.com,https://your-domain.com
+```
+
+Для Supabase/Auth:
+
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+Для real AI через OpenRouter:
+
+```env
+OPENROUTER_API_KEY=your-openrouter-api-key
+OPENROUTER_MODEL=openai/gpt-oss-120b
+OPENROUTER_APP_URL=https://your-domain.com
+```
+
+### 2. Запустить
+
+```bash
+docker compose up -d --build
+```
+
+Приложение будет доступно на:
+
+```text
+http://your-server-ip/
+```
+
+Backend health-check идет через frontend/Nginx:
+
+```text
+http://your-server-ip/api/health
+```
+
+Если порт `80` уже занят, поменяйте:
+
+```env
+APP_PORT=8080
+```
+
+и откройте:
+
+```text
+http://your-server-ip:8080/
+```
 
 ### 1. Установить frontend dependencies
 

@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://rumvtsrhzbckmzfujmmo.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY =

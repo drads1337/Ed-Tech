@@ -3237,6 +3237,8 @@ export function CommTrainerExperience() {
   const [industries, setIndustries] = useState(mockIndustries);
   const [planGenerating, setPlanGenerating] = useState(false);
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const showHomeToolbar = pathname === '/' || pathname === TRAINER_ROUTE_PATHS.home;
   const t = getText(lang);
   const progressSyncTimer = useRef(null);
 
@@ -3392,7 +3394,9 @@ export function CommTrainerExperience() {
         <span />
         <span />
       </div>
-      <TrainerToolbar progress={progress} lang={lang} setLang={setLang} t={t} onLogout={handleLogout} />
+      {showHomeToolbar ? (
+        <TrainerToolbar progress={progress} lang={lang} setLang={setLang} t={t} onLogout={handleLogout} />
+      ) : null}
       <main className="trainer-main">
         <TrainerMainRoutes
           progress={progress}
