@@ -73,6 +73,18 @@ def fallback_knowledge(source_prompt: str, documents: list[dict], language: str 
     }
 
 
+def _as_text(value: Any, fallback: str) -> str:
+    if value is None:
+        return fallback
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        return ", ".join(str(item) for item in value if item)
+    if isinstance(value, dict):
+        return "; ".join(f"{key}: {item}" for key, item in value.items())
+    return str(value)
+
+
 def generate_knowledge(source_prompt: str, documents: list[dict], language: str, settings: Settings) -> dict:
     fallback = fallback_knowledge(source_prompt, documents, language)
     if not settings.openrouter_api_key:
@@ -120,11 +132,11 @@ def generate_knowledge(source_prompt: str, documents: list[dict], language: str,
         raw: dict[str, Any] = json.loads(response.json()["choices"][0]["message"]["content"])
         return {
             **fallback,
-            "company_brief": raw.get("companyBrief") or fallback["company_brief"],
-            "rules_brief": raw.get("rulesBrief") or fallback["rules_brief"],
-            "client_types": raw.get("clientTypes") or fallback["client_types"],
-            "task_goal": raw.get("taskGoal") or fallback["task_goal"],
-            "scoring_rules": raw.get("scoringRules") or fallback["scoring_rules"],
+            "company_brief": _as_text(raw.get("companyBrief"), fallback["company_brief"]),
+            "rules_brief": _as_text(raw.get("rulesBrief"), fallback["rules_brief"]),
+            "client_types": _as_text(raw.get("clientTypes"), fallback["client_types"]),
+            "task_goal": _as_text(raw.get("taskGoal"), fallback["task_goal"]),
+            "scoring_rules": _as_text(raw.get("scoringRules"), fallback["scoring_rules"]),
         }
     except Exception:
         return fallback

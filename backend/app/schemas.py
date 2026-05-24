@@ -278,6 +278,15 @@ class CorporateTaskDraftGenerateRequest(ApiModel):
     language: str = "ru"
 
 
+class CorporateTaskDraftCreateRequest(ApiModel):
+    knowledge_base_id: str | None = None
+    title: str
+    client_type: str
+    skill: str
+    difficulty: str = "medium"
+    goal: str
+
+
 class CorporateTaskDraft(ApiModel):
     id: str
     organization_id: str

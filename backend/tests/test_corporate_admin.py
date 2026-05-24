@@ -91,6 +91,31 @@ def test_task_drafts_can_be_generated_and_assigned(client):
     assert assignment["employeeIds"] == [EMPLOYEE_ID]
 
 
+def test_manual_task_draft_can_be_created_without_existing_knowledge_base(client):
+    response = act_as(client, ADMIN_ID).post(
+        "/api/corporate/admin/task-drafts",
+        json={
+            "title": "Handle a VIP objection",
+            "clientType": "VIP client",
+            "skill": "Objection handling",
+            "difficulty": "hard",
+            "goal": "Calmly explain AI limits and agree on a safe next step.",
+        },
+    )
+
+    assert response.status_code == 200
+    draft = response.json()
+    assert draft["title"] == "Handle a VIP objection"
+    assert draft["status"] == "manual"
+    assert draft["knowledgeBaseId"]
+    assert draft["generatedPayload"]["source"] == "manual"
+    assert "AI limits" in draft["generatedPayload"]["goal"]
+
+    list_response = client.get("/api/corporate/admin/task-drafts")
+    assert list_response.status_code == 200
+    assert list_response.json()[0]["id"] == draft["id"]
+
+
 def test_review_returns_employee_details_after_attempt(client):
     material = client.post(
         "/api/materials",

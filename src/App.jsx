@@ -5167,6 +5167,19 @@ const CORPORATE_COPY = {
     generateByAi: 'Сгенерировать через ИИ',
     noEmployeesOrTasks: 'Нет сотрудников или заданий для отправки.',
     createBaseFirst: 'Сначала создайте базу знаний, затем генерируйте задания через ИИ.',
+    manualScenarioTitle: 'Добавить сценарий вручную',
+    manualScenarioDesc: 'Заполните поля, сохраните черновик и отправьте его сотрудникам вместе с AI-заданиями.',
+    manualTitle: 'Название сценария',
+    manualClientType: 'Тип клиента',
+    manualSkill: 'Навык',
+    manualGoal: 'Цель / описание',
+    manualDifficultyEasy: 'Легко',
+    manualDifficultyMedium: 'Средне',
+    manualDifficultyHard: 'Сложно',
+    addManual: 'Добавить вручную',
+    addingManual: 'Добавление...',
+    manualValidation: 'Заполните название, тип клиента, навык и цель сценария.',
+    noTaskDrafts: 'Пока нет черновиков заданий. Сгенерируйте через ИИ или добавьте сценарий вручную.',
     difficulty: 'Сложность',
     prizesTitle: 'Только топ-3',
     saved: 'Сохранено',
@@ -5185,12 +5198,12 @@ const CORPORATE_COPY = {
       third: '3 место: доступ к продвинутому AI-треку',
     },
     defaults: {
-      sourcePrompt: 'Собери базу знаний для обучения сотрудников: правила компании, типы клиентов, ограничения ИИ, примеры правильных ответов.',
-      companyBrief: 'Компания продает AI-платформу для обучения сотрудников и хочет единый стандарт общения с клиентами.',
-      rulesBrief: 'Не обещать результат без данных, объяснять ограничения ИИ, фиксировать следующий шаг и соблюдать регламенты компании.',
-      clientType: 'B2B enterprise, VIP-клиент, новый клиент, сложный клиент',
-      taskGoal: 'Сгенерировать задания, где сотрудник объясняет ценность ИИ, работает с возражениями и следует правилам компании.',
-      scoringRules: 'Оценивать точность, спокойный тон, соблюдение политики, понятный следующий шаг и итоговое решение клиента.',
+      sourcePrompt: 'Собери базу знаний для обучения сотрудников: правила компании, типы клиентов, ограничения ИИ, примеры правильных и неправильных ответов.',
+      companyBrief: '',
+      rulesBrief: '',
+      clientType: '',
+      taskGoal: '',
+      scoringRules: '',
     },
     employeeSettings: 'Настройки',
     employeeModeTitle: 'Личный режим как у solo',
@@ -5290,6 +5303,19 @@ const CORPORATE_COPY = {
     generateByAi: 'AI orqali yaratish',
     noEmployeesOrTasks: 'Yuborish uchun xodimlar yoki topshiriqlar yo‘q.',
     createBaseFirst: 'Avval bilim bazasini yarating, keyin AI orqali topshiriqlarni generatsiya qiling.',
+    manualScenarioTitle: 'Ssenariyni qo‘lda qo‘shish',
+    manualScenarioDesc: 'Maydonlarni to‘ldiring, draftni saqlang va uni AI topshiriqlari bilan birga xodimlarga yuboring.',
+    manualTitle: 'Ssenariy nomi',
+    manualClientType: 'Mijoz turi',
+    manualSkill: 'Ko‘nikma',
+    manualGoal: 'Maqsad / tavsif',
+    manualDifficultyEasy: 'Oson',
+    manualDifficultyMedium: 'O‘rtacha',
+    manualDifficultyHard: 'Qiyin',
+    addManual: 'Qo‘lda qo‘shish',
+    addingManual: 'Qo‘shilmoqda...',
+    manualValidation: 'Ssenariy nomi, mijoz turi, ko‘nikma va maqsadni to‘ldiring.',
+    noTaskDrafts: 'Hali topshiriq draftlari yo‘q. AI orqali yarating yoki ssenariyni qo‘lda qo‘shing.',
     difficulty: 'Murakkablik',
     prizesTitle: 'Faqat top-3',
     saved: 'Saqlangan',
@@ -5308,12 +5334,12 @@ const CORPORATE_COPY = {
       third: '3-o‘rin: ilg‘or AI trekka kirish',
     },
     defaults: {
-      sourcePrompt: 'Xodimlarni o‘qitish uchun bilim bazasini yig‘ing: kompaniya qoidalari, mijoz turlari, AI cheklovlari va to‘g‘ri javob namunalari.',
-      companyBrief: 'Kompaniya xodimlarni o‘qitish uchun AI-platforma sotadi va mijozlar bilan muloqot uchun yagona standart yaratmoqchi.',
-      rulesBrief: 'Ma’lumotsiz natija va’da qilmaslik, AI cheklovlarini tushuntirish, keyingi qadamni belgilash va kompaniya reglamentlariga amal qilish.',
-      clientType: 'B2B enterprise, VIP mijoz, yangi mijoz, murakkab mijoz',
-      taskGoal: 'Xodim AI qiymatini tushuntiradigan, e’tirozlar bilan ishlaydigan va kompaniya qoidalariga amal qiladigan topshiriqlar yaratish.',
-      scoringRules: 'Aniqlik, sokin ohang, siyosatga rioya qilish, tushunarli keyingi qadam va mijoz uchun yakuniy qarorni baholash.',
+      sourcePrompt: 'Xodimlarni o‘qitish uchun bilim bazasini yig‘ing: kompaniya qoidalari, mijoz turlari, AI cheklovlari hamda to‘g‘ri va noto‘g‘ri javob namunalari.',
+      companyBrief: '',
+      rulesBrief: '',
+      clientType: '',
+      taskGoal: '',
+      scoringRules: '',
     },
     employeeSettings: 'Sozlamalar',
     employeeModeTitle: 'Solo kabi shaxsiy rejim',
@@ -5413,6 +5439,19 @@ const CORPORATE_COPY = {
     generateByAi: 'Generate by AI',
     noEmployeesOrTasks: 'No employees or assignments to send.',
     createBaseFirst: 'Create the knowledge base first, then generate assignments with AI.',
+    manualScenarioTitle: 'Add scenario manually',
+    manualScenarioDesc: 'Fill the fields, save the draft, and send it to employees together with AI assignments.',
+    manualTitle: 'Scenario title',
+    manualClientType: 'Client type',
+    manualSkill: 'Skill',
+    manualGoal: 'Goal / description',
+    manualDifficultyEasy: 'Easy',
+    manualDifficultyMedium: 'Medium',
+    manualDifficultyHard: 'Hard',
+    addManual: 'Add manually',
+    addingManual: 'Adding...',
+    manualValidation: 'Fill in the scenario title, client type, skill, and goal.',
+    noTaskDrafts: 'No task drafts yet. Generate with AI or add a scenario manually.',
     difficulty: 'Difficulty',
     prizesTitle: 'Top-3 only',
     saved: 'Saved',
@@ -5431,12 +5470,12 @@ const CORPORATE_COPY = {
       third: '3rd place: access to an advanced AI track',
     },
     defaults: {
-      sourcePrompt: 'Build a knowledge base for employee training: company rules, client types, AI limits, and examples of good answers.',
-      companyBrief: 'The company sells an AI platform for employee training and wants one standard for customer communication.',
-      rulesBrief: 'Do not promise results without data, explain AI limits, define the next step, and follow company policies.',
-      clientType: 'B2B enterprise, VIP client, new client, difficult client',
-      taskGoal: 'Generate assignments where employees explain AI value, handle objections, and follow company rules.',
-      scoringRules: 'Score accuracy, calm tone, policy adherence, clear next step, and a final customer decision.',
+      sourcePrompt: 'Build a knowledge base for employee training: company rules, client types, AI limits, and examples of good and poor answers.',
+      companyBrief: '',
+      rulesBrief: '',
+      clientType: '',
+      taskGoal: '',
+      scoringRules: '',
     },
     employeeSettings: 'Settings',
     employeeModeTitle: 'Personal mode like solo',
@@ -5512,6 +5551,12 @@ function SkeletonLine({ className = '' }) {
 
 function DashboardPageSkeleton({ adminPage = null, lang = 'ru' }) {
   const corporateCopy = CORPORATE_COPY[lang] || CORPORATE_COPY.ru;
+  const homePages = [
+    { badge: corporateCopy.dashboardBadge, badgeBg: 'var(--sky)', accent: 'var(--sky)' },
+    { badge: corporateCopy.baseBadge, badgeBg: 'var(--butter)', accent: 'var(--butter)' },
+    { badge: corporateCopy.assignmentsBadge, badgeBg: 'var(--peach)', accent: 'var(--peach)' },
+    { badge: corporateCopy.prizesBadge, badgeBg: 'var(--rose)', accent: 'var(--rose)' },
+  ];
 
   if (adminPage && adminPage !== 'home') {
     const currentPage = {
@@ -5544,54 +5589,34 @@ function DashboardPageSkeleton({ adminPage = null, lang = 'ru' }) {
   }
 
   return (
-    <main className="product-app paper dots-bg dashboard-page">
+    <main className="product-app paper dots-bg dashboard-page has-bottom-nav">
       <BackgroundMusic />
       <TrainerFloatingDecor />
-      <section className="dashboard-shell plush-lg paper dashboard-skeleton-page" aria-label={corporateCopy.loadingDashboard}>
+      <section className="dashboard-shell plush-lg paper popin dashboard-shell-content admin-home-skeleton" aria-label={corporateCopy.loadingDashboard}>
         <div className="admin-dashboard-hero skeleton-card">
           <SkeletonLine className="w-chip" />
           <SkeletonLine className="w-title" />
           <SkeletonLine className="w-copy" />
           <SkeletonLine className="w-copy short" />
         </div>
-        <div className="corporate-dashboard-skeleton">
-          <div className="corporate-stats">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="stat-card skeleton-card">
+        <nav className="admin-mode-cards mode-cards-grid admin-mode-cards-standalone" aria-label="Admin sections">
+          {homePages.map((page, index) => (
+            <article key={index} className="admin-mode-card admin-mode-card-skeleton skeleton-card">
+              <span className="admin-mode-badge" style={{ background: page.badgeBg }}>{page.badge}</span>
+              <span className="admin-mode-emoji" style={{ background: page.accent }}>
+                <SkeletonLine className="avatar" />
+              </span>
+              <span className="admin-mode-copy">
                 <SkeletonLine className="w-label" />
-                <SkeletonLine className="w-number" />
-              </div>
-            ))}
-          </div>
-          <section className="corporate-panel skeleton-card">
-            <SkeletonLine className="w-chip" />
-            <SkeletonLine className="w-title" />
-            <SkeletonLine className="w-copy" />
-            <div className="admin-employee-layout skeleton-employee-layout">
-              <div className="admin-employee-list skeleton-card">
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <div key={index} className="skeleton-table-row">
-                    <SkeletonLine className="avatar" />
-                    <SkeletonLine />
-                    <SkeletonLine className="short" />
-                  </div>
-                ))}
-              </div>
-              <div className="admin-employee-detail skeleton-card">
-                <SkeletonLine className="w-title" />
-                <div className="admin-detail-grid">
-                  {Array.from({ length: 4 }).map((_, index) => (
-                    <div key={index}>
-                      <SkeletonLine className="w-label" />
-                      <SkeletonLine />
-                      <SkeletonLine className="short" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
+                <SkeletonLine />
+                <SkeletonLine className="short" />
+              </span>
+              <span className="admin-mode-cta">
+                <SkeletonLine className="w-label" />
+              </span>
+            </article>
+          ))}
+        </nav>
       </section>
     </main>
   );
@@ -5755,6 +5780,14 @@ const DEFAULT_CORPORATE_PRIZES = {
   second: '2 место: подарок от компании и публичное признание',
   third: '3 место: доступ к продвинутому AI-треку',
 };
+
+function corporateScoreTone(score) {
+  const value = Number(score) || 0;
+  if (value >= 85) return 'score-excellent';
+  if (value >= 70) return 'score-good';
+  if (value >= 45) return 'score-watch';
+  return 'score-risk';
+}
 
 function normalizeCorporatePayload(payload, fallbackPrizes = DEFAULT_CORPORATE_PRIZES, readyLabel = 'Готов к ИИ', documentTypeLabel = 'Новый документ') {
   if (!payload || payload.error) {
@@ -6033,6 +6066,7 @@ function AdminDashboardView({ dashboard, heading, error, token = '', organizatio
   const [isUploading, setIsUploading] = useState(false);
   const [isGeneratingKnowledge, setIsGeneratingKnowledge] = useState(false);
   const [isGeneratingTasks, setIsGeneratingTasks] = useState(false);
+  const [isAddingManualTask, setIsAddingManualTask] = useState(false);
   const [isSendingAssignments, setIsSendingAssignments] = useState(false);
   const [enabledSettings, setEnabledSettings] = useState({
     companyRules: true,
@@ -6049,6 +6083,13 @@ function AdminDashboardView({ dashboard, heading, error, token = '', organizatio
   const [clientSegment, setClientSegment] = useState('flexible');
   const [assignmentMode, setAssignmentMode] = useState('auto');
   const [employeeMode, setEmployeeMode] = useState('same');
+  const [manualTask, setManualTask] = useState({
+    title: '',
+    clientType: '',
+    skill: '',
+    difficulty: 'medium',
+    goal: '',
+  });
   const [knowledgeCreated, setKnowledgeCreated] = useState(false);
   const [prizes, setPrizes] = useState(initialCorporateState?.prizes || corporateCopy.defaultPrizes);
   const [savedPrizes, setSavedPrizes] = useState(prizes);
@@ -6256,6 +6297,60 @@ function AdminDashboardView({ dashboard, heading, error, token = '', organizatio
     }
   };
 
+  const updateManualTask = (field) => (event) => {
+    setManualTask((currentTask) => ({ ...currentTask, [field]: event.target.value }));
+  };
+
+  const addManualTask = async () => {
+    const title = manualTask.title.trim();
+    const clientTypeValue = manualTask.clientType.trim();
+    const skill = manualTask.skill.trim();
+    const goal = manualTask.goal.trim();
+
+    if (!title || !clientTypeValue || !skill || !goal) {
+      setCorporateWarning(corporateCopy.manualValidation);
+      return;
+    }
+
+    setIsAddingManualTask(true);
+    try {
+      const draft = await apiRequest('/api/corporate/admin/task-drafts', {
+        token,
+        method: 'POST',
+        body: {
+          title,
+          clientType: clientTypeValue,
+          skill,
+          difficulty: manualTask.difficulty,
+          goal,
+        },
+      });
+      setTaskDrafts((currentDrafts) => [
+        {
+          id: draft.id,
+          title: draft.title,
+          clientType: draft.clientType,
+          skill: draft.skill,
+          difficulty: draft.difficulty,
+          status: draft.status,
+        },
+        ...currentDrafts,
+      ]);
+      setManualTask({
+        title: '',
+        clientType: '',
+        skill: '',
+        difficulty: 'medium',
+        goal: '',
+      });
+      setCorporateWarning('');
+    } catch (actionError) {
+      setCorporateWarning(actionError?.message || corporateCopy.backendWarning);
+    } finally {
+      setIsAddingManualTask(false);
+    }
+  };
+
   const sendAssignments = async () => {
     const employeeIds = employees.map((employee) => employee.id);
     const draftIds = taskDrafts.map((task) => task.id);
@@ -6351,23 +6446,30 @@ function AdminDashboardView({ dashboard, heading, error, token = '', organizatio
               <span role="columnheader">{corporateCopy.role}</span>
               <span role="columnheader">{corporateCopy.result}</span>
             </div>
-            {employees.map((employee) => (
-              <button
-                key={employee.id}
-                type="button"
-                className={`admin-employee-row ${selectedEmployeeId === employee.id ? 'is-active' : ''}`}
-                onClick={() => setSelectedEmployeeId(employee.id)}
-                role="row"
-              >
-                <span className="employee-avatar">{employee.name[0]}</span>
-                <strong>{employee.name}</strong>
-                <small>{employee.role}</small>
-                <b>{employee.result}%</b>
-              </button>
-            ))}
+            {employees.map((employee) => {
+              const scoreTone = corporateScoreTone(employee.result);
+              return (
+                <button
+                  key={employee.id}
+                  type="button"
+                  className={`admin-employee-row ${scoreTone} ${selectedEmployeeId === employee.id ? 'is-active' : ''}`}
+                  onClick={() => setSelectedEmployeeId(employee.id)}
+                  role="row"
+                  style={{ '--employee-score': `${Math.max(0, Math.min(100, Number(employee.result) || 0))}%` }}
+                >
+                  <span className="employee-avatar">{employee.name[0]}</span>
+                  <strong>{employee.name}</strong>
+                  <small>{employee.role}</small>
+                  <b>{employee.result}%</b>
+                </button>
+              );
+            })}
           </div>
 
-          <article className="admin-employee-detail">
+          <article
+            className={`admin-employee-detail ${corporateScoreTone(selectedEmployee.result)}`}
+            style={{ '--employee-score': `${Math.max(0, Math.min(100, Number(selectedEmployee.result) || 0))}%` }}
+          >
             <div className="employee-skill-top">
               <span className="employee-avatar">{selectedEmployee.name[0]}</span>
               <div>
@@ -6527,6 +6629,46 @@ function AdminDashboardView({ dashboard, heading, error, token = '', organizatio
         </label>
       </div>
 
+      <div className="manual-scenario-panel">
+        <div className="panel-heading">
+          <span className="chip butter"><ClipboardCheck size={14} /> {corporateCopy.fillManually}</span>
+          <h3>{corporateCopy.manualScenarioTitle}</h3>
+          <p>{corporateCopy.manualScenarioDesc}</p>
+        </div>
+        <div className="admin-builder-grid manual-scenario-grid">
+          <label className="builder-field">
+            <span>{corporateCopy.manualTitle}</span>
+            <input value={manualTask.title} onChange={updateManualTask('title')} />
+          </label>
+          <label className="builder-field">
+            <span>{corporateCopy.manualClientType}</span>
+            <input value={manualTask.clientType} onChange={updateManualTask('clientType')} />
+          </label>
+          <label className="builder-field">
+            <span>{corporateCopy.manualSkill}</span>
+            <input value={manualTask.skill} onChange={updateManualTask('skill')} />
+          </label>
+          <label className="builder-field">
+            <span>{corporateCopy.difficulty}</span>
+            <select value={manualTask.difficulty} onChange={updateManualTask('difficulty')}>
+              <option value="easy">{corporateCopy.manualDifficultyEasy}</option>
+              <option value="medium">{corporateCopy.manualDifficultyMedium}</option>
+              <option value="hard">{corporateCopy.manualDifficultyHard}</option>
+            </select>
+          </label>
+          <label className="builder-field span-2">
+            <span>{corporateCopy.manualGoal}</span>
+            <textarea value={manualTask.goal} onChange={updateManualTask('goal')} />
+          </label>
+        </div>
+        <div className="admin-action-row">
+          <span className="chip mint">{corporateCopy.manualFill}</span>
+          <button type="button" className="btn-plush sm primary" onClick={addManualTask} disabled={isAddingManualTask}>
+            <ClipboardCheck size={15} /> {isAddingManualTask ? corporateCopy.addingManual : corporateCopy.addManual}
+          </button>
+        </div>
+      </div>
+
       <div className="admin-action-row">
         <span className="chip sky">
           {employeeMode === 'same' ? corporateCopy.sameModeChip : corporateCopy.uniqueModeChip}
@@ -6537,14 +6679,16 @@ function AdminDashboardView({ dashboard, heading, error, token = '', organizatio
       </div>
 
       <div className="rule-scene-list admin-task-grid">
-        {isGeneratingTasks ? Array.from({ length: 3 }).map((_, index) => <CorporateTaskDraftSkeleton key={index} />) : taskDrafts.map((task) => (
-          <article key={task.id} className="rule-scene-card">
-            <span className="chip sky">{task.status}</span>
-            <h4>{task.title}</h4>
-            <p>{task.clientType} · {task.skill}</p>
-            <small>{corporateCopy.difficulty}: {task.difficulty}</small>
-          </article>
-        ))}
+        {isGeneratingTasks ? Array.from({ length: 3 }).map((_, index) => <CorporateTaskDraftSkeleton key={index} />) : (
+          taskDrafts.length ? taskDrafts.map((task) => (
+            <article key={task.id} className="rule-scene-card">
+              <span className="chip sky">{task.status}</span>
+              <h4>{task.title}</h4>
+              <p>{task.clientType} · {task.skill}</p>
+              <small>{corporateCopy.difficulty}: {task.difficulty}</small>
+            </article>
+          )) : <p className="empty-state span-2">{corporateCopy.noTaskDrafts}</p>
+        )}
       </div>
     </section>
   );

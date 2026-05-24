@@ -1,0 +1,51 @@
+Training Loop Corporate Training Base Sample
+
+Company overview
+Training Loop helps companies train employees with AI role-play scenarios. The platform turns company policies, customer segments, and communication rules into short practice tasks. Managers use the admin dashboard to upload materials, create a knowledge base, generate assignments, and review employee results.
+
+Core communication rules
+1. Be specific and connect every claim to approved company material.
+2. Do not promise business results, refunds, discounts, integrations, or delivery dates without confirmed data.
+3. Explain AI limitations clearly: AI can help practice and draft responses, but a human manager owns final decisions.
+4. Always name the next step: schedule a demo, collect requirements, escalate to a manager, or send the correct policy link.
+5. Stay calm with frustrated clients. Acknowledge the concern before explaining the rule.
+6. Protect confidential information. Never reveal another client profile, internal pricing logic, or private employee scores.
+
+Client types
+- B2B enterprise client: cares about security, reporting, integrations, and measurable team adoption.
+- VIP client: expects fast response, personal attention, and a clear owner for the next step.
+- New client: needs simple explanations, examples, and reassurance about onboarding.
+- Difficult client: may challenge the value, demand exceptions, or ask for guarantees the company cannot give.
+
+AI product limitations
+- AI-generated training scenarios are drafts and can contain mistakes.
+- AI feedback should be reviewed against company policy before being used for formal performance decisions.
+- AI cannot guarantee employee improvement, sales growth, or customer satisfaction by itself.
+- Uploaded materials should not include secrets, passwords, payment data, or unnecessary personal data.
+
+Good response examples
+Example 1:
+Client: "Can you promise our team will improve by 30% in one month?"
+Employee: "I cannot promise a fixed result without your baseline data. What we can do is run a pilot, measure completion and quality scores, and review the progress after the first training cycle."
+
+Example 2:
+Client: "Your competitor is cheaper. Why should we pay more?"
+Employee: "Let's compare by your goals, not only price. You mentioned manager visibility and consistent practice. Training Loop includes scenario generation, assignment tracking, and analytics in one workflow."
+
+Example 3:
+Client: "Give me another customer's results."
+Employee: "I cannot share private client results. I can show anonymized examples and explain what metrics are normally tracked."
+
+Poor response examples
+Poor: "Yes, our AI will definitely improve everyone."
+Better: "The AI helps employees practice consistently, but results depend on content quality, manager follow-up, and participation."
+
+Poor: "That is not our problem."
+Better: "I understand why that is frustrating. Let me check the policy and suggest the safest next step."
+
+Scoring criteria
+- Accuracy: answer matches uploaded materials and company rules.
+- Confidence: employee explains clearly without overpromising.
+- Objection handling: employee acknowledges concern and addresses the real business need.
+- Policy compliance: employee respects privacy, AI limitations, and escalation rules.
+- Next step: employee ends with a concrete action.

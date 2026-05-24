@@ -20,6 +20,7 @@ from ..schemas import (
     CorporateTaskDraft,
     CorporateTaskDraftAssignRequest,
     CorporateTaskDraftAssignResponse,
+    CorporateTaskDraftCreateRequest,
     CorporateTaskDraftGenerateRequest,
     Profile,
     Role,
@@ -139,6 +140,68 @@ def generate_corporate_task_drafts(
         for draft in drafts
     ]
     return repository.create_corporate_task_drafts(rows)
+
+
+@router.post("/task-drafts", response_model=CorporateTaskDraft)
+def create_corporate_task_draft(
+    payload: CorporateTaskDraftCreateRequest,
+    current_user: Profile = Depends(require_roles(Role.admin)),
+    repository: Repository = Depends(get_repository),
+) -> dict:
+    title = payload.title.strip()
+    client_type = payload.client_type.strip()
+    skill = payload.skill.strip()
+    goal = payload.goal.strip()
+    difficulty = payload.difficulty.strip() or "medium"
+
+    if not title or not client_type or not skill or not goal:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Manual draft fields are required.")
+    if difficulty not in {"easy", "medium", "hard"}:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Difficulty must be easy, medium, or hard.")
+
+    knowledge = repository.get_current_corporate_knowledge_base(current_user.organization_id)
+    if not knowledge:
+        knowledge = repository.upsert_corporate_knowledge_base(
+            current_user.organization_id,
+            {
+                "source_prompt": "",
+                "company_brief": "",
+                "rules_brief": "",
+                "client_types": "",
+                "task_goal": goal,
+                "scoring_rules": "",
+                "enabled_settings": {},
+                "status": "manual",
+                "created_by": current_user.id,
+            },
+        )
+    knowledge_base_id = payload.knowledge_base_id or (knowledge["id"] if knowledge else None)
+
+    rows = repository.create_corporate_task_drafts(
+        [
+            {
+                "organization_id": current_user.organization_id,
+                "knowledge_base_id": knowledge_base_id,
+                "title": title,
+                "client_type": client_type,
+                "skill": skill,
+                "difficulty": difficulty,
+                "status": "manual",
+                "generated_payload": {
+                    "source": "manual",
+                    "goal": goal,
+                    "persona": client_type,
+                    "skill": skill,
+                    "difficulty": difficulty,
+                    "steps": [
+                        {"role": "ai", "text": goal},
+                        {"role": "user", "expected": [skill], "hint": goal, "quickReplies": []},
+                    ],
+                },
+            }
+        ]
+    )
+    return rows[0]
 
 
 @router.get("/task-drafts", response_model=list[CorporateTaskDraft])
