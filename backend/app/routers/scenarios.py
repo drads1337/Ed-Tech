@@ -18,7 +18,7 @@ def generate_training_scenario(
     if not material:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Material not found.")
 
-    generated = generate_scenario(material, payload.goal, payload.skills, payload.difficulty)
+    generated = generate_scenario(material, payload.goal, payload.skills, payload.difficulty, payload.language)
     return repository.create_scenario(
         {
             "organization_id": current_user.organization_id,

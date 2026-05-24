@@ -18,7 +18,7 @@ def evaluate_training_attempt(
     if not scenario:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Scenario not found.")
 
-    evaluation = evaluate_attempt(scenario, payload.transcript)
+    evaluation = evaluate_attempt(scenario, payload.transcript, payload.language)
     return repository.create_attempt(
         {
             "user_id": current_user.id,

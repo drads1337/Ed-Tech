@@ -25,12 +25,15 @@ def test_full_demo_loop(client: TestClient):
         json={
             "materialId": material["id"],
             "goal": "Handle launch objections",
-            "skills": ["accuracy", "objection handling", "confidence"],
+            "skills": [],
             "difficulty": "medium",
+            "language": "ru",
         },
     )
     assert scenario_response.status_code == 200
     scenario = scenario_response.json()
+    assert scenario["persona"] == "Сомневающийся корпоративный клиент"
+    assert scenario["evaluationSkills"][0] == "точность знаний"
 
     assignment_response = act_as(client, ADMIN_ID).post(
         "/api/assignments",
@@ -53,6 +56,7 @@ def test_full_demo_loop(client: TestClient):
             "scenarioId": scenario["id"],
             "transcript": [],
             "userMessage": "This helps your team reduce support escalations after launch.",
+            "language": "ru",
         },
     )
     assert message_response.status_code == 200
@@ -64,14 +68,17 @@ def test_full_demo_loop(client: TestClient):
             "scenarioId": scenario["id"],
             "assignmentId": assignment["id"],
             "transcript": transcript,
+            "language": "ru",
         },
     )
     assert attempt_response.status_code == 200
     assert attempt_response.json()["score"] > 0
+    assert attempt_response.json()["feedback"]["summary"].startswith("Хорошая")
 
     admin_dashboard = act_as(client, ADMIN_ID).get("/api/admin/dashboard")
     assert admin_dashboard.status_code == 200
     dashboard = admin_dashboard.json()
+    assert dashboard["organizationName"] == "Demo Organization"
     assert dashboard["scenarios"][0]["completionRate"] == 1
     assert dashboard["scenarios"][0]["averageScore"] is not None
 

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
-from .routers import assignments, attempts, auth, dashboards, materials, onboarding, scenarios, simulation, solo
+from .routers import assignments, attempts, auth, corporate_admin, dashboards, materials, onboarding, scenarios, simulation, solo
 from .routers.live_sim import router as live_sim_router
 from .services.mock_ai import DEFAULT_SKILLS
 
@@ -29,7 +29,7 @@ DEMO_USERS = [
     {
         "id": "00000000-0000-0000-0000-000000000011",
         "email": "employee1@demo.com",
-        "name": "Employee One",
+        "name": "Alina Karimova",
         "role": "employee",
     },
 ]
@@ -53,6 +53,7 @@ def create_app() -> FastAPI:
     app.include_router(onboarding.router)
     app.include_router(assignments.router)
     app.include_router(dashboards.router)
+    app.include_router(corporate_admin.router)
     app.include_router(simulation.router)
     app.include_router(attempts.router)
     app.include_router(solo.router)

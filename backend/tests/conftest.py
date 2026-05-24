@@ -20,6 +20,7 @@ EMPLOYEE_ID = "00000000-0000-0000-0000-000000000011"
 @pytest.fixture
 def repository() -> InMemoryRepository:
     repo = InMemoryRepository()
+    repo.organizations[ORG_ID] = {"id": ORG_ID, "name": "Demo Organization"}
     repo.profiles[ADMIN_ID] = {
         "id": ADMIN_ID,
         "email": "admin@demo.com",
@@ -32,7 +33,7 @@ def repository() -> InMemoryRepository:
     repo.profiles[EMPLOYEE_ID] = {
         "id": EMPLOYEE_ID,
         "email": "employee1@demo.com",
-        "name": "Employee One",
+        "name": "Alina Karimova",
         "role": "employee",
         "organization_id": ORG_ID,
         "xp": 0,

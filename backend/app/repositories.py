@@ -17,6 +17,10 @@ class Repository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_organization(self, organization_id: str) -> dict | None:
+        raise NotImplementedError
+
+    @abstractmethod
     def create_session(self, payload: dict) -> dict:
         raise NotImplementedError
 
@@ -72,6 +76,50 @@ class Repository(ABC):
     def list_admin_dashboard_rows(self, organization_id: str) -> dict:
         raise NotImplementedError
 
+    @abstractmethod
+    def create_corporate_document(self, payload: dict) -> dict:
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_corporate_documents(self, organization_id: str) -> list[dict]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_corporate_documents(self, organization_id: str, document_ids: list[str] | None = None) -> list[dict]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def upsert_corporate_knowledge_base(self, organization_id: str, payload: dict) -> dict:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_current_corporate_knowledge_base(self, organization_id: str) -> dict | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def create_corporate_task_drafts(self, payloads: list[dict]) -> list[dict]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_corporate_task_drafts(self, organization_id: str, knowledge_base_id: str | None = None) -> list[dict]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_corporate_task_drafts(self, organization_id: str, task_draft_ids: list[str]) -> list[dict]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def upsert_corporate_prizes(self, organization_id: str, payload: dict) -> dict:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_corporate_prizes(self, organization_id: str) -> dict | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_organization_profiles(self, organization_id: str) -> list[dict]:
+        raise NotImplementedError
+
     # ── Solo / CommTrainer ────────────────────────────────────────────────────
 
     @abstractmethod
@@ -115,6 +163,16 @@ class SupabaseRepository(Repository):
         result = self.client.table("organizations").insert({"name": name}).execute()
         return result.data[0]
 
+    def get_organization(self, organization_id: str) -> dict | None:
+        result = (
+            self.client.table("organizations")
+            .select("*")
+            .eq("id", organization_id)
+            .maybe_single()
+            .execute()
+        )
+        return result.data if result else None
+
     def upsert_profile(self, payload: dict) -> dict:
         result = self.client.table("profiles").upsert(payload).execute()
         return result.data[0]
@@ -122,7 +180,7 @@ class SupabaseRepository(Repository):
     # Hardcoded demo profiles so X-Demo-User works even against real Supabase
     _DEMO_PROFILES: dict[str, dict] = {
         DEMO_ADMIN_ID: {"id": DEMO_ADMIN_ID, "email": "admin@demo.com", "name": "Demo Admin", "role": "admin", "organization_id": DEMO_ORG_ID, "xp": 0, "streak": 0},
-        DEMO_EMPLOYEE_ID: {"id": DEMO_EMPLOYEE_ID, "email": "employee1@demo.com", "name": "Employee One", "role": "employee", "organization_id": DEMO_ORG_ID, "xp": 120, "streak": 3},
+        DEMO_EMPLOYEE_ID: {"id": DEMO_EMPLOYEE_ID, "email": "employee1@demo.com", "name": "Alina Karimova", "role": "employee", "organization_id": DEMO_ORG_ID, "xp": 120, "streak": 3},
     }
 
     def get_profile(self, user_id: str) -> dict | None:
@@ -220,6 +278,96 @@ class SupabaseRepository(Repository):
             if row.get("scenario", {}).get("organization_id") == organization_id
         ]
         return {"assignments": assignments, "attempts": attempts}
+
+    def create_corporate_document(self, payload: dict) -> dict:
+        return self.client.table("corporate_documents").insert(payload).execute().data[0]
+
+    def list_corporate_documents(self, organization_id: str) -> list[dict]:
+        return (
+            self.client.table("corporate_documents")
+            .select("*")
+            .eq("organization_id", organization_id)
+            .order("created_at", desc=True)
+            .execute()
+            .data
+        )
+
+    def get_corporate_documents(self, organization_id: str, document_ids: list[str] | None = None) -> list[dict]:
+        query = self.client.table("corporate_documents").select("*").eq("organization_id", organization_id)
+        if document_ids:
+            query = query.in_("id", document_ids)
+        return query.execute().data
+
+    def upsert_corporate_knowledge_base(self, organization_id: str, payload: dict) -> dict:
+        existing = self.get_current_corporate_knowledge_base(organization_id)
+        if existing:
+            return (
+                self.client.table("corporate_knowledge_bases")
+                .update(payload)
+                .eq("id", existing["id"])
+                .execute()
+                .data[0]
+            )
+        return self.client.table("corporate_knowledge_bases").insert({"organization_id": organization_id, **payload}).execute().data[0]
+
+    def get_current_corporate_knowledge_base(self, organization_id: str) -> dict | None:
+        result = (
+            self.client.table("corporate_knowledge_bases")
+            .select("*")
+            .eq("organization_id", organization_id)
+            .order("updated_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        return result.data[0] if result.data else None
+
+    def create_corporate_task_drafts(self, payloads: list[dict]) -> list[dict]:
+        if not payloads:
+            return []
+        return self.client.table("corporate_task_drafts").insert(payloads).execute().data
+
+    def list_corporate_task_drafts(self, organization_id: str, knowledge_base_id: str | None = None) -> list[dict]:
+        query = self.client.table("corporate_task_drafts").select("*").eq("organization_id", organization_id)
+        if knowledge_base_id:
+            query = query.eq("knowledge_base_id", knowledge_base_id)
+        return query.order("created_at", desc=True).execute().data
+
+    def get_corporate_task_drafts(self, organization_id: str, task_draft_ids: list[str]) -> list[dict]:
+        return (
+            self.client.table("corporate_task_drafts")
+            .select("*")
+            .eq("organization_id", organization_id)
+            .in_("id", task_draft_ids)
+            .execute()
+            .data
+        )
+
+    def upsert_corporate_prizes(self, organization_id: str, payload: dict) -> dict:
+        result = (
+            self.client.table("corporate_prizes")
+            .upsert({"organization_id": organization_id, **payload}, on_conflict="organization_id")
+            .execute()
+        )
+        return result.data[0]
+
+    def get_corporate_prizes(self, organization_id: str) -> dict | None:
+        result = (
+            self.client.table("corporate_prizes")
+            .select("*")
+            .eq("organization_id", organization_id)
+            .maybe_single()
+            .execute()
+        )
+        return result.data if result else None
+
+    def list_organization_profiles(self, organization_id: str) -> list[dict]:
+        return (
+            self.client.table("profiles")
+            .select("*")
+            .eq("organization_id", organization_id)
+            .execute()
+            .data
+        )
 
     def create_session(self, payload: dict) -> dict:
         result = self.client.table("simulation_sessions").insert(payload).execute()
@@ -402,6 +550,7 @@ def _pick_daily_suggestions(pool: list[dict], industry_ids: list[str], date_key:
 
 class InMemoryRepository(Repository):
     def __init__(self, seed_demo: bool = False) -> None:
+        self.organizations: dict[str, dict] = {}
         self.profiles: dict[str, dict] = {}
         self.materials: dict[str, dict] = {}
         self.scenarios: dict[str, dict] = {}
@@ -410,11 +559,16 @@ class InMemoryRepository(Repository):
         self.sessions: dict[str, dict] = {}
         self.user_progress: dict[str, dict] = {}
         self.solo_attempts: list[dict] = []
+        self.corporate_documents: dict[str, dict] = {}
+        self.corporate_knowledge_bases: dict[str, dict] = {}
+        self.corporate_task_drafts: dict[str, dict] = {}
+        self.corporate_prizes: dict[str, dict] = {}
 
         if seed_demo:
             self._seed_demo()
 
     def _seed_demo(self) -> None:
+        self.organizations[DEMO_ORG_ID] = {"id": DEMO_ORG_ID, "name": "Demo Organization"}
         self.profiles[DEMO_ADMIN_ID] = {
             "id": DEMO_ADMIN_ID,
             "email": "admin@demo.com",
@@ -427,7 +581,7 @@ class InMemoryRepository(Repository):
         self.profiles[DEMO_EMPLOYEE_ID] = {
             "id": DEMO_EMPLOYEE_ID,
             "email": "employee1@demo.com",
-            "name": "Employee One",
+            "name": "Alina Karimova",
             "role": "employee",
             "organization_id": DEMO_ORG_ID,
             "xp": 120,
@@ -484,7 +638,11 @@ class InMemoryRepository(Repository):
 
     def create_organization(self, name: str) -> dict:
         row = {"id": str(uuid4()), "name": name}
+        self.organizations[row["id"]] = row
         return row
+
+    def get_organization(self, organization_id: str) -> dict | None:
+        return self.organizations.get(organization_id)
 
     def upsert_profile(self, payload: dict) -> dict:
         self.profiles[payload["id"]] = payload
@@ -555,6 +713,87 @@ class InMemoryRepository(Repository):
             if self.scenarios[row["scenario_id"]]["organization_id"] == organization_id
         ]
         return {"assignments": assignments, "attempts": attempts}
+
+    def create_corporate_document(self, payload: dict) -> dict:
+        now = datetime.now(timezone.utc).isoformat()
+        row = {"id": str(uuid4()), "created_at": now, "updated_at": now, **payload}
+        self.corporate_documents[row["id"]] = row
+        return row
+
+    def list_corporate_documents(self, organization_id: str) -> list[dict]:
+        return [
+            row
+            for row in self.corporate_documents.values()
+            if row["organization_id"] == organization_id
+        ]
+
+    def get_corporate_documents(self, organization_id: str, document_ids: list[str] | None = None) -> list[dict]:
+        ids = set(document_ids or [])
+        return [
+            row
+            for row in self.corporate_documents.values()
+            if row["organization_id"] == organization_id and (not ids or row["id"] in ids)
+        ]
+
+    def upsert_corporate_knowledge_base(self, organization_id: str, payload: dict) -> dict:
+        now = datetime.now(timezone.utc).isoformat()
+        existing = self.get_current_corporate_knowledge_base(organization_id)
+        if existing:
+            existing.update(payload)
+            existing["updated_at"] = now
+            return existing
+        row = {"id": str(uuid4()), "organization_id": organization_id, "created_at": now, "updated_at": now, **payload}
+        self.corporate_knowledge_bases[row["id"]] = row
+        return row
+
+    def get_current_corporate_knowledge_base(self, organization_id: str) -> dict | None:
+        rows = [
+            row
+            for row in self.corporate_knowledge_bases.values()
+            if row["organization_id"] == organization_id
+        ]
+        return sorted(rows, key=lambda row: row.get("updated_at") or "", reverse=True)[0] if rows else None
+
+    def create_corporate_task_drafts(self, payloads: list[dict]) -> list[dict]:
+        now = datetime.now(timezone.utc).isoformat()
+        rows = []
+        for payload in payloads:
+            row = {"id": str(uuid4()), "created_at": now, "updated_at": now, **payload}
+            self.corporate_task_drafts[row["id"]] = row
+            rows.append(row)
+        return rows
+
+    def list_corporate_task_drafts(self, organization_id: str, knowledge_base_id: str | None = None) -> list[dict]:
+        return [
+            row
+            for row in self.corporate_task_drafts.values()
+            if row["organization_id"] == organization_id
+            and (knowledge_base_id is None or row["knowledge_base_id"] == knowledge_base_id)
+        ]
+
+    def get_corporate_task_drafts(self, organization_id: str, task_draft_ids: list[str]) -> list[dict]:
+        ids = set(task_draft_ids)
+        return [
+            row
+            for row in self.corporate_task_drafts.values()
+            if row["organization_id"] == organization_id and row["id"] in ids
+        ]
+
+    def upsert_corporate_prizes(self, organization_id: str, payload: dict) -> dict:
+        now = datetime.now(timezone.utc).isoformat()
+        row = {"organization_id": organization_id, "updated_at": now, **payload}
+        self.corporate_prizes[organization_id] = row
+        return row
+
+    def get_corporate_prizes(self, organization_id: str) -> dict | None:
+        return self.corporate_prizes.get(organization_id)
+
+    def list_organization_profiles(self, organization_id: str) -> list[dict]:
+        return [
+            row
+            for row in self.profiles.values()
+            if row["organization_id"] == organization_id
+        ]
 
     def create_session(self, payload: dict) -> dict:
         row = {"id": str(uuid4()), **payload}

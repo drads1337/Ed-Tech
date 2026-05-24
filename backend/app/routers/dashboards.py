@@ -52,6 +52,7 @@ def get_admin_dashboard(
     repository: Repository = Depends(get_repository),
 ) -> AdminDashboard:
     rows = repository.list_admin_dashboard_rows(current_user.organization_id)
+    organization = repository.get_organization(current_user.organization_id)
     attempts = rows["attempts"]
     attempts_by_user_and_scenario = {
         (attempt["user_id"], attempt["scenario_id"]): attempt
@@ -115,6 +116,7 @@ def get_admin_dashboard(
 
     return AdminDashboard(
         organization_id=current_user.organization_id,
+        organization_name=organization.get("name") if organization else None,
         scenarios=scenarios,
         weak_skills=weak_skills,
         completion_rate=completion_rate,

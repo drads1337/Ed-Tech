@@ -38,7 +38,7 @@ EMOTION_DESCS = {
 
 LANGUAGE_NAMES = {"en": "English", "ru": "Russian", "uz": "Uzbek"}
 TTS_MODEL = "openai/gpt-4o-mini-tts-2025-12-15"
-TTS_VOICE = "nova"  # OpenAI voice: alloy | echo | fable | onyx | nova | shimmer
+TTS_VOICE = "onyx"  # OpenAI voice: alloy | echo | fable | onyx | nova | shimmer
 ALLOWED_EMOTIONS = {"neutral", "happy", "angry", "sad"}
 ALLOWED_MOTIONS = {"idle", "listening", "thinking", "talking", "gesture"}
 
@@ -49,6 +49,7 @@ Return ONLY valid JSON with this exact shape:
 {
   "score": 1-100,
   "rating": 1-3,
+  "goal_achieved": true/false,
   "summary": "short summary",
   "positives": ["3 concrete strengths"],
   "negatives": ["3 concrete improvements"],
@@ -151,7 +152,12 @@ def _fallback_brief(title: str, goal: str, transcript: list[dict]) -> dict:
     return {
         "score": 62 if has_user_input else 35,
         "rating": 2 if has_user_input else 1,
-        "summary": f"Диалог по сценарию «{title or 'Live simulation'}» завершён. Цель: {goal or 'тренировка коммуникации'}.",
+        "goal_achieved": bool(has_user_input),
+        "summary": (
+            f"Диалог по сценарию «{title or 'Live simulation'}» завершён. "
+            f"Цель: {goal or 'тренировка коммуникации'}. "
+            f"{'Цель частично достигнута.' if has_user_input else 'Цель не достигнута: не было содержательного ответа пользователя.'}"
+        ),
         "positives": [
             "Вы довели тренировку до завершения.",
             "В диалоге был сохранён профессиональный контекст.",
@@ -190,6 +196,7 @@ def _clean_brief_payload(raw: dict, fallback: dict) -> dict:
     return {
         "score": score,
         "rating": rating,
+        "goal_achieved": bool(raw.get("goal_achieved", fallback.get("goal_achieved", score >= 60))),
         "summary": str(raw.get("summary") or fallback["summary"]).strip(),
         "positives": list_of_strings(raw.get("positives"), fallback["positives"], 4),
         "negatives": list_of_strings(raw.get("negatives"), fallback["negatives"], 4),
