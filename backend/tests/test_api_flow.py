@@ -78,6 +78,7 @@ def test_full_demo_loop(client: TestClient):
     admin_dashboard = act_as(client, ADMIN_ID).get("/api/admin/dashboard")
     assert admin_dashboard.status_code == 200
     dashboard = admin_dashboard.json()
+    assert dashboard["organizationName"] == "Demo Organization"
     assert dashboard["scenarios"][0]["completionRate"] == 1
     assert dashboard["scenarios"][0]["averageScore"] is not None
 

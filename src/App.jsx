@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 import * as THREE from 'three';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { apiRequest, getSessionToken, supabase } from './backendApi.js';
+import { apiFormRequest, apiRequest, getSessionToken, supabase } from './backendApi.js';
 import { BackgroundMusic, CommTrainerExperience, TrainerFloatingDecor } from './CommTrainerApp.jsx';
 import {
   EmotionStatusPanel,
@@ -3408,6 +3408,7 @@ function mergeBackendProfileWithLocalState(profile, localUser = null) {
     email: normalizedEmail,
     role: profile.role,
     organizationId: profile.organizationId,
+    organizationName: profile.organizationName || localUser?.organizationName || '',
     xp: profile.xp ?? localUser?.xp ?? 0,
     streak: profile.streak ?? localUser?.streak ?? 0,
     level: localUser?.level || 'Старт',
@@ -4645,6 +4646,378 @@ const DASHBOARD_PROFILE_COPY = {
   },
 };
 
+const CORPORATE_COPY = {
+  ru: {
+    loadingDashboard: 'Загрузка панели',
+    loadingPage: 'Загрузка корпоративной страницы',
+    backendWarning: 'Корпоративный backend недоступен. Проверьте сервер, сессию Supabase и профиль администратора.',
+    backendUnavailablePrefix: 'Backend недоступен',
+    liveBackend: 'Live backend',
+    backendError: 'Ошибка backend',
+    adminTitle: 'Панель команды',
+    employeeTitle: 'Мой тренажёр',
+    adminSubtitleLive: 'База знаний, задания и результаты собраны в одном месте. Можно назначать практику и смотреть, как команда проходит обучение.',
+    adminSubtitleError: 'Live admin data could not be loaded. Check the FastAPI server, Supabase session, and matching admin profile.',
+    employeeSubtitle: 'Личный маршрут готов: первый сценарий открыт, прогресс сохранён, а награда уже ждёт в профиле.',
+    homeBack: 'К home',
+    open: 'Открыть',
+    dashboard: 'Dashboard',
+    dashboardBadge: 'СТАТИСТИКА',
+    dashboardDesc: 'Сотрудники, результаты, польза для компании.',
+    base: 'Создать базу',
+    baseBadge: 'ФАЙЛЫ',
+    baseDesc: 'Документы, промпты и база знаний.',
+    assignments: 'Задания',
+    assignmentsBadge: 'ЗАПУСК',
+    assignmentsDesc: 'Одинаковый или уникальный режим.',
+    prizes: 'Призы',
+    prizesBadge: 'ТОП-3',
+    prizesDesc: 'Первое, второе и третье место.',
+    company: 'Компания',
+    documents: 'Документы',
+    averageGrowth: 'Средний рост',
+    employees: 'Сотрудники',
+    teamAnalytics: 'Командная аналитика',
+    teamAnalyticsDesc: 'Результаты сотрудников, точность по базе и польза для компании в одном рабочем виде.',
+    usefulness: 'Польза',
+    employee: 'Сотрудник',
+    role: 'Роль',
+    result: 'Результат',
+    files: 'Файлы',
+    character: 'Характер',
+    strengths: 'Плюсы',
+    effect: 'Эффект',
+    fileAccuracy: 'точность по файлам',
+    noEmployees: 'Сотрудники пока не найдены для этой организации.',
+    knowledgeBase: 'База знаний',
+    baseTitle: 'База для обучения',
+    baseDescLong: 'Админ добавляет документы и основной промпт. После кнопки “Создать базу” ИИ собирает черновик, который можно править.',
+    uploading: 'Загрузка...',
+    addDocuments: 'Добавить документы',
+    uploadHint: 'PDF, DOCX, TXT, правила, playbook, описание компании',
+    aiReady: 'Готов к ИИ',
+    newDocument: 'Новый документ',
+    promptLabel: 'Промпт для базы',
+    creating: 'Создание...',
+    createBase: 'Создать базу',
+    baseCreated: 'База создана',
+    manualFill: 'Можно заполнить все вручную',
+    constructor: 'Конструктор',
+    scenarioForms: 'Формы сценариев',
+    clientFlexible: 'Тип клиентов: гибко',
+    clientB2b: 'B2B',
+    clientB2c: 'B2C',
+    clientVip: 'VIP / сложные',
+    aiBuildsTasks: 'ИИ сам соберет задания',
+    fillManually: 'Заполнить вручную',
+    companyBrief: 'Суть компании',
+    rulesBrief: 'Правила и ограничения',
+    clientTypes: 'Типы клиентов',
+    taskGoal: 'Что тренируем',
+    scoringRules: 'Критерии проверки',
+    assignmentsTitle: 'Что уйдет сотрудникам',
+    sending: 'Отправка...',
+    send: 'Отправить',
+    sameMode: 'У всех одинаковые проблемы и задания',
+    uniqueMode: 'У каждого свое уникальное задание по роли и слабым местам',
+    sameModeChip: 'Сотрудникам уйдут одинаковые проблемы',
+    uniqueModeChip: 'Сотрудникам уйдут персональные варианты',
+    generating: 'Генерация...',
+    generateByAi: 'Сгенерировать через ИИ',
+    noEmployeesOrTasks: 'Нет сотрудников или заданий для отправки.',
+    createBaseFirst: 'Сначала создайте базу знаний, затем генерируйте задания через ИИ.',
+    difficulty: 'Сложность',
+    prizesTitle: 'Только топ-3',
+    saved: 'Сохранено',
+    draft: 'Черновик',
+    firstPlace: '1 место',
+    secondPlace: '2 место',
+    thirdPlace: '3 место',
+    prizePreview: 'Превью призов',
+    firstFallback: '1 место пока не указано',
+    secondFallback: '2 место пока не указано',
+    thirdFallback: '3 место пока не указано',
+    save: 'Сохранить',
+    defaultPrizes: {
+      first: '1 место: денежный бонус и сертификат лидера обучения',
+      second: '2 место: подарок от компании и публичное признание',
+      third: '3 место: доступ к продвинутому AI-треку',
+    },
+    defaults: {
+      sourcePrompt: 'Собери базу знаний для обучения сотрудников: правила компании, типы клиентов, ограничения ИИ, примеры правильных ответов.',
+      companyBrief: 'Компания продает AI-платформу для обучения сотрудников и хочет единый стандарт общения с клиентами.',
+      rulesBrief: 'Не обещать результат без данных, объяснять ограничения ИИ, фиксировать следующий шаг и соблюдать регламенты компании.',
+      clientType: 'B2B enterprise, VIP-клиент, новый клиент, сложный клиент',
+      taskGoal: 'Сгенерировать задания, где сотрудник объясняет ценность ИИ, работает с возражениями и следует правилам компании.',
+      scoringRules: 'Оценивать точность, спокойный тон, соблюдение политики, понятный следующий шаг и итоговое решение клиента.',
+    },
+    employeeSettings: 'Настройки',
+    employeeModeTitle: 'Личный режим как у solo',
+    employeeModeDesc: 'Можно сразу тренироваться по заданиям компании или выбрать отрасль для дополнительных сценариев.',
+    optionalIndustry: 'Отрасль, если нужна',
+    noIndustryNow: 'Не выбирать сейчас',
+    gentleMode: 'Мягко, с подсказками',
+    realisticMode: 'Реалистично',
+    hardMode: 'Сложный клиент',
+    showHints: 'Показывать подсказки во время сцены',
+    companyAssignment: 'Задание компании',
+    companyTasks: 'Задания компании',
+    adminScenes: 'Сцены от админа',
+    active: 'активных',
+    requiredScore: 'Нужно набрать',
+    start: 'Начать',
+    assigned: 'Назначено',
+    completed: 'Выполнено',
+    mode: 'Режим',
+  },
+  uz: {
+    loadingDashboard: 'Panel yuklanmoqda',
+    loadingPage: 'Korporativ sahifa yuklanmoqda',
+    backendWarning: 'Korporativ backend mavjud emas. Server, Supabase sessiyasi va admin profilini tekshiring.',
+    backendUnavailablePrefix: 'Backend mavjud emas',
+    liveBackend: 'Live backend',
+    backendError: 'Backend xatosi',
+    adminTitle: 'Jamoa paneli',
+    employeeTitle: 'Mening trenajyorim',
+    adminSubtitleLive: 'Bilim bazasi, topshiriqlar va natijalar bir joyda. Amaliyotni tayinlash va jamoa o‘qishini kuzatish mumkin.',
+    adminSubtitleError: 'Live admin ma’lumotlari yuklanmadi. FastAPI serveri, Supabase sessiyasi va admin profilini tekshiring.',
+    employeeSubtitle: 'Shaxsiy yo‘l tayyor: birinchi ssenariy ochiq, progress saqlangan, mukofot profilda kutmoqda.',
+    homeBack: 'Home ga',
+    open: 'Ochish',
+    dashboard: 'Dashboard',
+    dashboardBadge: 'STATISTIKA',
+    dashboardDesc: 'Xodimlar, natijalar va kompaniya foydasi.',
+    base: 'Baza yaratish',
+    baseBadge: 'FAYLLAR',
+    baseDesc: 'Hujjatlar, promptlar va bilim bazasi.',
+    assignments: 'Topshiriqlar',
+    assignmentsBadge: 'START',
+    assignmentsDesc: 'Bir xil yoki individual rejim.',
+    prizes: 'Sovrinlar',
+    prizesBadge: 'TOP-3',
+    prizesDesc: 'Birinchi, ikkinchi va uchinchi o‘rin.',
+    company: 'Kompaniya',
+    documents: 'Hujjatlar',
+    averageGrowth: 'O‘rtacha o‘sish',
+    employees: 'Xodimlar',
+    teamAnalytics: 'Jamoa analitikasi',
+    teamAnalyticsDesc: 'Xodim natijalari, baza bo‘yicha aniqlik va kompaniya foydasi bir ko‘rinishda.',
+    usefulness: 'Foyda',
+    employee: 'Xodim',
+    role: 'Rol',
+    result: 'Natija',
+    files: 'Fayllar',
+    character: 'Xarakter',
+    strengths: 'Kuchli tomonlar',
+    effect: 'Effekt',
+    fileAccuracy: 'fayllar bo‘yicha aniqlik',
+    noEmployees: 'Bu tashkilot uchun xodimlar hali topilmadi.',
+    knowledgeBase: 'Bilim bazasi',
+    baseTitle: 'O‘qitish bazasi',
+    baseDescLong: 'Admin hujjatlar va asosiy promptni qo‘shadi. “Baza yaratish” tugmasidan keyin AI tahrirlash mumkin bo‘lgan draft yaratadi.',
+    uploading: 'Yuklanmoqda...',
+    addDocuments: 'Hujjat qo‘shish',
+    uploadHint: 'PDF, DOCX, TXT, qoidalar, playbook, kompaniya tavsifi',
+    aiReady: 'AI uchun tayyor',
+    newDocument: 'Yangi hujjat',
+    promptLabel: 'Baza uchun prompt',
+    creating: 'Yaratilmoqda...',
+    createBase: 'Baza yaratish',
+    baseCreated: 'Baza yaratildi',
+    manualFill: 'Hammasini qo‘lda to‘ldirish mumkin',
+    constructor: 'Konstruktor',
+    scenarioForms: 'Ssenariy shakllari',
+    clientFlexible: 'Mijoz turlari: moslashuvchan',
+    clientB2b: 'B2B',
+    clientB2c: 'B2C',
+    clientVip: 'VIP / murakkab',
+    aiBuildsTasks: 'AI topshiriqlarni o‘zi tuzadi',
+    fillManually: 'Qo‘lda to‘ldirish',
+    companyBrief: 'Kompaniya mazmuni',
+    rulesBrief: 'Qoidalar va cheklovlar',
+    clientTypes: 'Mijoz turlari',
+    taskGoal: 'Nimani mashq qilamiz',
+    scoringRules: 'Baholash mezonlari',
+    assignmentsTitle: 'Xodimlarga nima yuboriladi',
+    sending: 'Yuborilmoqda...',
+    send: 'Yuborish',
+    sameMode: 'Hammada bir xil muammolar va topshiriqlar',
+    uniqueMode: 'Har bir xodimga roli va zaif joylariga mos individual topshiriq',
+    sameModeChip: 'Xodimlarga bir xil muammolar yuboriladi',
+    uniqueModeChip: 'Xodimlarga shaxsiy variantlar yuboriladi',
+    generating: 'Generatsiya...',
+    generateByAi: 'AI orqali yaratish',
+    noEmployeesOrTasks: 'Yuborish uchun xodimlar yoki topshiriqlar yo‘q.',
+    createBaseFirst: 'Avval bilim bazasini yarating, keyin AI orqali topshiriqlarni generatsiya qiling.',
+    difficulty: 'Murakkablik',
+    prizesTitle: 'Faqat top-3',
+    saved: 'Saqlangan',
+    draft: 'Draft',
+    firstPlace: '1-o‘rin',
+    secondPlace: '2-o‘rin',
+    thirdPlace: '3-o‘rin',
+    prizePreview: 'Sovrinlar preview',
+    firstFallback: '1-o‘rin hali ko‘rsatilmagan',
+    secondFallback: '2-o‘rin hali ko‘rsatilmagan',
+    thirdFallback: '3-o‘rin hali ko‘rsatilmagan',
+    save: 'Saqlash',
+    defaultPrizes: {
+      first: '1-o‘rin: pul bonusi va o‘quv lideri sertifikati',
+      second: '2-o‘rin: kompaniya sovg‘asi va ommaviy e’tirof',
+      third: '3-o‘rin: ilg‘or AI trekka kirish',
+    },
+    defaults: {
+      sourcePrompt: 'Xodimlarni o‘qitish uchun bilim bazasini yig‘ing: kompaniya qoidalari, mijoz turlari, AI cheklovlari va to‘g‘ri javob namunalari.',
+      companyBrief: 'Kompaniya xodimlarni o‘qitish uchun AI-platforma sotadi va mijozlar bilan muloqot uchun yagona standart yaratmoqchi.',
+      rulesBrief: 'Ma’lumotsiz natija va’da qilmaslik, AI cheklovlarini tushuntirish, keyingi qadamni belgilash va kompaniya reglamentlariga amal qilish.',
+      clientType: 'B2B enterprise, VIP mijoz, yangi mijoz, murakkab mijoz',
+      taskGoal: 'Xodim AI qiymatini tushuntiradigan, e’tirozlar bilan ishlaydigan va kompaniya qoidalariga amal qiladigan topshiriqlar yaratish.',
+      scoringRules: 'Aniqlik, sokin ohang, siyosatga rioya qilish, tushunarli keyingi qadam va mijoz uchun yakuniy qarorni baholash.',
+    },
+    employeeSettings: 'Sozlamalar',
+    employeeModeTitle: 'Solo kabi shaxsiy rejim',
+    employeeModeDesc: 'Kompaniya topshiriqlari bilan darhol mashq qilish yoki qo‘shimcha ssenariylar uchun sohani tanlash mumkin.',
+    optionalIndustry: 'Kerak bo‘lsa soha',
+    noIndustryNow: 'Hozir tanlamaslik',
+    gentleMode: 'Yumshoq, maslahatlar bilan',
+    realisticMode: 'Realistik',
+    hardMode: 'Murakkab mijoz',
+    showHints: 'Sahna vaqtida maslahatlarni ko‘rsatish',
+    companyAssignment: 'Kompaniya topshirig‘i',
+    companyTasks: 'Kompaniya topshiriqlari',
+    adminScenes: 'Admin sahnalari',
+    active: 'faol',
+    requiredScore: 'Kerakli ball',
+    start: 'Boshlash',
+    assigned: 'Tayinlangan',
+    completed: 'Bajarilgan',
+    mode: 'Rejim',
+  },
+  en: {
+    loadingDashboard: 'Loading dashboard',
+    loadingPage: 'Loading corporate page',
+    backendWarning: 'Corporate backend is unavailable. Check the server, Supabase session, and admin profile.',
+    backendUnavailablePrefix: 'Backend unavailable',
+    liveBackend: 'Live backend',
+    backendError: 'Backend error',
+    adminTitle: 'Team dashboard',
+    employeeTitle: 'My trainer',
+    adminSubtitleLive: 'Knowledge base, assignments, and results are gathered in one place. Assign practice and track how the team is learning.',
+    adminSubtitleError: 'Live admin data could not be loaded. Check the FastAPI server, Supabase session, and matching admin profile.',
+    employeeSubtitle: 'Your personal route is ready: the first scenario is open, progress is saved, and the reward is waiting in your profile.',
+    homeBack: 'To home',
+    open: 'Open',
+    dashboard: 'Dashboard',
+    dashboardBadge: 'STATS',
+    dashboardDesc: 'Employees, results, and company impact.',
+    base: 'Create base',
+    baseBadge: 'FILES',
+    baseDesc: 'Documents, prompts, and knowledge base.',
+    assignments: 'Assignments',
+    assignmentsBadge: 'LAUNCH',
+    assignmentsDesc: 'Same or unique mode.',
+    prizes: 'Prizes',
+    prizesBadge: 'TOP-3',
+    prizesDesc: 'First, second, and third place.',
+    company: 'Company',
+    documents: 'Documents',
+    averageGrowth: 'Average growth',
+    employees: 'Employees',
+    teamAnalytics: 'Team analytics',
+    teamAnalyticsDesc: 'Employee results, knowledge-base accuracy, and company impact in one working view.',
+    usefulness: 'Usefulness',
+    employee: 'Employee',
+    role: 'Role',
+    result: 'Result',
+    files: 'Files',
+    character: 'Character',
+    strengths: 'Strengths',
+    effect: 'Impact',
+    fileAccuracy: 'file accuracy',
+    noEmployees: 'No employees found for this organization yet.',
+    knowledgeBase: 'Knowledge base',
+    baseTitle: 'Training base',
+    baseDescLong: 'Admin adds documents and the main prompt. After “Create base”, AI builds an editable draft.',
+    uploading: 'Uploading...',
+    addDocuments: 'Add documents',
+    uploadHint: 'PDF, DOCX, TXT, rules, playbook, company description',
+    aiReady: 'Ready for AI',
+    newDocument: 'New document',
+    promptLabel: 'Base prompt',
+    creating: 'Creating...',
+    createBase: 'Create base',
+    baseCreated: 'Base created',
+    manualFill: 'Everything can be filled manually',
+    constructor: 'Builder',
+    scenarioForms: 'Scenario forms',
+    clientFlexible: 'Client types: flexible',
+    clientB2b: 'B2B',
+    clientB2c: 'B2C',
+    clientVip: 'VIP / complex',
+    aiBuildsTasks: 'AI will build assignments',
+    fillManually: 'Fill manually',
+    companyBrief: 'Company brief',
+    rulesBrief: 'Rules and limits',
+    clientTypes: 'Client types',
+    taskGoal: 'Training focus',
+    scoringRules: 'Scoring criteria',
+    assignmentsTitle: 'What employees will receive',
+    sending: 'Sending...',
+    send: 'Send',
+    sameMode: 'Everyone gets the same problems and assignments',
+    uniqueMode: 'Each employee gets a unique assignment for their role and weak spots',
+    sameModeChip: 'Employees will receive the same problems',
+    uniqueModeChip: 'Employees will receive personalized variants',
+    generating: 'Generating...',
+    generateByAi: 'Generate by AI',
+    noEmployeesOrTasks: 'No employees or assignments to send.',
+    createBaseFirst: 'Create the knowledge base first, then generate assignments with AI.',
+    difficulty: 'Difficulty',
+    prizesTitle: 'Top-3 only',
+    saved: 'Saved',
+    draft: 'Draft',
+    firstPlace: '1st place',
+    secondPlace: '2nd place',
+    thirdPlace: '3rd place',
+    prizePreview: 'Prize preview',
+    firstFallback: '1st place is not set yet',
+    secondFallback: '2nd place is not set yet',
+    thirdFallback: '3rd place is not set yet',
+    save: 'Save',
+    defaultPrizes: {
+      first: '1st place: cash bonus and training leader certificate',
+      second: '2nd place: company gift and public recognition',
+      third: '3rd place: access to an advanced AI track',
+    },
+    defaults: {
+      sourcePrompt: 'Build a knowledge base for employee training: company rules, client types, AI limits, and examples of good answers.',
+      companyBrief: 'The company sells an AI platform for employee training and wants one standard for customer communication.',
+      rulesBrief: 'Do not promise results without data, explain AI limits, define the next step, and follow company policies.',
+      clientType: 'B2B enterprise, VIP client, new client, difficult client',
+      taskGoal: 'Generate assignments where employees explain AI value, handle objections, and follow company rules.',
+      scoringRules: 'Score accuracy, calm tone, policy adherence, clear next step, and a final customer decision.',
+    },
+    employeeSettings: 'Settings',
+    employeeModeTitle: 'Personal mode like solo',
+    employeeModeDesc: 'Train on company assignments right away or choose an industry for extra scenarios.',
+    optionalIndustry: 'Industry, if needed',
+    noIndustryNow: 'Do not choose now',
+    gentleMode: 'Gentle, with hints',
+    realisticMode: 'Realistic',
+    hardMode: 'Difficult client',
+    showHints: 'Show hints during the scene',
+    companyAssignment: 'Company assignment',
+    companyTasks: 'Company assignments',
+    adminScenes: 'Admin scenes',
+    active: 'active',
+    requiredScore: 'Required score',
+    start: 'Start',
+    assigned: 'Assigned',
+    completed: 'Completed',
+    mode: 'Mode',
+  },
+};
+
 function DashboardProfileView({ profile, copy, onSignOut }) {
   const roleLabel = profile?.onboarding?.roleLabel
     || (profile?.role === 'admin' ? 'Admin' : profile?.role || '—');
@@ -4692,17 +5065,322 @@ function DashboardProfileView({ profile, copy, onSignOut }) {
   );
 }
 
+function SkeletonLine({ className = '' }) {
+  return <span className={`corporate-skeleton-line ${className}`} aria-hidden="true" />;
+}
+
+function DashboardPageSkeleton({ adminPage = null, lang = 'ru' }) {
+  const corporateCopy = CORPORATE_COPY[lang] || CORPORATE_COPY.ru;
+
+  if (adminPage && adminPage !== 'home') {
+    const currentPage = {
+      dashboard: { label: corporateCopy.dashboard, badge: corporateCopy.dashboardBadge, badgeBg: 'var(--sky)' },
+      base: { label: corporateCopy.base, badge: corporateCopy.baseBadge, badgeBg: 'var(--butter)' },
+      assignments: { label: corporateCopy.assignments, badge: corporateCopy.assignmentsBadge, badgeBg: 'var(--peach)' },
+      prizes: { label: corporateCopy.prizes, badge: corporateCopy.prizesBadge, badgeBg: 'var(--rose)' },
+    }[adminPage];
+
+    return (
+      <main className="product-app paper dots-bg dashboard-page has-bottom-nav">
+        <BackgroundMusic />
+        <TrainerFloatingDecor />
+        <section className="dashboard-shell plush-lg paper popin dashboard-shell-content admin-section-page">
+          <div className="admin-section-topbar">
+            <span className="btn-plush sm admin-section-back skeleton-static-button">
+              <SkeletonLine className="w-label" />
+            </span>
+            {currentPage ? (
+              <div className="admin-section-heading">
+                <span className="admin-mode-badge" style={{ background: currentPage.badgeBg }}>{currentPage.badge}</span>
+                <strong>{currentPage.label}</strong>
+              </div>
+            ) : null}
+          </div>
+          <CorporatePageSkeleton page={adminPage} lang={lang} />
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="product-app paper dots-bg dashboard-page">
+      <BackgroundMusic />
+      <TrainerFloatingDecor />
+      <section className="dashboard-shell plush-lg paper dashboard-skeleton-page" aria-label={corporateCopy.loadingDashboard}>
+        <div className="admin-dashboard-hero skeleton-card">
+          <SkeletonLine className="w-chip" />
+          <SkeletonLine className="w-title" />
+          <SkeletonLine className="w-copy" />
+          <SkeletonLine className="w-copy short" />
+        </div>
+        <div className="corporate-dashboard-skeleton">
+          <div className="corporate-stats">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="stat-card skeleton-card">
+                <SkeletonLine className="w-label" />
+                <SkeletonLine className="w-number" />
+              </div>
+            ))}
+          </div>
+          <section className="corporate-panel skeleton-card">
+            <SkeletonLine className="w-chip" />
+            <SkeletonLine className="w-title" />
+            <SkeletonLine className="w-copy" />
+            <div className="admin-employee-layout skeleton-employee-layout">
+              <div className="admin-employee-list skeleton-card">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <div key={index} className="skeleton-table-row">
+                    <SkeletonLine className="avatar" />
+                    <SkeletonLine />
+                    <SkeletonLine className="short" />
+                  </div>
+                ))}
+              </div>
+              <div className="admin-employee-detail skeleton-card">
+                <SkeletonLine className="w-title" />
+                <div className="admin-detail-grid">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <div key={index}>
+                      <SkeletonLine className="w-label" />
+                      <SkeletonLine />
+                      <SkeletonLine className="short" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function CorporateKnowledgeFieldsSkeleton() {
+  return (
+    <div className="admin-builder-grid wide" aria-hidden="true">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <SkeletonLine key={index} className="textarea" />
+      ))}
+      <SkeletonLine className="textarea span-2" />
+    </div>
+  );
+}
+
+function CorporateTaskDraftSkeleton() {
+  return (
+    <article className="rule-scene-card skeleton-card" aria-hidden="true">
+      <SkeletonLine className="w-chip" />
+      <SkeletonLine className="w-title short" />
+      <SkeletonLine />
+      <SkeletonLine className="short" />
+    </article>
+  );
+}
+
+function CorporatePageSkeleton({ page = 'dashboard', lang = 'ru' }) {
+  const corporateCopy = CORPORATE_COPY[lang] || CORPORATE_COPY.ru;
+  const isDashboard = page === 'dashboard';
+  const isBase = page === 'base';
+  const isAssignments = page === 'assignments';
+
+  if (isDashboard) {
+    return (
+      <div className="corporate-dashboard corporate-dashboard-skeleton" aria-label={corporateCopy.loadingDashboard}>
+        <div className="corporate-stats">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="stat-card skeleton-card">
+              <SkeletonLine className="w-label" />
+              <SkeletonLine className="w-number" />
+            </div>
+          ))}
+        </div>
+        <section className="corporate-panel dashboard-insight-panel skeleton-card">
+          <SkeletonLine className="w-chip" />
+          <SkeletonLine className="w-title" />
+          <SkeletonLine className="w-copy" />
+          <div className="admin-employee-layout skeleton-employee-layout">
+            <div className="admin-employee-list skeleton-card">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="skeleton-table-row">
+                  <SkeletonLine className="avatar" />
+                  <SkeletonLine />
+                  <SkeletonLine className="short" />
+                </div>
+              ))}
+            </div>
+            <div className="admin-employee-detail skeleton-card">
+              <SkeletonLine className="w-title" />
+              <SkeletonLine className="w-copy short" />
+              <div className="admin-detail-grid">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div key={index}>
+                    <SkeletonLine className="w-label" />
+                    <SkeletonLine />
+                    <SkeletonLine className="short" />
+                  </div>
+                ))}
+              </div>
+              {Array.from({ length: 3 }).map((_, index) => (
+                <SkeletonLine key={index} className="w-copy" />
+              ))}
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  return (
+    <div className="corporate-dashboard corporate-dashboard-skeleton" aria-label={corporateCopy.loadingPage}>
+      <section className="corporate-panel skeleton-card">
+        <SkeletonLine className="w-chip" />
+        <SkeletonLine className="w-title" />
+        <SkeletonLine className="w-copy" />
+        {isBase ? (
+          <>
+            <div className="admin-doc-layout">
+              <div className="document-dropzone skeleton-card">
+                <SkeletonLine className="avatar" />
+                <SkeletonLine className="w-title short" />
+                <SkeletonLine />
+              </div>
+              <div className="admin-doc-list">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div key={index} className="admin-doc-item skeleton-card">
+                    <SkeletonLine className="avatar" />
+                    <SkeletonLine />
+                    <SkeletonLine className="short" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <SkeletonLine className="textarea" />
+          </>
+        ) : null}
+        {isAssignments ? (
+          <>
+            <div className="admin-mode-panel">
+              <SkeletonLine className="control" />
+              <SkeletonLine className="control" />
+            </div>
+            <div className="rule-scene-list admin-task-grid">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <CorporateTaskDraftSkeleton key={index} />
+              ))}
+            </div>
+          </>
+        ) : null}
+        {!isBase && !isAssignments ? (
+          <div className="admin-prize-panel">
+            <div className="admin-prize-fields">
+              {Array.from({ length: 3 }).map((_, index) => <SkeletonLine key={index} className="textarea" />)}
+            </div>
+            <div className="admin-prize-preview skeleton-card">
+              <SkeletonLine className="w-title short" />
+              <SkeletonLine />
+              <SkeletonLine />
+              <SkeletonLine className="short" />
+            </div>
+          </div>
+        ) : null}
+      </section>
+    </div>
+  );
+}
+
+async function fetchCorporateAdminPayload(token) {
+  const [docsPayload, knowledgePayload, draftsPayload, reviewPayload, prizesPayload] = await Promise.all([
+    apiRequest('/api/corporate/admin/documents', { token }),
+    apiRequest('/api/corporate/admin/knowledge/current', { token }).catch(() => null),
+    apiRequest('/api/corporate/admin/task-drafts', { token }),
+    apiRequest('/api/corporate/admin/review', { token }),
+    apiRequest('/api/corporate/admin/prizes', { token }),
+  ]);
+
+  return {
+    docsPayload,
+    knowledgePayload,
+    draftsPayload,
+    reviewPayload,
+    prizesPayload,
+  };
+}
+
+const demoUserForRole = (role) => (role === 'employee' ? DEMO_EMPLOYEE_ID : DEMO_ADMIN_ID);
+
+const DEFAULT_CORPORATE_PRIZES = {
+  first: '1 место: денежный бонус и сертификат лидера обучения',
+  second: '2 место: подарок от компании и публичное признание',
+  third: '3 место: доступ к продвинутому AI-треку',
+};
+
+function normalizeCorporatePayload(payload, fallbackPrizes = DEFAULT_CORPORATE_PRIZES, readyLabel = 'Готов к ИИ', documentTypeLabel = 'Новый документ') {
+  if (!payload || payload.error) {
+    return null;
+  }
+
+  const employees = (payload.reviewPayload?.employees || []).map((employee) => ({
+    id: employee.id,
+    name: employee.name,
+    role: employee.role,
+    result: employee.result,
+    solved: employee.solved,
+    improved: employee.improved,
+    trained: employee.trained,
+    fileAccuracy: employee.fileAccuracy,
+    usefulness: employee.usefulness,
+    character: employee.character,
+    fileBehavior: employee.fileBehavior,
+    strengths: employee.strengths || [],
+    skills: employee.skills || [],
+  }));
+  const prizesPayload = payload.prizesPayload;
+  const prizes = prizesPayload
+    ? {
+        first: prizesPayload.firstPlace || fallbackPrizes.first,
+        second: prizesPayload.secondPlace || fallbackPrizes.second,
+        third: prizesPayload.thirdPlace || fallbackPrizes.third,
+      }
+    : fallbackPrizes;
+
+  return {
+    documents: (payload.docsPayload || []).map((document) => ({
+      id: document.id,
+      name: document.filename,
+      type: document.mimeType || documentTypeLabel,
+      status: document.status || readyLabel,
+    })),
+    taskDrafts: (payload.draftsPayload || []).map((draft) => ({
+      id: draft.id,
+      title: draft.title,
+      clientType: draft.clientType,
+      skill: draft.skill,
+      difficulty: draft.difficulty,
+      status: draft.status,
+    })),
+    reviewTotals: payload.reviewPayload?.totals || null,
+    employees,
+    selectedEmployeeId: employees[0]?.id || '',
+    knowledgePayload: payload.knowledgePayload || null,
+    prizes,
+  };
+}
+
 function DashboardPage() {
   const [profile, setProfile] = useState(null);
   const [dashboard, setDashboard] = useState(null);
+  const [prefetchedCorporateData, setPrefetchedCorporateData] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isBackendDashboard, setIsBackendDashboard] = useState(false);
+  const [authToken, setAuthToken] = useState('');
   const [lang, setLang] = useState(() => localStorage.getItem('app_lang') || 'ru');
   const navigate = useNavigate();
   const location = useLocation();
   const isProfileView = location.pathname === '/home/profile';
   const profileCopy = DASHBOARD_PROFILE_COPY[lang] || DASHBOARD_PROFILE_COPY.ru;
+  const corporateCopy = CORPORATE_COPY[lang] || CORPORATE_COPY.ru;
 
   const changeLang = (nextLang) => {
     setLang(nextLang);
@@ -4725,8 +5403,12 @@ function DashboardPage() {
         if (!token) {
           throw new Error('No active Supabase session.');
         }
+        if (isActive) {
+          setAuthToken(token);
+        }
 
-        const backendProfile = await apiRequest('/api/me', { token });
+        const demoUser = demoUserForRole(localProfile.role);
+        const backendProfile = await apiRequest('/api/me', { token, demoUser });
         const userProfile = mergeBackendProfileWithLocalState(backendProfile, localProfile);
         saveMockUser(userProfile);
 
@@ -4736,11 +5418,22 @@ function DashboardPage() {
         }
 
         const dashboardPath = userProfile.role === 'admin' ? '/api/admin/dashboard' : '/api/employee/dashboard';
-        const dashboardPayload = await apiRequest(dashboardPath, { token });
+        const dashboardPayload = await apiRequest(dashboardPath, { token, demoUser: demoUserForRole(userProfile.role) });
+        let corporateData = null;
+        const adminPage = getAdminPageFromPath(location.pathname);
+
+        if (userProfile.role === 'admin' && adminPage && adminPage !== 'home' && !isProfileView) {
+          try {
+            corporateData = await fetchCorporateAdminPayload(token);
+          } catch {
+            corporateData = { error: true };
+          }
+        }
 
         if (isActive) {
           setProfile(userProfile);
           setDashboard(dashboardPayload);
+          setPrefetchedCorporateData(corporateData);
           setIsBackendDashboard(true);
           setError('');
           setIsLoading(false);
@@ -4753,9 +5446,11 @@ function DashboardPage() {
 
         if (isActive) {
           setProfile(localProfile);
-          setDashboard(buildMockDashboard(localProfile));
+          setDashboard(localProfile.role === 'admin' ? null : buildMockDashboard(localProfile));
+          setPrefetchedCorporateData(localProfile.role === 'admin' ? { error: true } : null);
           setIsBackendDashboard(false);
-          setError(loadError?.message ? `Backend unavailable: ${loadError.message}` : '');
+          setAuthToken('');
+          setError(loadError?.message ? `${corporateCopy.backendUnavailablePrefix}: ${loadError.message}` : '');
           setIsLoading(false);
         }
       }
@@ -4766,7 +5461,7 @@ function DashboardPage() {
     return () => {
       isActive = false;
     };
-  }, [navigate]);
+  }, [isProfileView, location.pathname, navigate]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -4775,15 +5470,7 @@ function DashboardPage() {
   };
 
   if (isLoading) {
-    return (
-      <main className="product-app paper dots-bg dashboard-page">
-        <BackgroundMusic />
-        <TrainerFloatingDecor />
-        <section className="dashboard-shell plush-lg paper">
-          <p className="empty-state">Loading dashboard...</p>
-        </section>
-      </main>
-    );
+    return <DashboardPageSkeleton adminPage={getAdminPageFromPath(location.pathname)} lang={lang} />;
   }
 
   const isAdminProfile = profile?.role === 'admin';
@@ -4791,13 +5478,15 @@ function DashboardPage() {
     <header className="admin-dashboard-hero">
       <div className="admin-dashboard-hero-head">
         <span className={`chip ${isBackendDashboard ? 'mint' : 'peach'}`}>
-          {isBackendDashboard ? 'Профиль сохранён' : 'Демо-профиль'}
+          {isBackendDashboard ? corporateCopy.liveBackend : corporateCopy.backendError}
         </span>
-        <h3>{isAdminProfile ? 'Панель команды' : 'Мой тренажёр'}</h3>
+        <h3>{isAdminProfile ? corporateCopy.adminTitle : corporateCopy.employeeTitle}</h3>
         <p>
           {isAdminProfile
-            ? 'База знаний, задания и результаты собраны в одном месте. Можно назначать практику и смотреть, как команда проходит обучение.'
-            : 'Личный маршрут готов: первый сценарий открыт, прогресс сохранён, а награда уже ждёт в профиле.'}
+            ? isBackendDashboard
+              ? corporateCopy.adminSubtitleLive
+              : corporateCopy.adminSubtitleError
+            : corporateCopy.employeeSubtitle}
         </p>
       </div>
       {profile?.onboarding ? (
@@ -4853,12 +5542,16 @@ function DashboardPage() {
           dashboard={dashboard}
           heading={dashboardHeading}
           error={error}
+          token={authToken}
+          organizationName={profile?.organizationName || ''}
+          prefetchedCorporateData={prefetchedCorporateData}
+          lang={lang}
         />
       ) : (
         <section className="dashboard-shell plush-lg paper popin">
           {dashboardHeading}
           {error ? <div className="toast-alert warning">{error}</div> : null}
-          <EmployeeDashboardView dashboard={dashboard} />
+          <EmployeeDashboardView dashboard={dashboard} lang={lang} />
         </section>
       )}
 
@@ -4886,99 +5579,276 @@ function getAdminPageFromPath(pathname) {
   return null;
 }
 
-function AdminDashboardView({ dashboard, heading, error }) {
+function AdminDashboardView({ dashboard, heading, error, token = '', organizationName = '', prefetchedCorporateData = null, lang = 'ru' }) {
   const location = useLocation();
   const activeAdminPage = getAdminPageFromPath(location.pathname);
+  const corporateCopy = CORPORATE_COPY[lang] || CORPORATE_COPY.ru;
   const scenarios = dashboard?.scenarios || [];
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState(ADMIN_EMPLOYEE_RESULTS[0].id);
-  const [documents, setDocuments] = useState(ADMIN_SOURCE_DOCUMENTS);
-  const [sourcePrompt, setSourcePrompt] = useState('Собери базу знаний для обучения сотрудников: правила компании, типы клиентов, ограничения ИИ, примеры правильных ответов.');
-  const [companyBrief, setCompanyBrief] = useState('Компания продает AI-платформу для обучения сотрудников и хочет единый стандарт общения с клиентами.');
-  const [rulesBrief, setRulesBrief] = useState('Не обещать результат без данных, объяснять ограничения ИИ, фиксировать следующий шаг и соблюдать регламенты компании.');
-  const [clientType, setClientType] = useState('B2B enterprise, VIP-клиент, новый клиент, сложный клиент');
-  const [taskGoal, setTaskGoal] = useState('Сгенерировать задания, где сотрудник объясняет ценность ИИ, работает с возражениями и следует правилам компании.');
-  const [scoringRules, setScoringRules] = useState('Оценивать точность, спокойный тон, соблюдение политики, понятный следующий шаг и итоговое решение клиента.');
+  const initialCorporateState = normalizeCorporatePayload(prefetchedCorporateData, corporateCopy.defaultPrizes, corporateCopy.aiReady, corporateCopy.newDocument);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(initialCorporateState?.selectedEmployeeId || '');
+  const [documents, setDocuments] = useState(initialCorporateState?.documents || []);
+  const [taskDrafts, setTaskDrafts] = useState(initialCorporateState?.taskDrafts || []);
+  const [employees, setEmployees] = useState(initialCorporateState?.employees || []);
+  const [reviewTotals, setReviewTotals] = useState(initialCorporateState?.reviewTotals || null);
+  const [corporateWarning, setCorporateWarning] = useState('');
+  const [isCorporateLoading, setIsCorporateLoading] = useState(!prefetchedCorporateData);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isGeneratingKnowledge, setIsGeneratingKnowledge] = useState(false);
+  const [isGeneratingTasks, setIsGeneratingTasks] = useState(false);
+  const [isSendingAssignments, setIsSendingAssignments] = useState(false);
+  const [enabledSettings, setEnabledSettings] = useState({
+    companyRules: true,
+    aiPolicy: true,
+    clientTypes: true,
+    scoring: true,
+  });
+  const [sourcePrompt, setSourcePrompt] = useState(corporateCopy.defaults.sourcePrompt);
+  const [companyBrief, setCompanyBrief] = useState(corporateCopy.defaults.companyBrief);
+  const [rulesBrief, setRulesBrief] = useState(corporateCopy.defaults.rulesBrief);
+  const [clientType, setClientType] = useState(corporateCopy.defaults.clientType);
+  const [taskGoal, setTaskGoal] = useState(corporateCopy.defaults.taskGoal);
+  const [scoringRules, setScoringRules] = useState(corporateCopy.defaults.scoringRules);
   const [clientSegment, setClientSegment] = useState('flexible');
   const [assignmentMode, setAssignmentMode] = useState('auto');
   const [employeeMode, setEmployeeMode] = useState('same');
   const [knowledgeCreated, setKnowledgeCreated] = useState(false);
-  const [prizes, setPrizes] = useState({
-    first: '1 место: денежный бонус и сертификат лидера обучения',
-    second: '2 место: подарок от компании и публичное признание',
-    third: '3 место: доступ к продвинутому AI-треку',
-  });
+  const [prizes, setPrizes] = useState(initialCorporateState?.prizes || corporateCopy.defaultPrizes);
   const [savedPrizes, setSavedPrizes] = useState(prizes);
   const [isPrizeSaved, setIsPrizeSaved] = useState(true);
-  const selectedEmployee = ADMIN_EMPLOYEE_RESULTS.find((employee) => employee.id === selectedEmployeeId) || ADMIN_EMPLOYEE_RESULTS[0];
+  const selectedEmployee = employees.find((employee) => employee.id === selectedEmployeeId) || employees[0] || null;
   const adminPages = [
     {
       id: 'dashboard',
       route: '/dashboard',
-      label: 'Dashboard',
-      badge: 'СТАТИСТИКА',
+      label: corporateCopy.dashboard,
+      badge: corporateCopy.dashboardBadge,
       emoji: '📊',
-      desc: 'Сотрудники, результаты, польза для компании.',
+      desc: corporateCopy.dashboardDesc,
       accent: 'var(--sky)',
       badgeBg: 'var(--sky)',
     },
     {
       id: 'base',
       route: '/dashboard/base',
-      label: 'Создать базу',
-      badge: 'ФАЙЛЫ',
+      label: corporateCopy.base,
+      badge: corporateCopy.baseBadge,
       emoji: '📚',
-      desc: 'Документы, промпты и база знаний.',
+      desc: corporateCopy.baseDesc,
       accent: 'var(--butter)',
       badgeBg: 'var(--butter)',
     },
     {
       id: 'assignments',
       route: '/dashboard/assignments',
-      label: 'Задания',
-      badge: 'ЗАПУСК',
+      label: corporateCopy.assignments,
+      badge: corporateCopy.assignmentsBadge,
       emoji: '🎯',
-      desc: 'Одинаковый или уникальный режим.',
+      desc: corporateCopy.assignmentsDesc,
       accent: 'var(--peach)',
       badgeBg: 'var(--peach)',
     },
     {
       id: 'prizes',
       route: '/dashboard/prizes',
-      label: 'Призы',
-      badge: 'ТОП-3',
+      label: corporateCopy.prizes,
+      badge: corporateCopy.prizesBadge,
       emoji: '🏆',
-      desc: 'Первое, второе и третье место.',
+      desc: corporateCopy.prizesDesc,
       accent: 'var(--rose)',
       badgeBg: 'var(--rose)',
     },
   ];
 
-  const handleDocumentUpload = (event) => {
+  const applyCorporatePayload = (payload) => {
+    if (payload?.error) {
+      setCorporateWarning(corporateCopy.backendWarning);
+      return;
+    }
+
+    const nextState = normalizeCorporatePayload(payload, prizes, corporateCopy.aiReady, corporateCopy.newDocument);
+    if (!nextState) return;
+
+    setDocuments(nextState.documents);
+    setTaskDrafts(nextState.taskDrafts);
+    if (nextState.knowledgePayload) {
+      setKnowledgeCreated(true);
+      setSourcePrompt(nextState.knowledgePayload.sourcePrompt || sourcePrompt);
+      setCompanyBrief(nextState.knowledgePayload.companyBrief || '');
+      setRulesBrief(nextState.knowledgePayload.rulesBrief || '');
+      setClientType(nextState.knowledgePayload.clientTypes || '');
+      setTaskGoal(nextState.knowledgePayload.taskGoal || '');
+      setScoringRules(nextState.knowledgePayload.scoringRules || '');
+      setEnabledSettings((currentSettings) => ({ ...currentSettings, ...(nextState.knowledgePayload.enabledSettings || {}) }));
+    }
+    setReviewTotals(nextState.reviewTotals);
+    setEmployees(nextState.employees);
+    setSelectedEmployeeId((currentId) => nextState.employees.some((employee) => employee.id === currentId) ? currentId : nextState.selectedEmployeeId);
+    setPrizes(nextState.prizes);
+    setSavedPrizes(nextState.prizes);
+    setCorporateWarning('');
+  };
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadCorporateAdmin() {
+      if (prefetchedCorporateData) {
+        applyCorporatePayload(prefetchedCorporateData);
+        setIsCorporateLoading(false);
+        return;
+      }
+
+      if (!token) {
+        setCorporateWarning(corporateCopy.backendWarning);
+        setIsCorporateLoading(false);
+        return;
+      }
+
+      setIsCorporateLoading(true);
+      try {
+        const corporatePayload = await fetchCorporateAdminPayload(token);
+
+        if (!isActive) return;
+
+        applyCorporatePayload(corporatePayload);
+      } catch {
+        if (isActive) setCorporateWarning(corporateCopy.backendWarning);
+      } finally {
+        if (isActive) setIsCorporateLoading(false);
+      }
+    }
+
+    loadCorporateAdmin();
+    return () => {
+      isActive = false;
+    };
+  }, [prefetchedCorporateData, token]);
+
+  const persistKnowledgePatch = async (patch) => {
+    try {
+      await apiRequest('/api/corporate/admin/knowledge/current', {
+        token,
+        method: 'PATCH',
+        body: patch,
+      });
+      setCorporateWarning('');
+    } catch (actionError) {
+      setCorporateWarning(actionError?.message || corporateCopy.backendWarning);
+    }
+  };
+
+  const handleDocumentUpload = async (event) => {
     const files = Array.from(event.target.files || []);
     if (!files.length) return;
 
-    setDocuments((currentDocuments) => [
-      ...files.map((file, index) => ({
-        id: `${file.name}-${Date.now()}-${index}`,
-        name: file.name,
-        type: 'Новый документ',
-        status: 'Готов к ИИ',
-      })),
-      ...currentDocuments,
-    ]);
+    setIsUploading(true);
+    try {
+      const uploaded = await Promise.all(files.map((file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return apiFormRequest('/api/corporate/admin/documents', { token, formData });
+      }));
+      setDocuments((currentDocuments) => [
+        ...uploaded.map((document) => ({
+          id: document.id,
+          name: document.filename,
+          type: document.mimeType || corporateCopy.newDocument,
+          status: document.status || corporateCopy.aiReady,
+        })),
+        ...currentDocuments,
+      ]);
+      setCorporateWarning('');
+    } catch (actionError) {
+      setCorporateWarning(actionError?.message || corporateCopy.backendWarning);
+    } finally {
+      setIsUploading(false);
+      event.target.value = '';
+    }
   };
 
-  const fillWithAi = () => {
-    setKnowledgeCreated(true);
-    setCompanyBrief('AI-платформа помогает компаниям обучать сотрудников на реалистичных клиентских диалогах и видеть рост навыков по аналитике.');
-    setRulesBrief('Сотрудник должен говорить по утвержденным правилам, не выдумывать обещания, объяснять пользу ИИ простыми словами и корректно эскалировать сложные случаи.');
-    setClientType('Enterprise с security-вопросами, VIP с высоким ожиданием, новый клиент без понимания ИИ, раздраженный клиент после ошибки сервиса');
-    setTaskGoal('Создать персональные задания для продаж, поддержки и клиентских менеджеров на базе документов компании.');
-    setScoringRules('Автооценка: решил ли задачу, точность по документам, качество ответа, тон, работа с возражениями, итоговый следующий шаг.');
+  const createKnowledgeBase = async () => {
+    setIsGeneratingKnowledge(true);
+    try {
+      const payload = await apiRequest('/api/corporate/admin/knowledge/generate', {
+        token,
+        method: 'POST',
+        body: {
+          documentIds: documents.map((document) => document.id),
+          sourcePrompt,
+          language: lang,
+        },
+      });
+      setKnowledgeCreated(true);
+      setCompanyBrief(payload.companyBrief || companyBrief);
+      setRulesBrief(payload.rulesBrief || rulesBrief);
+      setClientType(payload.clientTypes || clientType);
+      setTaskGoal(payload.taskGoal || taskGoal);
+      setScoringRules(payload.scoringRules || scoringRules);
+      setEnabledSettings((currentSettings) => ({ ...currentSettings, ...(payload.enabledSettings || {}) }));
+      setCorporateWarning('');
+    } catch (actionError) {
+      setCorporateWarning(actionError?.message || corporateCopy.backendWarning);
+    } finally {
+      setIsGeneratingKnowledge(false);
+    }
   };
 
-  const createKnowledgeBase = () => {
-    fillWithAi();
+  const updateKnowledgeField = (setter, key) => (event) => {
+    const value = event.target.value;
+    setter(value);
+    persistKnowledgePatch({ [key]: value });
+  };
+
+  const createAssignments = async () => {
+    setIsGeneratingTasks(true);
+    try {
+      const payload = await apiRequest('/api/corporate/admin/task-drafts/generate', {
+        token,
+        method: 'POST',
+        body: { count: 3, language: lang },
+      });
+      setTaskDrafts(payload.map((draft) => ({
+        id: draft.id,
+        title: draft.title,
+        clientType: draft.clientType,
+        skill: draft.skill,
+        difficulty: draft.difficulty,
+        status: draft.status,
+      })));
+      setCorporateWarning('');
+    } catch (actionError) {
+      const message = actionError?.message || '';
+      setCorporateWarning(message.includes('Knowledge base has not been created') ? corporateCopy.createBaseFirst : message || corporateCopy.backendWarning);
+    } finally {
+      setIsGeneratingTasks(false);
+    }
+  };
+
+  const sendAssignments = async () => {
+    const employeeIds = employees.map((employee) => employee.id);
+    const draftIds = taskDrafts.map((task) => task.id);
+    if (!employeeIds.length || !draftIds.length) {
+      setCorporateWarning(corporateCopy.noEmployeesOrTasks);
+      return;
+    }
+    setIsSendingAssignments(true);
+    try {
+      await apiRequest('/api/corporate/admin/task-drafts/assign', {
+        token,
+        method: 'POST',
+        body: {
+          taskDraftIds: draftIds,
+          employeeIds,
+          requiredScore: 80,
+          mode: employeeMode,
+        },
+      });
+      setCorporateWarning('');
+    } catch (actionError) {
+      setCorporateWarning(actionError?.message || corporateCopy.backendWarning);
+    } finally {
+      setIsSendingAssignments(false);
+    }
   };
 
   const handlePrizeChange = (place, value) => {
@@ -4986,54 +5856,70 @@ function AdminDashboardView({ dashboard, heading, error }) {
     setIsPrizeSaved(false);
   };
 
-  const savePrizes = () => {
-    setSavedPrizes({
+  const savePrizes = async () => {
+    const nextPrizes = {
       first: prizes.first.trim(),
       second: prizes.second.trim(),
       third: prizes.third.trim(),
-    });
-    setIsPrizeSaved(true);
+    };
+    try {
+      await apiRequest('/api/corporate/admin/prizes', {
+        token,
+        method: 'PATCH',
+        body: {
+          firstPlace: nextPrizes.first,
+          secondPlace: nextPrizes.second,
+          thirdPlace: nextPrizes.third,
+        },
+      });
+      setSavedPrizes(nextPrizes);
+      setIsPrizeSaved(true);
+      setCorporateWarning('');
+    } catch (actionError) {
+      setCorporateWarning(actionError?.message || corporateCopy.backendWarning);
+    }
   };
 
   const renderDashboard = () => (
     <>
       <div className="corporate-stats">
         <div className="stat-card company-stat">
-          <span><Building2 size={18} /> Компания</span>
-          <strong>{dashboard?.organizationId || 'Training Loop Corp'}</strong>
+          <span><Building2 size={18} /> {corporateCopy.company}</span>
+          <strong>{dashboard?.organizationName || organizationName || dashboard?.organizationId || '-'}</strong>
         </div>
         <div className="stat-card">
-          <span><FileText size={18} /> Документы</span>
-          <strong>{documents.length}</strong>
+          <span><FileText size={18} /> {corporateCopy.documents}</span>
+          <strong>{reviewTotals?.documents ?? documents.length}</strong>
         </div>
         <div className="stat-card">
-          <span><ClipboardCheck size={18} /> Задания</span>
-          <strong>{Math.max(scenarios.length, ADMIN_GENERATED_TASKS.length)}</strong>
+          <span><ClipboardCheck size={18} /> {corporateCopy.assignments}</span>
+          <strong>{reviewTotals?.assignments ?? Math.max(scenarios.length, taskDrafts.length)}</strong>
         </div>
         <div className="stat-card">
-          <span><TrendingUp size={18} /> Средний рост</span>
-          <strong>+18%</strong>
+          <span><TrendingUp size={18} /> {corporateCopy.averageGrowth}</span>
+          <strong>{reviewTotals ? `${reviewTotals.averageGrowth >= 0 ? '+' : ''}${reviewTotals.averageGrowth}%` : '0%'}</strong>
         </div>
       </div>
 
       <section className="corporate-panel dashboard-insight-panel">
         <div className="panel-heading inline">
           <div>
-            <span className="chip mint"><Users size={14} /> Сотрудники</span>
-            <h3>Командная аналитика</h3>
-            <p>Результаты сотрудников, точность по базе и польза для компании в одном рабочем виде.</p>
+            <span className="chip mint"><Users size={14} /> {corporateCopy.employees}</span>
+            <h3>{corporateCopy.teamAnalytics}</h3>
+            <p>{corporateCopy.teamAnalyticsDesc}</p>
           </div>
-          <span className="chip butter"><TrendingUp size={14} /> Польза: {selectedEmployee.usefulness}%</span>
+          {selectedEmployee ? <span className="chip butter"><TrendingUp size={14} /> {corporateCopy.usefulness}: {selectedEmployee.usefulness}%</span> : null}
         </div>
 
+        {selectedEmployee ? (
         <div className="admin-employee-layout">
-          <div className="admin-employee-list" role="table" aria-label="Сотрудники">
+          <div className="admin-employee-list" role="table" aria-label={corporateCopy.employees}>
             <div className="admin-employee-table-head" role="row">
-              <span role="columnheader">Сотрудник</span>
-              <span role="columnheader">Роль</span>
-              <span role="columnheader">Результат</span>
+              <span role="columnheader">{corporateCopy.employee}</span>
+              <span role="columnheader">{corporateCopy.role}</span>
+              <span role="columnheader">{corporateCopy.result}</span>
             </div>
-            {ADMIN_EMPLOYEE_RESULTS.map((employee) => (
+            {employees.map((employee) => (
               <button
                 key={employee.id}
                 type="button"
@@ -5060,20 +5946,20 @@ function AdminDashboardView({ dashboard, heading, error }) {
             </div>
             <div className="admin-detail-grid">
               <div>
-                <span>Файлы</span>
+                <span>{corporateCopy.files}</span>
                 <p>{selectedEmployee.fileBehavior}</p>
               </div>
               <div>
-                <span>Характер</span>
+                <span>{corporateCopy.character}</span>
                 <p>{selectedEmployee.character}</p>
               </div>
               <div>
-                <span>Плюсы</span>
+                <span>{corporateCopy.strengths}</span>
                 <p>{selectedEmployee.strengths.join(', ')}</p>
               </div>
               <div>
-                <span>Эффект</span>
-                <p>{selectedEmployee.usefulness}% · точность по файлам {selectedEmployee.fileAccuracy}%</p>
+                <span>{corporateCopy.effect}</span>
+                <p>{selectedEmployee.usefulness}% · {corporateCopy.fileAccuracy} {selectedEmployee.fileAccuracy}%</p>
               </div>
             </div>
             <div className="skill-bars">
@@ -5087,6 +5973,9 @@ function AdminDashboardView({ dashboard, heading, error }) {
             </div>
           </article>
         </div>
+        ) : (
+          <p className="empty-state">{corporateCopy.noEmployees}</p>
+        )}
       </section>
     </>
   );
@@ -5095,16 +5984,16 @@ function AdminDashboardView({ dashboard, heading, error }) {
     <>
       <section className="corporate-panel admin-builder knowledge-base-panel">
         <div className="panel-heading">
-          <span className="chip butter"><UploadCloud size={14} /> База знаний</span>
-          <h3>База для обучения</h3>
-          <p>Админ добавляет документы и основной промпт. После кнопки “Создать базу” ИИ собирает черновик, который можно править.</p>
+          <span className="chip butter"><UploadCloud size={14} /> {corporateCopy.knowledgeBase}</span>
+          <h3>{corporateCopy.baseTitle}</h3>
+          <p>{corporateCopy.baseDescLong}</p>
         </div>
 
         <div className="admin-doc-layout">
           <label className="document-dropzone">
             <UploadCloud size={26} />
-            <strong>Добавить документы</strong>
-            <span>PDF, DOCX, TXT, правила, playbook, описание компании</span>
+            <strong>{isUploading ? corporateCopy.uploading : corporateCopy.addDocuments}</strong>
+            <span>{corporateCopy.uploadHint}</span>
             <input type="file" multiple onChange={handleDocumentUpload} />
           </label>
 
@@ -5123,16 +6012,16 @@ function AdminDashboardView({ dashboard, heading, error }) {
         </div>
 
         <label className="builder-field">
-          <span>Промпт для базы</span>
-          <textarea value={sourcePrompt} onChange={(event) => setSourcePrompt(event.target.value)} />
+          <span>{corporateCopy.promptLabel}</span>
+          <textarea value={sourcePrompt} onChange={updateKnowledgeField(setSourcePrompt, 'sourcePrompt')} />
         </label>
 
         <div className="admin-action-row">
-          <button type="button" className="btn-plush primary" onClick={createKnowledgeBase}>
-            <Sparkles size={17} /> Создать базу
+          <button type="button" className="btn-plush primary" onClick={createKnowledgeBase} disabled={isGeneratingKnowledge}>
+            <Sparkles size={17} /> {isGeneratingKnowledge ? corporateCopy.creating : corporateCopy.createBase}
           </button>
           <span className={`chip ${knowledgeCreated ? 'mint' : 'butter'}`}>
-            <Settings size={14} /> {knowledgeCreated ? 'База создана' : 'Можно заполнить все вручную'}
+            <Settings size={14} /> {knowledgeCreated ? corporateCopy.baseCreated : corporateCopy.manualFill}
           </span>
         </div>
       </section>
@@ -5140,45 +6029,45 @@ function AdminDashboardView({ dashboard, heading, error }) {
       <section className="corporate-panel scenario-builder-panel">
         <div className="panel-heading inline">
           <div>
-            <span className="chip sky"><ShieldCheck size={14} /> Конструктор</span>
-            <h3>Формы сценариев</h3>
+            <span className="chip sky"><ShieldCheck size={14} /> {corporateCopy.constructor}</span>
+            <h3>{corporateCopy.scenarioForms}</h3>
           </div>
           <div className="admin-inline-controls">
             <select className="compact-select" value={clientSegment} onChange={(event) => setClientSegment(event.target.value)}>
-              <option value="flexible">Тип клиентов: гибко</option>
-              <option value="b2b">B2B</option>
-              <option value="b2c">B2C</option>
-              <option value="vip">VIP / сложные</option>
+              <option value="flexible">{corporateCopy.clientFlexible}</option>
+              <option value="b2b">{corporateCopy.clientB2b}</option>
+              <option value="b2c">{corporateCopy.clientB2c}</option>
+              <option value="vip">{corporateCopy.clientVip}</option>
             </select>
             <select className="compact-select" value={assignmentMode} onChange={(event) => setAssignmentMode(event.target.value)}>
-              <option value="auto">ИИ сам соберет задания</option>
-              <option value="manual">Заполнить вручную</option>
+              <option value="auto">{corporateCopy.aiBuildsTasks}</option>
+              <option value="manual">{corporateCopy.fillManually}</option>
             </select>
           </div>
         </div>
 
-        <div className="admin-builder-grid wide">
+        {isGeneratingKnowledge ? <CorporateKnowledgeFieldsSkeleton /> : <div className="admin-builder-grid wide">
           <label className="builder-field">
-            <span>Суть компании</span>
-            <textarea value={companyBrief} onChange={(event) => setCompanyBrief(event.target.value)} />
+            <span>{corporateCopy.companyBrief}</span>
+            <textarea value={companyBrief} onChange={updateKnowledgeField(setCompanyBrief, 'companyBrief')} />
           </label>
           <label className="builder-field">
-            <span>Правила и ограничения</span>
-            <textarea value={rulesBrief} onChange={(event) => setRulesBrief(event.target.value)} />
+            <span>{corporateCopy.rulesBrief}</span>
+            <textarea value={rulesBrief} onChange={updateKnowledgeField(setRulesBrief, 'rulesBrief')} />
           </label>
           <label className="builder-field">
-            <span>Типы клиентов</span>
-            <textarea value={clientType} onChange={(event) => setClientType(event.target.value)} />
+            <span>{corporateCopy.clientTypes}</span>
+            <textarea value={clientType} onChange={updateKnowledgeField(setClientType, 'clientTypes')} />
           </label>
           <label className="builder-field">
-            <span>Что тренируем</span>
-            <textarea value={taskGoal} onChange={(event) => setTaskGoal(event.target.value)} />
+            <span>{corporateCopy.taskGoal}</span>
+            <textarea value={taskGoal} onChange={updateKnowledgeField(setTaskGoal, 'taskGoal')} />
           </label>
           <label className="builder-field span-2">
-            <span>Критерии проверки</span>
-            <textarea value={scoringRules} onChange={(event) => setScoringRules(event.target.value)} />
+            <span>{corporateCopy.scoringRules}</span>
+            <textarea value={scoringRules} onChange={updateKnowledgeField(setScoringRules, 'scoringRules')} />
           </label>
-        </div>
+        </div>}
       </section>
     </>
   );
@@ -5187,38 +6076,41 @@ function AdminDashboardView({ dashboard, heading, error }) {
     <section className="corporate-panel">
       <div className="panel-heading inline">
         <div>
-          <span className="chip rose"><Target size={14} /> Задания</span>
-          <h3>Что уйдет сотрудникам</h3>
+          <span className="chip rose"><Target size={14} /> {corporateCopy.assignments}</span>
+          <h3>{corporateCopy.assignmentsTitle}</h3>
         </div>
-        <button type="button" className="btn-plush sm">
-          <Send size={15} /> Отправить
+        <button type="button" className="btn-plush sm" onClick={sendAssignments} disabled={isSendingAssignments}>
+          <Send size={15} /> {isSendingAssignments ? corporateCopy.sending : corporateCopy.send}
         </button>
       </div>
 
       <div className="admin-mode-panel">
         <label className="toggle-row">
           <input type="radio" name="employee-mode" checked={employeeMode === 'same'} onChange={() => setEmployeeMode('same')} />
-          <span>У всех одинаковые проблемы и задания</span>
+          <span>{corporateCopy.sameMode}</span>
         </label>
         <label className="toggle-row">
           <input type="radio" name="employee-mode" checked={employeeMode === 'unique'} onChange={() => setEmployeeMode('unique')} />
-          <span>У каждого свое уникальное задание по роли и слабым местам</span>
+          <span>{corporateCopy.uniqueMode}</span>
         </label>
       </div>
 
       <div className="admin-action-row">
         <span className="chip sky">
-          {employeeMode === 'same' ? 'Сотрудникам уйдут одинаковые проблемы' : 'Сотрудникам уйдут персональные варианты'}
+          {employeeMode === 'same' ? corporateCopy.sameModeChip : corporateCopy.uniqueModeChip}
         </span>
+        <button type="button" className="btn-plush sm primary" onClick={createAssignments} disabled={isGeneratingTasks}>
+          <Target size={15} /> {isGeneratingTasks ? corporateCopy.generating : corporateCopy.generateByAi}
+        </button>
       </div>
 
       <div className="rule-scene-list admin-task-grid">
-        {ADMIN_GENERATED_TASKS.map((task) => (
+        {isGeneratingTasks ? Array.from({ length: 3 }).map((_, index) => <CorporateTaskDraftSkeleton key={index} />) : taskDrafts.map((task) => (
           <article key={task.id} className="rule-scene-card">
             <span className="chip sky">{task.status}</span>
             <h4>{task.title}</h4>
             <p>{task.clientType} · {task.skill}</p>
-            <small>Сложность: {task.difficulty}</small>
+            <small>{corporateCopy.difficulty}: {task.difficulty}</small>
           </article>
         ))}
       </div>
@@ -5229,36 +6121,36 @@ function AdminDashboardView({ dashboard, heading, error }) {
     <section className="corporate-panel">
       <div className="panel-heading inline">
         <div>
-          <span className="chip butter"><Gift size={14} /> Призы</span>
-          <h3>Только топ-3</h3>
+          <span className="chip butter"><Gift size={14} /> {corporateCopy.prizes}</span>
+          <h3>{corporateCopy.prizesTitle}</h3>
         </div>
         <span className={`chip ${isPrizeSaved ? 'mint' : 'butter'}`}>
-          {isPrizeSaved ? 'Сохранено' : 'Черновик'}
+          {isPrizeSaved ? corporateCopy.saved : corporateCopy.draft}
         </span>
       </div>
 
       <div className="admin-prize-panel">
         <div className="admin-prize-fields">
           <label className="builder-field">
-            <span>1 место</span>
+            <span>{corporateCopy.firstPlace}</span>
             <textarea value={prizes.first} onChange={(event) => handlePrizeChange('first', event.target.value)} />
           </label>
           <label className="builder-field">
-            <span>2 место</span>
+            <span>{corporateCopy.secondPlace}</span>
             <textarea value={prizes.second} onChange={(event) => handlePrizeChange('second', event.target.value)} />
           </label>
           <label className="builder-field">
-            <span>3 место</span>
+            <span>{corporateCopy.thirdPlace}</span>
             <textarea value={prizes.third} onChange={(event) => handlePrizeChange('third', event.target.value)} />
           </label>
         </div>
         <div className="admin-prize-preview">
-          <strong>Превью призов</strong>
-          <p>{savedPrizes.first || '1 место пока не указано'}</p>
-          <p>{savedPrizes.second || '2 место пока не указано'}</p>
-          <p>{savedPrizes.third || '3 место пока не указано'}</p>
+          <strong>{corporateCopy.prizePreview}</strong>
+          <p>{savedPrizes.first || corporateCopy.firstFallback}</p>
+          <p>{savedPrizes.second || corporateCopy.secondFallback}</p>
+          <p>{savedPrizes.third || corporateCopy.thirdFallback}</p>
           <button type="button" className="btn-plush sm" onClick={savePrizes}>
-            <ClipboardCheck size={15} /> Сохранить
+            <ClipboardCheck size={15} /> {corporateCopy.save}
           </button>
         </div>
       </div>
@@ -5266,6 +6158,7 @@ function AdminDashboardView({ dashboard, heading, error }) {
   );
 
   const renderActivePage = () => {
+    if (isCorporateLoading) return <CorporatePageSkeleton page={activeAdminPage} lang={lang} />;
     if (activeAdminPage === 'base') return renderBase();
     if (activeAdminPage === 'assignments') return renderAssignments();
     if (activeAdminPage === 'prizes') return renderPrizes();
@@ -5285,6 +6178,7 @@ function AdminDashboardView({ dashboard, heading, error }) {
       <>
         {heading}
         {error ? <div className="toast-alert warning">{error}</div> : null}
+        {corporateWarning ? <div className="toast-alert warning">{corporateWarning}</div> : null}
 
         <nav className="admin-mode-cards mode-cards-grid admin-mode-cards-standalone" aria-label="Admin sections">
           {adminPages.map((page) => (
@@ -5299,7 +6193,7 @@ function AdminDashboardView({ dashboard, heading, error }) {
                 <strong>{page.label}</strong>
                 <small>{page.desc}</small>
               </span>
-              <span className="admin-mode-cta">Открыть →</span>
+              <span className="admin-mode-cta">{corporateCopy.open} →</span>
             </Link>
           ))}
         </nav>
@@ -5312,7 +6206,7 @@ function AdminDashboardView({ dashboard, heading, error }) {
       <section className="dashboard-shell plush-lg paper popin dashboard-shell-content admin-section-page">
         <div className="admin-section-topbar">
           <Link to="/home" className="btn-plush sm admin-section-back">
-            <ArrowLeft size={16} /> К home
+            <ArrowLeft size={16} /> {corporateCopy.homeBack}
           </Link>
           {currentPage ? (
             <div className="admin-section-heading">
@@ -5322,7 +6216,8 @@ function AdminDashboardView({ dashboard, heading, error }) {
           ) : null}
         </div>
         {error ? <div className="toast-alert warning">{error}</div> : null}
-        <div className="corporate-dashboard">{renderDashboard()}</div>
+        {corporateWarning ? <div className="toast-alert warning">{corporateWarning}</div> : null}
+        {isCorporateLoading ? <CorporatePageSkeleton page="dashboard" lang={lang} /> : <div className="corporate-dashboard">{renderDashboard()}</div>}
       </section>
     );
   }
@@ -5331,7 +6226,7 @@ function AdminDashboardView({ dashboard, heading, error }) {
     <section className="dashboard-shell plush-lg paper popin dashboard-shell-content admin-section-page">
       <div className="admin-section-topbar">
         <Link to="/home" className="btn-plush sm admin-section-back">
-          <ArrowLeft size={16} /> К home
+          <ArrowLeft size={16} /> {corporateCopy.homeBack}
         </Link>
         {currentPage ? (
           <div className="admin-section-heading">
@@ -5341,13 +6236,15 @@ function AdminDashboardView({ dashboard, heading, error }) {
         ) : null}
       </div>
       {error ? <div className="toast-alert warning">{error}</div> : null}
+      {corporateWarning ? <div className="toast-alert warning">{corporateWarning}</div> : null}
       <div className="corporate-dashboard">{renderActivePage()}</div>
     </section>
   );
 }
 
-function EmployeeDashboardView({ dashboard }) {
+function EmployeeDashboardView({ dashboard, lang = 'ru' }) {
   const navigate = useNavigate();
+  const corporateCopy = CORPORATE_COPY[lang] || CORPORATE_COPY.ru;
   const assignments = dashboard?.assignments || [];
   const [industry, setIndustry] = useState('optional');
   const [trainingMode, setTrainingMode] = useState('gentle');
@@ -5362,7 +6259,7 @@ function EmployeeDashboardView({ dashboard }) {
       state: {
         scenarioTitle: task.title,
         industryName: industry === 'optional'
-          ? 'Задание компании'
+          ? corporateCopy.companyAssignment
           : CORPORATE_INDUSTRY_CHOICES.find((item) => item.id === industry)?.label,
         industryIcon: industry === 'optional'
           ? '🏢'
@@ -5375,32 +6272,32 @@ function EmployeeDashboardView({ dashboard }) {
     <div className="employee-home">
       <section className="corporate-panel employee-settings">
         <div className="panel-heading">
-          <span className="chip sky"><Settings size={14} /> Настройки</span>
-          <h3>Личный режим как у solo</h3>
-          <p>Можно сразу тренироваться по заданиям компании или выбрать отрасль для дополнительных сценариев.</p>
+          <span className="chip sky"><Settings size={14} /> {corporateCopy.employeeSettings}</span>
+          <h3>{corporateCopy.employeeModeTitle}</h3>
+          <p>{corporateCopy.employeeModeDesc}</p>
         </div>
 
         <div className="settings-grid">
           <label className="builder-field">
-            <span>Отрасль, если нужна</span>
+            <span>{corporateCopy.optionalIndustry}</span>
             <select value={industry} onChange={(event) => setIndustry(event.target.value)}>
-              <option value="optional">Не выбирать сейчас</option>
+              <option value="optional">{corporateCopy.noIndustryNow}</option>
               {CORPORATE_INDUSTRY_CHOICES.map((item) => (
                 <option key={item.id} value={item.id}>{item.icon} {item.label}</option>
               ))}
             </select>
           </label>
           <label className="builder-field">
-            <span>Сложность</span>
+            <span>{corporateCopy.difficulty}</span>
             <select value={trainingMode} onChange={(event) => setTrainingMode(event.target.value)}>
-              <option value="gentle">Мягко, с подсказками</option>
-              <option value="realistic">Реалистично</option>
-              <option value="hard">Сложный клиент</option>
+              <option value="gentle">{corporateCopy.gentleMode}</option>
+              <option value="realistic">{corporateCopy.realisticMode}</option>
+              <option value="hard">{corporateCopy.hardMode}</option>
             </select>
           </label>
           <label className="toggle-row">
             <input type="checkbox" checked={showHints} onChange={(event) => setShowHints(event.target.checked)} />
-            <span>Показывать подсказки во время сцены</span>
+            <span>{corporateCopy.showHints}</span>
           </label>
         </div>
       </section>
@@ -5408,10 +6305,10 @@ function EmployeeDashboardView({ dashboard }) {
       <section className="corporate-panel">
         <div className="panel-heading inline">
           <div>
-            <span className="chip butter"><Target size={14} /> Задания компании</span>
-            <h3>Сцены от админа</h3>
+            <span className="chip butter"><Target size={14} /> {corporateCopy.companyTasks}</span>
+            <h3>{corporateCopy.adminScenes}</h3>
           </div>
-          <span className="chip mint">{companyTasks.length} активных</span>
+          <span className="chip mint">{companyTasks.length} {corporateCopy.active}</span>
         </div>
 
         <div className="company-task-list">
@@ -5421,10 +6318,10 @@ function EmployeeDashboardView({ dashboard }) {
                 <span className="chip rose">{task.due}</span>
                 <h4>{task.title}</h4>
                 <p>{task.scenario.scene}</p>
-                <small>{task.source} · Нужно набрать {task.requiredScore}%</small>
+                <small>{task.source} · {corporateCopy.requiredScore} {task.requiredScore}%</small>
               </div>
               <button type="button" className="btn-plush sm primary" onClick={() => startTask(task)}>
-                <Play size={15} /> Начать
+                <Play size={15} /> {corporateCopy.start}
               </button>
             </article>
           ))}
@@ -5433,15 +6330,15 @@ function EmployeeDashboardView({ dashboard }) {
 
       <section className="corporate-panel employee-progress">
         <div className="stat-card">
-          <span>Назначено</span>
+          <span>{corporateCopy.assigned}</span>
           <strong>{Math.max(assignments.length, companyTasks.length)}</strong>
         </div>
         <div className="stat-card">
-          <span>Выполнено</span>
+          <span>{corporateCopy.completed}</span>
           <strong>{assignments.filter((assignment) => assignment.status === 'completed').length}</strong>
         </div>
         <div className="stat-card">
-          <span>Режим</span>
+          <span>{corporateCopy.mode}</span>
           <strong>{trainingMode === 'hard' ? 'Hard' : trainingMode === 'realistic' ? 'Real' : 'Soft'}</strong>
         </div>
       </section>

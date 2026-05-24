@@ -219,11 +219,139 @@ class DashboardTotals(ApiModel):
 
 class AdminDashboard(ApiModel):
     organization_id: str
+    organization_name: str | None = None
     scenarios: list[AdminDashboardScenario]
     weak_skills: list[str]
     completion_rate: float = 0.0
     average_score: float | None = None
     totals: DashboardTotals = Field(default_factory=DashboardTotals)
+
+
+class CorporateDocument(ApiModel):
+    id: str
+    organization_id: str
+    filename: str
+    mime_type: str
+    extracted_text: str
+    status: str = "ready"
+    created_by: str
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class CorporateKnowledgeGenerateRequest(ApiModel):
+    document_ids: list[str] = Field(default_factory=list)
+    source_prompt: str = ""
+    language: str = "ru"
+
+
+class CorporateKnowledgePatch(ApiModel):
+    source_prompt: str | None = None
+    company_brief: str | None = None
+    rules_brief: str | None = None
+    client_types: str | None = None
+    task_goal: str | None = None
+    scoring_rules: str | None = None
+    enabled_settings: dict[str, bool] | None = None
+    status: str | None = None
+
+
+class CorporateKnowledgeBase(ApiModel):
+    id: str
+    organization_id: str
+    source_prompt: str = ""
+    company_brief: str = ""
+    rules_brief: str = ""
+    client_types: str = ""
+    task_goal: str = ""
+    scoring_rules: str = ""
+    enabled_settings: dict[str, bool] = Field(default_factory=dict)
+    status: str = "draft"
+    created_by: str
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class CorporateTaskDraftGenerateRequest(ApiModel):
+    knowledge_base_id: str | None = None
+    count: int = 3
+    language: str = "ru"
+
+
+class CorporateTaskDraft(ApiModel):
+    id: str
+    organization_id: str
+    knowledge_base_id: str
+    title: str
+    client_type: str
+    skill: str
+    difficulty: str = "medium"
+    status: str = "draft"
+    generated_payload: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class CorporateTaskDraftAssignRequest(ApiModel):
+    task_draft_ids: list[str]
+    employee_ids: list[str]
+    due_date: date | None = None
+    required_score: int = 80
+    mode: str = "same"
+
+
+class CorporateTaskDraftAssignResponse(ApiModel):
+    assignments: list[Assignment]
+
+
+class CorporatePrizePatch(ApiModel):
+    first_place: str
+    second_place: str
+    third_place: str
+
+
+class CorporatePrizes(ApiModel):
+    organization_id: str
+    first_place: str = ""
+    second_place: str = ""
+    third_place: str = ""
+    updated_by: str | None = None
+    updated_at: datetime | None = None
+
+
+class CorporateReviewSkill(ApiModel):
+    label: str
+    value: int
+
+
+class CorporateReviewEmployee(ApiModel):
+    id: str
+    name: str
+    role: str
+    result: int
+    solved: str
+    improved: str
+    trained: str
+    file_accuracy: int
+    usefulness: int
+    character: str
+    file_behavior: str
+    strengths: list[str]
+    skills: list[CorporateReviewSkill]
+
+
+class CorporateReviewTotals(ApiModel):
+    documents: int = 0
+    assignments: int = 0
+    employees: int = 0
+    attempts: int = 0
+    average_growth: int = 0
+
+
+class CorporateReviewDashboard(ApiModel):
+    organization_id: str
+    totals: CorporateReviewTotals
+    employees: list[CorporateReviewEmployee]
 
 
 # ── Solo / CommTrainer schemas ────────────────────────────────────────────────

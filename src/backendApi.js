@@ -11,17 +11,51 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 export async function apiRequest(path, { token, demoUser = 'user_admin', method = 'GET', body } = {}) {
   const requestBody = typeof body === 'string' ? body : body ? JSON.stringify(body) : undefined;
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const buildRequest = (requestToken) => ({
     method,
     headers: {
       ...(body ? { 'Content-Type': 'application/json' } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(!token && demoUser ? { 'X-Demo-User': demoUser } : {}),
+      ...(requestToken ? { Authorization: `Bearer ${requestToken}` } : {}),
+      ...(!requestToken && demoUser ? { 'X-Demo-User': demoUser } : {}),
     },
     body: requestBody,
   });
 
-  const payload = await response.json().catch(() => null);
+  let response = await fetch(`${API_BASE_URL}${path}`, buildRequest(token));
+
+  let payload = await response.json().catch(() => null);
+
+  if (token && demoUser && response.status === 401 && payload?.detail === 'Invalid token.') {
+    response = await fetch(`${API_BASE_URL}${path}`, buildRequest(null));
+    payload = await response.json().catch(() => null);
+  }
+
+  if (!response.ok) {
+    const detail = payload?.detail;
+    throw new Error(typeof detail === 'string' ? detail : 'Request failed.');
+  }
+
+  return payload;
+}
+
+export async function apiFormRequest(path, { token, demoUser = 'user_admin', method = 'POST', formData } = {}) {
+  const buildRequest = (requestToken) => ({
+    method,
+    headers: {
+      ...(requestToken ? { Authorization: `Bearer ${requestToken}` } : {}),
+      ...(!requestToken && demoUser ? { 'X-Demo-User': demoUser } : {}),
+    },
+    body: formData,
+  });
+
+  let response = await fetch(`${API_BASE_URL}${path}`, buildRequest(token));
+
+  let payload = await response.json().catch(() => null);
+
+  if (token && demoUser && response.status === 401 && payload?.detail === 'Invalid token.') {
+    response = await fetch(`${API_BASE_URL}${path}`, buildRequest(null));
+    payload = await response.json().catch(() => null);
+  }
 
   if (!response.ok) {
     const detail = payload?.detail;
