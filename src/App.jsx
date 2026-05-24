@@ -2317,19 +2317,21 @@ const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_AP
 function useAudioPlayer() {
   const audioRef = useRef(null);
 
-  const play = useCallback((base64Mp3, text, lang) => {
+  const play = useCallback((base64Audio, text, lang, mime) => {
     return new Promise((resolve) => {
-      if (base64Mp3) {
-        const audio = new Audio(`data:audio/mp3;base64,${base64Mp3}`);
+      // Safety timeout: always resolve within 12s so the UI doesn't hang
+      const timer = setTimeout(resolve, 12000);
+      const done = () => { clearTimeout(timer); resolve(); };
+
+      if (base64Audio) {
+        const mimeType = mime || 'audio/mpeg';
+        const audio = new Audio(`data:${mimeType};base64,${base64Audio}`);
         audioRef.current = audio;
-        audio.onended = resolve;
-        audio.onerror = () => {
-          // Fall through to speechSynthesis on decode error
-          speakFallback(text, lang, resolve);
-        };
-        audio.play().catch(() => speakFallback(text, lang, resolve));
+        audio.onended = done;
+        audio.onerror = () => speakFallback(text, lang, done);
+        audio.play().catch(() => speakFallback(text, lang, done));
       } else {
-        speakFallback(text, lang, resolve);
+        speakFallback(text, lang, done);
       }
     });
   }, []);
@@ -2381,8 +2383,9 @@ function VoiceChat({ scenarioTitle, scenarioGoal, aiPersona, patientType, langua
 
   // Load Deepgram key and start simulation
   useEffect(() => {
+    const ac = new AbortController();
 
-    fetch(`${API_BASE}/api/live-sim/config`)
+    fetch(`${API_BASE}/api/live-sim/config`, { signal: ac.signal })
       .then((r) => r.json())
       .then((cfg) => { deepgramKeyRef.current = cfg.deepgramApiKey || ''; })
       .catch(() => {});
@@ -2391,6 +2394,7 @@ function VoiceChat({ scenarioTitle, scenarioGoal, aiPersona, patientType, langua
     fetch(`${API_BASE}/api/live-sim/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: ac.signal,
       body: JSON.stringify({
         title: scenarioTitle || 'Training simulation',
         goal: scenarioGoal || '',
@@ -2401,6 +2405,7 @@ function VoiceChat({ scenarioTitle, scenarioGoal, aiPersona, patientType, langua
     })
       .then((r) => r.json())
       .then(async (data) => {
+        if (ac.signal.aborted) return;
         const sp = data.systemPrompt || data.system_prompt || '';
         setSystemPrompt(sp);
         systemPromptRef.current = sp;
@@ -2410,11 +2415,19 @@ function VoiceChat({ scenarioTitle, scenarioGoal, aiPersona, patientType, langua
         onEmotionChange?.(data.emotion || 'neutral');
         onMotionChange?.('talking');
         setStatus('playing');
-        await play(data.audioBase64 || data.audio_base64, data.message, language);
-        onMotionChange?.('idle');
-        setStatus('idle');
+        const audioData = data.audioBase64 || data.audio_base64;
+        const audioMime = data.audioMime || data.audio_mime || 'audio/mpeg';
+        await play(audioData, data.message, language, audioMime);
+        if (!ac.signal.aborted) {
+          onMotionChange?.('idle');
+          setStatus('idle');
+        }
       })
-      .catch(() => setStatus('idle'));
+      .catch((err) => {
+        if (err.name !== 'AbortError') setStatus('idle');
+      });
+
+    return () => ac.abort();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stopListening = useCallback(async () => {
@@ -2460,7 +2473,9 @@ function VoiceChat({ scenarioTitle, scenarioGoal, aiPersona, patientType, langua
       onEmotionChange?.(data.emotion || 'neutral');
       onMotionChange?.('talking');
       setStatus('playing');
-      await play(data.audioBase64 || data.audio_base64, data.message, language);
+      const audioData = data.audioBase64 || data.audio_base64;
+      const audioMime = data.audioMime || data.audio_mime || 'audio/mpeg';
+      await play(audioData, data.message, language, audioMime);
       onMotionChange?.('idle');
       setStatus('idle');
     } catch {

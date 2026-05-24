@@ -1,6 +1,7 @@
 """Live simulation: LLM character roleplay + Deepgram TTS."""
 import base64
 import re
+import struct
 
 import httpx
 
@@ -105,10 +106,25 @@ def get_ai_response(
         return "I see. Please go on.", "neutral"
 
 
-def synthesize_speech(text: str, _language: str, settings: Settings) -> str | None:
-    """Call OpenRouter TTS, return base64-encoded MP3 or None."""
+def _pcm_to_wav(pcm_data: bytes, sample_rate: int = 24000, channels: int = 1, bit_depth: int = 16) -> bytes:
+    """Wrap raw PCM bytes in a WAV container so browsers can decode it."""
+    data_size = len(pcm_data)
+    byte_rate = sample_rate * channels * bit_depth // 8
+    block_align = channels * bit_depth // 8
+    header = struct.pack(
+        "<4sI4s4sIHHIIHH4sI",
+        b"RIFF", 36 + data_size, b"WAVE",
+        b"fmt ", 16, 1, channels, sample_rate,
+        byte_rate, block_align, bit_depth,
+        b"data", data_size,
+    )
+    return header + pcm_data
+
+
+def synthesize_speech(text: str, _language: str, settings: Settings) -> tuple[str, str] | tuple[None, None]:
+    """Call OpenRouter TTS. Returns (base64_audio, mime_type) or (None, None)."""
     if not settings.openrouter_api_key:
-        return None
+        return None, None
 
     headers = {
         "Authorization": f"Bearer {settings.openrouter_api_key}",
@@ -126,6 +142,22 @@ def synthesize_speech(text: str, _language: str, settings: Settings) -> str | No
             timeout=20,
         )
         resp.raise_for_status()
-        return base64.b64encode(resp.content).decode()
+        content_type = resp.headers.get("content-type", "audio/mp3")
+        audio_bytes = resp.content
+        if content_type.startswith("audio/pcm"):
+            # Extract sample rate from content-type if present (e.g. audio/pcm;rate=24000)
+            rate = 24000
+            for part in content_type.split(";"):
+                part = part.strip()
+                if part.startswith("rate="):
+                    try:
+                        rate = int(part.split("=", 1)[1])
+                    except ValueError:
+                        pass
+            audio_bytes = _pcm_to_wav(audio_bytes, sample_rate=rate)
+            mime = "audio/wav"
+        else:
+            mime = "audio/mpeg"
+        return base64.b64encode(audio_bytes).decode(), mime
     except Exception:
-        return None
+        return None, None
