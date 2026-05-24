@@ -2356,7 +2356,16 @@ function speakFallback(text, lang, onEnd) {
   window.speechSynthesis.speak(utt);
 }
 
+const FALLBACK_PERSONAS = {
+  angry: 'Frustrated client',
+  sad: 'Distressed person',
+  vip: 'VIP client',
+  good: 'Cooperative client',
+  neutral: 'Professional client',
+};
+
 function VoiceChat({ scenarioTitle, scenarioGoal, aiPersona, patientType, language, onMotionChange, onEmotionChange }) {
+  const effectivePersona = aiPersona || FALLBACK_PERSONAS[patientType] || 'Professional client';
   const [status, setStatus] = useState('idle'); // idle | loading | listening | thinking | playing
   const [messages, setMessages] = useState([]);
   const [liveText, setLiveText] = useState('');
@@ -2372,7 +2381,6 @@ function VoiceChat({ scenarioTitle, scenarioGoal, aiPersona, patientType, langua
 
   // Load Deepgram key and start simulation
   useEffect(() => {
-    if (!aiPersona) return;
 
     fetch(`${API_BASE}/api/live-sim/config`)
       .then((r) => r.json())
@@ -2386,7 +2394,7 @@ function VoiceChat({ scenarioTitle, scenarioGoal, aiPersona, patientType, langua
       body: JSON.stringify({
         title: scenarioTitle || 'Training simulation',
         goal: scenarioGoal || '',
-        ai_persona: aiPersona,
+        ai_persona: effectivePersona,
         patient_type: patientType || 'neutral',
         language: language || 'en',
       }),
@@ -2538,8 +2546,6 @@ function VoiceChat({ scenarioTitle, scenarioGoal, aiPersona, patientType, langua
       startListening();
     }
   }, [status, liveText, startListening, stopListening, onMotionChange]);
-
-  if (!aiPersona) return null;
 
   return (
     <div className="voice-chat-panel" style={{
