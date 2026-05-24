@@ -328,6 +328,9 @@ def synthesize_speech(text: str, _language: str, settings: Settings) -> tuple[st
 
 STT_MODEL = "openai/whisper-1"
 
+# ISO 639-1 codes accepted by Whisper for the three app interface languages
+_WHISPER_LANG: dict[str, str] = {"en": "en", "ru": "ru", "uz": "uz"}
+
 
 def transcribe_audio(audio_bytes: bytes, filename: str, content_type: str, language: str, settings: Settings) -> str:
     """Transcribe via OpenRouter Whisper API (JSON + base64 audio)."""
@@ -343,6 +346,10 @@ def transcribe_audio(audio_bytes: bytes, filename: str, content_type: str, langu
     else:
         fmt = "webm"
 
+    # Always tell Whisper which language to expect — improves accuracy and avoids
+    # misdetection when the user speaks Russian or Uzbek in short utterances.
+    lang_code = _WHISPER_LANG.get(language or "", "en")
+
     headers = {
         "Authorization": f"Bearer {settings.openrouter_api_key}",
         "Content-Type": "application/json",
@@ -351,15 +358,14 @@ def transcribe_audio(audio_bytes: bytes, filename: str, content_type: str, langu
     if settings.openrouter_app_url:
         headers["HTTP-Referer"] = settings.openrouter_app_url
 
-    body: dict = {
+    body = {
         "model": STT_MODEL,
+        "language": lang_code,
         "input_audio": {
             "data": base64.b64encode(audio_bytes).decode(),
             "format": fmt,
         },
     }
-    if language and language != "auto":
-        body["language"] = language
 
     try:
         resp = httpx.post(

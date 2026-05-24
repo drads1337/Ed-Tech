@@ -2813,7 +2813,7 @@ function VoiceChat({
         try {
           const form = new FormData();
           form.append('file', blob, `audio.${ext}`);
-          form.append('language', language || 'en');
+          form.append('language', language || localStorage.getItem('app_lang') || 'ru');
           const resp = await fetch(`${API_BASE}/api/live-sim/transcribe`, {
             method: 'POST',
             body: form,
