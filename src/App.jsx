@@ -28,7 +28,7 @@ import {
 import * as THREE from 'three';
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { apiRequest, getSessionToken, supabase } from './backendApi.js';
-import { CommTrainerExperience } from './CommTrainerApp.jsx';
+import { BackgroundMusic, CommTrainerExperience, TrainerFloatingDecor } from './CommTrainerApp.jsx';
 import {
   EmotionStatusPanel,
   getEmotionAdjustments,
@@ -4755,7 +4755,9 @@ function DashboardPage() {
 
   if (isLoading) {
     return (
-      <main className="product-app dots-bg dashboard-page">
+      <main className="product-app paper dots-bg dashboard-page">
+        <BackgroundMusic />
+        <TrainerFloatingDecor />
         <section className="dashboard-shell plush-lg paper">
           <p className="empty-state">Loading dashboard...</p>
         </section>
@@ -4790,7 +4792,9 @@ function DashboardPage() {
   );
 
   return (
-    <main className={`product-app dots-bg dashboard-page${isAdminProfile ? ' has-bottom-nav' : ''}`}>
+    <main className={`product-app paper dots-bg dashboard-page${isAdminProfile ? ' has-bottom-nav' : ''}`}>
+      <BackgroundMusic />
+      <TrainerFloatingDecor />
       <header className="app-header">
         <Link to="/home" className="app-logo">Training Loop</Link>
         <div className="header-user">

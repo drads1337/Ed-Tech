@@ -959,7 +959,7 @@ function Float({ left, top, anim, delay, children }) {
   );
 }
 
-function TrainerFloatingDecor() {
+export function TrainerFloatingDecor() {
   return (
     <div className="trainer-floating-decor" aria-hidden="true">
       <div className="trainer-floating-orbs">

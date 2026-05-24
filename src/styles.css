@@ -2388,12 +2388,26 @@ canvas {
 }
 
 .dashboard-page {
+  position: relative;
+  overflow: hidden;
   display: grid;
   align-content: start;
   gap: 22px;
-  background:
-    linear-gradient(180deg, rgba(166, 216, 255, 0.18), rgba(255, 246, 230, 0) 320px),
-    var(--cream);
+  background-color: var(--paper, var(--cream));
+}
+
+.dashboard-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(180deg, rgba(166, 216, 255, 0.18), rgba(255, 246, 230, 0) 320px);
+}
+
+.dashboard-page > :not(.trainer-floating-decor) {
+  position: relative;
+  z-index: 1;
 }
 
 .dashboard-page.has-bottom-nav {
