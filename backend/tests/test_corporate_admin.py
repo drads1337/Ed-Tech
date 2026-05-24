@@ -1,4 +1,5 @@
 from conftest import ADMIN_ID, EMPLOYEE_ID
+from app.services.corporate_ai import fallback_task_drafts
 
 
 def act_as(client, user_id: str):
@@ -89,6 +90,13 @@ def test_task_drafts_can_be_generated_and_assigned(client):
     assert assign_response.status_code == 200
     assignment = assign_response.json()["assignments"][0]
     assert assignment["employeeIds"] == [EMPLOYEE_ID]
+
+
+def test_task_drafts_fallback_uses_requested_language(client):
+    knowledge = {"task_goal": ""}
+
+    assert fallback_task_drafts(knowledge, count=1, language="en")[0]["title"] == "Client asks to break policy"
+    assert fallback_task_drafts(knowledge, count=1, language="uz")[0]["title"] == "Mijoz reglamentni buzishni so‘raydi"
 
 
 def test_manual_task_draft_can_be_created_without_existing_knowledge_base(client):

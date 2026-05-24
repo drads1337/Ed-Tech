@@ -16,6 +16,12 @@ DEFAULT_ENABLED_SETTINGS = {
     "scoring": True,
 }
 
+LANGUAGE_NAMES = {
+    "ru": "Russian",
+    "uz": "Uzbek Latin",
+    "en": "English",
+}
+
 
 def extract_document_text(filename: str, content_type: str, data: bytes) -> str:
     name = filename.lower()
@@ -142,12 +148,53 @@ def generate_knowledge(source_prompt: str, documents: list[dict], language: str,
         return fallback
 
 
-def fallback_task_drafts(knowledge: dict, count: int = 3) -> list[dict]:
-    seeds = [
-        ("Клиент просит нарушить регламент", "VIP / сложный", "Следование правилам", "hard"),
-        ("Enterprise-клиент сомневается в ИИ", "B2B enterprise", "Аргументация ценности", "medium"),
-        ("Объяснить пользу без лишних обещаний", "Новый клиент", "Простое объяснение", "easy"),
-    ]
+def fallback_task_drafts(knowledge: dict, count: int = 3, language: str = "ru") -> list[dict]:
+    localized = {
+        "ru": {
+            "seeds": [
+                ("Клиент просит нарушить регламент", "VIP / сложный", "Следование правилам", "hard"),
+                ("Enterprise-клиент сомневается в ИИ", "B2B enterprise", "Аргументация ценности", "medium"),
+                ("Объяснить пользу без лишних обещаний", "Новый клиент", "Простое объяснение", "easy"),
+            ],
+            "opening": "Мне нужно понять, почему я должен принять ваше предложение именно сейчас.",
+            "skills": ["точность по файлам", "тон", "структура"],
+            "rubric": {
+                "accuracy": "Использует ли сотрудник утвержденные материалы?",
+                "tone": "Сохраняет ли сотрудник спокойный профессиональный тон?",
+                "nextStep": "Фиксирует ли понятный следующий шаг?",
+            },
+        },
+        "uz": {
+            "seeds": [
+                ("Mijoz reglamentni buzishni so‘raydi", "VIP / murakkab", "Qoidalarga amal qilish", "hard"),
+                ("Enterprise mijoz AI bo‘yicha shubhalanmoqda", "B2B enterprise", "Qiymatni asoslash", "medium"),
+                ("Ortiqcha va’dalarsiz foydani tushuntirish", "Yangi mijoz", "Sodda tushuntirish", "easy"),
+            ],
+            "opening": "Nega aynan hozir taklifingizni qabul qilishim kerakligini tushunmoqchiman.",
+            "skills": ["fayllar bo‘yicha aniqlik", "ohang", "tuzilma"],
+            "rubric": {
+                "accuracy": "Xodim tasdiqlangan materiallardan foydalanadimi?",
+                "tone": "Xodim sokin va professional ohangni saqlaydimi?",
+                "nextStep": "Tushunarli keyingi qadamni belgilaydimi?",
+            },
+        },
+        "en": {
+            "seeds": [
+                ("Client asks to break policy", "VIP / complex", "Policy adherence", "hard"),
+                ("Enterprise client doubts AI value", "B2B enterprise", "Value argumentation", "medium"),
+                ("Explain value without overpromising", "New client", "Simple explanation", "easy"),
+            ],
+            "opening": "I need to understand why I should accept your proposal right now.",
+            "skills": ["file accuracy", "tone", "structure"],
+            "rubric": {
+                "accuracy": "Does the employee use approved materials?",
+                "tone": "Does the employee keep a calm professional tone?",
+                "nextStep": "Does the employee define a clear next step?",
+            },
+        },
+    }
+    copy = localized.get(language, localized["ru"])
+    seeds = copy["seeds"]
     drafts = []
     for index, (title, client_type, skill, difficulty) in enumerate(seeds[: max(1, min(count, 6))]):
         drafts.append(
@@ -160,13 +207,9 @@ def fallback_task_drafts(knowledge: dict, count: int = 3) -> list[dict]:
                 "generated_payload": {
                     "goal": knowledge.get("task_goal") or title,
                     "persona": client_type,
-                    "openingMessage": "Мне нужно понять, почему я должен принять ваше предложение именно сейчас.",
-                    "evaluationSkills": ["точность по файлам", "тон", "структура", skill],
-                    "rubric": {
-                        "accuracy": "Использует ли сотрудник утвержденные материалы?",
-                        "tone": "Сохраняет ли сотрудник спокойный профессиональный тон?",
-                        "nextStep": "Фиксирует ли понятный следующий шаг?",
-                    },
+                    "openingMessage": copy["opening"],
+                    "evaluationSkills": [*copy["skills"], skill],
+                    "rubric": copy["rubric"],
                 },
             }
         )
@@ -174,7 +217,9 @@ def fallback_task_drafts(knowledge: dict, count: int = 3) -> list[dict]:
 
 
 def generate_task_drafts(knowledge: dict, count: int, language: str, settings: Settings) -> list[dict]:
-    fallback = fallback_task_drafts(knowledge, count)
+    language_code = language if language in LANGUAGE_NAMES else "ru"
+    language_name = LANGUAGE_NAMES[language_code]
+    fallback = fallback_task_drafts(knowledge, count, language_code)
     if not settings.openrouter_api_key:
         return fallback
 
@@ -195,10 +240,26 @@ def generate_task_drafts(knowledge: dict, count: int, language: str, settings: S
                     "Generate corporate roleplay task drafts. Return only JSON: "
                     "{\"tasks\":[{\"title\":\"\",\"clientType\":\"\",\"skill\":\"\",\"difficulty\":\"easy|medium|hard\","
                     "\"openingMessage\":\"\",\"evaluationSkills\":[\"\"],\"rubric\":{}}]}. "
-                    "Use the requested language."
+                    f"LANGUAGE LOCK: write every human-facing value only in {language_name}. "
+                    f"The requested language code is '{language_code}'. "
+                    "This includes title, clientType, skill, openingMessage, evaluationSkills, and every rubric key/value. "
+                    "Do not mix Russian, Uzbek, or English unless that exact language is requested. "
+                    "Keep difficulty exactly one of: easy, medium, hard."
                 ),
             },
-            {"role": "user", "content": json.dumps({"language": language, "count": count, "knowledge": knowledge}, ensure_ascii=False)},
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {
+                        "language": language_code,
+                        "languageName": language_name,
+                        "count": count,
+                        "knowledge": knowledge,
+                        "instruction": f"Create scenario drafts strictly in {language_name}.",
+                    },
+                    ensure_ascii=False,
+                ),
+            },
         ],
         "response_format": {"type": "json_object"},
         "temperature": 0.6,
