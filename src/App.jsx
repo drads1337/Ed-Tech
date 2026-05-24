@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BrowserRouter, Navigate, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Navigate, Routes, Route, Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { ContactShadows, Environment, Html, OrbitControls, useGLTF } from '@react-three/drei';
 import {
@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   Target,
   TrendingUp,
+  User,
   Users,
   UploadCloud,
   Wifi,
@@ -4587,6 +4588,89 @@ function OnboardingPage() {
   );
 }
 
+const DASHBOARD_PROFILE_COPY = {
+  ru: {
+    nav: 'Профиль',
+    title: 'Мой профиль',
+    back: 'К панели',
+    email: 'Email',
+    org: 'Компания',
+    role: 'Роль',
+    goal: 'Цель обучения',
+    signOut: 'Выйти',
+    navAria: 'Навигация панели',
+  },
+  uz: {
+    nav: 'Profil',
+    title: 'Mening profilim',
+    back: 'Panelga',
+    email: 'Email',
+    org: 'Kompaniya',
+    role: 'Rol',
+    goal: 'O\'qish maqsadi',
+    signOut: 'Chiqish',
+    navAria: 'Panel navigatsiyasi',
+  },
+  en: {
+    nav: 'Profile',
+    title: 'My profile',
+    back: 'Back to panel',
+    email: 'Email',
+    org: 'Company',
+    role: 'Role',
+    goal: 'Training goal',
+    signOut: 'Logout',
+    navAria: 'Panel navigation',
+  },
+};
+
+function DashboardProfileView({ profile, copy, onSignOut }) {
+  const roleLabel = profile?.onboarding?.roleLabel
+    || (profile?.role === 'admin' ? 'Admin' : profile?.role || '—');
+
+  return (
+    <section className="dashboard-profile-view plush-lg paper popin">
+      <Link to="/home" className="btn-plush sm admin-section-back dashboard-profile-back">
+        <ArrowLeft size={16} /> {copy.back}
+      </Link>
+
+      <article className="dashboard-profile-card">
+        <span className={`dashboard-profile-avatar header-avatar ${profile?.role || 'admin'}`}>
+          {profile?.name?.[0] || 'U'}
+        </span>
+        <div className="dashboard-profile-copy">
+          <h2>{profile?.name || copy.title}</h2>
+          <p className="dashboard-profile-meta">
+            <strong>{copy.email}:</strong> {profile?.email || '—'}
+          </p>
+          <p className="dashboard-profile-meta">
+            <strong>{copy.org}:</strong> {profile?.organizationName || profile?.organizationId || '—'}
+          </p>
+          <p className="dashboard-profile-meta">
+            <strong>{copy.role}:</strong> {roleLabel}
+          </p>
+          {profile?.onboarding?.goalLabel || profile?.goal ? (
+            <p className="dashboard-profile-meta">
+              <strong>{copy.goal}:</strong> {profile.onboarding?.goalLabel || profile.goal}
+            </p>
+          ) : null}
+        </div>
+        {profile?.onboarding ? (
+          <div className="summary-chips">
+            <span className="chip sky">{profile.onboarding.industryLabel || profile.onboarding.industry}</span>
+            {profile.onboarding.experienceLabel ? (
+              <span className="chip mint">{profile.onboarding.experienceLabel}</span>
+            ) : null}
+          </div>
+        ) : null}
+        <button type="button" className="logout-button tap dashboard-profile-logout" onClick={onSignOut}>
+          <LogOut size={16} /> {copy.signOut}
+        </button>
+      </article>
+    </section>
+  );
+}
+
 function DashboardPage() {
   const [profile, setProfile] = useState(null);
   const [dashboard, setDashboard] = useState(null);
@@ -4595,6 +4679,9 @@ function DashboardPage() {
   const [isBackendDashboard, setIsBackendDashboard] = useState(false);
   const [lang, setLang] = useState(() => localStorage.getItem('app_lang') || 'ru');
   const navigate = useNavigate();
+  const location = useLocation();
+  const isProfileView = location.pathname === '/home/profile';
+  const profileCopy = DASHBOARD_PROFILE_COPY[lang] || DASHBOARD_PROFILE_COPY.ru;
 
   const changeLang = (nextLang) => {
     setLang(nextLang);
@@ -4676,17 +4763,41 @@ function DashboardPage() {
     );
   }
 
+  const isAdminProfile = profile?.role === 'admin';
+  const dashboardHeading = (
+    <header className="admin-dashboard-hero">
+      <div className="admin-dashboard-hero-head">
+        <span className={`chip ${isBackendDashboard ? 'mint' : 'peach'}`}>
+          {isBackendDashboard ? 'Профиль сохранён' : 'Демо-профиль'}
+        </span>
+        <h3>{isAdminProfile ? 'Панель команды' : 'Мой тренажёр'}</h3>
+        <p>
+          {isAdminProfile
+            ? 'База знаний, задания и результаты собраны в одном месте. Можно назначать практику и смотреть, как команда проходит обучение.'
+            : 'Личный маршрут готов: первый сценарий открыт, прогресс сохранён, а награда уже ждёт в профиле.'}
+        </p>
+      </div>
+      {profile?.onboarding ? (
+        <div className="summary-chips">
+          <span className="chip sky">{profile.onboarding.industryLabel || profile.onboarding.industry}</span>
+          <span className="chip mint">{profile.goal || profile.onboarding.goalLabel}</span>
+          {profile.onboardingAiSummary?.starterScenarioTitle ? (
+            <span className="chip butter">{profile.onboardingAiSummary.starterScenarioTitle}</span>
+          ) : null}
+        </div>
+      ) : null}
+    </header>
+  );
+
   return (
-    <main className="product-app dots-bg dashboard-page">
+    <main className={`product-app dots-bg dashboard-page${isAdminProfile ? ' has-bottom-nav' : ''}`}>
       <header className="app-header">
-        <Link to="/dashboard" className="app-logo">Training Loop</Link>
+        <Link to="/home" className="app-logo">Training Loop</Link>
         <div className="header-user">
           {profile ? (
             <div className="header-user-info">
               <span className={`header-avatar ${profile.role}`}>{profile.name?.[0] || 'U'}</span>
               <span className="header-username">{profile.name}</span>
-              <span className="chip sky">{profile.role}</span>
-              <span className="chip butter">{profile.xp || 0} XP</span>
             </div>
           ) : null}
           <div className="home-header-actions admin-header-actions">
@@ -4704,49 +4815,56 @@ function DashboardPage() {
               ))}
             </div>
             <button type="button" className="logout-button tap" onClick={handleSignOut}>
-              <LogOut size={16} /> {lang === 'en' ? 'Logout' : lang === 'uz' ? 'Chiqish' : 'Выйти'}
+              <LogOut size={16} /> {profileCopy.signOut}
             </button>
           </div>
         </div>
       </header>
 
-      <section className="dashboard-shell plush-lg paper popin">
-        <div className="preview-heading">
-          <span className={`chip ${isBackendDashboard ? 'mint' : 'peach'}`}>
-            {isBackendDashboard ? 'Live backend' : 'Mock profile'}
-          </span>
-          <h2>{profile?.role === 'admin' ? 'Admin dashboard' : 'Employee dashboard'}</h2>
-          {profile?.onboarding ? (
-            <div className="summary-chips">
-              <span className="chip sky">{profile.onboarding.industryLabel || profile.onboarding.industry}</span>
-              <span className="chip mint">{profile.goal || profile.onboarding.goalLabel}</span>
-              {profile.onboardingAiSummary?.starterScenarioTitle ? (
-                <span className="chip butter">{profile.onboardingAiSummary.starterScenarioTitle}</span>
-              ) : null}
-            </div>
-          ) : null}
-          <p>
-            {isBackendDashboard
-              ? 'Данные загружены через FastAPI и Supabase. Онбординг остаётся сохранённым в профиле демо-сессии.'
-              : 'Данные собраны локально после онбординга. Первый сценарий открыт, а награда уже в профиле.'}
-          </p>
-        </div>
-
-        {error ? <div className="toast-alert warning">{error}</div> : null}
-
-        {profile?.role === 'admin' ? (
-          <AdminDashboardView dashboard={dashboard} />
-        ) : (
+      {isProfileView && isAdminProfile ? (
+        <DashboardProfileView profile={profile} copy={profileCopy} onSignOut={handleSignOut} />
+      ) : profile?.role === 'admin' ? (
+        <AdminDashboardView
+          dashboard={dashboard}
+          heading={dashboardHeading}
+          error={error}
+        />
+      ) : (
+        <section className="dashboard-shell plush-lg paper popin">
+          {dashboardHeading}
+          {error ? <div className="toast-alert warning">{error}</div> : null}
           <EmployeeDashboardView dashboard={dashboard} />
-        )}
-      </section>
+        </section>
+      )}
+
+      {isAdminProfile ? (
+        <nav className="dashboard-bottom-nav" aria-label={profileCopy.navAria}>
+          <NavLink
+            to="/home/profile"
+            className={({ isActive }) => `dashboard-bottom-nav-link tap${isActive ? ' is-active' : ''}`}
+          >
+            <User size={20} aria-hidden="true" />
+            <strong>{profileCopy.nav}</strong>
+          </NavLink>
+        </nav>
+      ) : null}
     </main>
   );
 }
 
-function AdminDashboardView({ dashboard }) {
+function getAdminPageFromPath(pathname) {
+  if (pathname === '/home' || pathname === '/home/') return 'home';
+  if (pathname === '/dashboard' || pathname === '/dashboard/') return 'dashboard';
+  if (pathname.startsWith('/dashboard/base')) return 'base';
+  if (pathname.startsWith('/dashboard/assignments')) return 'assignments';
+  if (pathname.startsWith('/dashboard/prizes')) return 'prizes';
+  return null;
+}
+
+function AdminDashboardView({ dashboard, heading, error }) {
+  const location = useLocation();
+  const activeAdminPage = getAdminPageFromPath(location.pathname);
   const scenarios = dashboard?.scenarios || [];
-  const [activeAdminPage, setActiveAdminPage] = useState('dashboard');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(ADMIN_EMPLOYEE_RESULTS[0].id);
   const [documents, setDocuments] = useState(ADMIN_SOURCE_DOCUMENTS);
   const [sourcePrompt, setSourcePrompt] = useState('Собери базу знаний для обучения сотрудников: правила компании, типы клиентов, ограничения ИИ, примеры правильных ответов.');
@@ -4759,13 +4877,6 @@ function AdminDashboardView({ dashboard }) {
   const [assignmentMode, setAssignmentMode] = useState('auto');
   const [employeeMode, setEmployeeMode] = useState('same');
   const [knowledgeCreated, setKnowledgeCreated] = useState(false);
-  const [assignmentsCreated, setAssignmentsCreated] = useState(false);
-  const [enabledSettings, setEnabledSettings] = useState({
-    companyRules: true,
-    aiPolicy: true,
-    clientTypes: true,
-    scoring: true,
-  });
   const [prizes, setPrizes] = useState({
     first: '1 место: денежный бонус и сертификат лидера обучения',
     second: '2 место: подарок от компании и публичное признание',
@@ -4774,10 +4885,10 @@ function AdminDashboardView({ dashboard }) {
   const [savedPrizes, setSavedPrizes] = useState(prizes);
   const [isPrizeSaved, setIsPrizeSaved] = useState(true);
   const selectedEmployee = ADMIN_EMPLOYEE_RESULTS.find((employee) => employee.id === selectedEmployeeId) || ADMIN_EMPLOYEE_RESULTS[0];
-  const enabledCount = Object.values(enabledSettings).filter(Boolean).length;
   const adminPages = [
     {
       id: 'dashboard',
+      route: '/dashboard',
       label: 'Dashboard',
       badge: 'СТАТИСТИКА',
       emoji: '📊',
@@ -4787,6 +4898,7 @@ function AdminDashboardView({ dashboard }) {
     },
     {
       id: 'base',
+      route: '/dashboard/base',
       label: 'Создать базу',
       badge: 'ФАЙЛЫ',
       emoji: '📚',
@@ -4795,16 +4907,8 @@ function AdminDashboardView({ dashboard }) {
       badgeBg: 'var(--butter)',
     },
     {
-      id: 'preview',
-      label: 'Preview',
-      badge: 'ПРОВЕРКА',
-      emoji: '👀',
-      desc: 'Что включено и что пойдет в задания.',
-      accent: 'var(--mint)',
-      badgeBg: 'var(--mint)',
-    },
-    {
       id: 'assignments',
+      route: '/dashboard/assignments',
       label: 'Задания',
       badge: 'ЗАПУСК',
       emoji: '🎯',
@@ -4814,6 +4918,7 @@ function AdminDashboardView({ dashboard }) {
     },
     {
       id: 'prizes',
+      route: '/dashboard/prizes',
       label: 'Призы',
       badge: 'ТОП-3',
       emoji: '🏆',
@@ -4849,19 +4954,6 @@ function AdminDashboardView({ dashboard }) {
 
   const createKnowledgeBase = () => {
     fillWithAi();
-    setActiveAdminPage('preview');
-  };
-
-  const toggleSetting = (settingId) => {
-    setEnabledSettings((currentSettings) => ({
-      ...currentSettings,
-      [settingId]: !currentSettings[settingId],
-    }));
-  };
-
-  const createAssignments = () => {
-    setAssignmentsCreated(true);
-    setActiveAdminPage('assignments');
   };
 
   const handlePrizeChange = (place, value) => {
@@ -4881,7 +4973,7 @@ function AdminDashboardView({ dashboard }) {
   const renderDashboard = () => (
     <>
       <div className="corporate-stats">
-        <div className="stat-card">
+        <div className="stat-card company-stat">
           <span><Building2 size={18} /> Компания</span>
           <strong>{dashboard?.organizationId || 'Training Loop Corp'}</strong>
         </div>
@@ -4899,29 +4991,34 @@ function AdminDashboardView({ dashboard }) {
         </div>
       </div>
 
-      <section className="corporate-panel">
+      <section className="corporate-panel dashboard-insight-panel">
         <div className="panel-heading inline">
           <div>
             <span className="chip mint"><Users size={14} /> Сотрудники</span>
-            <h3>Кликни сотрудника, чтобы увидеть детали</h3>
+            <h3>Командная аналитика</h3>
+            <p>Результаты сотрудников, точность по базе и польза для компании в одном рабочем виде.</p>
           </div>
           <span className="chip butter"><TrendingUp size={14} /> Польза: {selectedEmployee.usefulness}%</span>
         </div>
 
         <div className="admin-employee-layout">
-          <div className="admin-employee-list">
+          <div className="admin-employee-list" role="table" aria-label="Сотрудники">
+            <div className="admin-employee-table-head" role="row">
+              <span role="columnheader">Сотрудник</span>
+              <span role="columnheader">Роль</span>
+              <span role="columnheader">Результат</span>
+            </div>
             {ADMIN_EMPLOYEE_RESULTS.map((employee) => (
               <button
                 key={employee.id}
                 type="button"
                 className={`admin-employee-row ${selectedEmployeeId === employee.id ? 'is-active' : ''}`}
                 onClick={() => setSelectedEmployeeId(employee.id)}
+                role="row"
               >
                 <span className="employee-avatar">{employee.name[0]}</span>
-                <div>
-                  <strong>{employee.name}</strong>
-                  <small>{employee.role}</small>
-                </div>
+                <strong>{employee.name}</strong>
+                <small>{employee.role}</small>
                 <b>{employee.result}%</b>
               </button>
             ))}
@@ -4938,7 +5035,7 @@ function AdminDashboardView({ dashboard }) {
             </div>
             <div className="admin-detail-grid">
               <div>
-                <span>Как отвечает по файлам</span>
+                <span>Файлы</span>
                 <p>{selectedEmployee.fileBehavior}</p>
               </div>
               <div>
@@ -4950,7 +5047,7 @@ function AdminDashboardView({ dashboard }) {
                 <p>{selectedEmployee.strengths.join(', ')}</p>
               </div>
               <div>
-                <span>Польза для компании</span>
+                <span>Эффект</span>
                 <p>{selectedEmployee.usefulness}% · точность по файлам {selectedEmployee.fileAccuracy}%</p>
               </div>
             </div>
@@ -4971,10 +5068,10 @@ function AdminDashboardView({ dashboard }) {
 
   const renderBase = () => (
     <>
-      <section className="corporate-panel admin-builder">
+      <section className="corporate-panel admin-builder knowledge-base-panel">
         <div className="panel-heading">
           <span className="chip butter"><UploadCloud size={14} /> База знаний</span>
-          <h3>Загрузи промпты и файлы</h3>
+          <h3>База для обучения</h3>
           <p>Админ добавляет документы и основной промпт. После кнопки “Создать базу” ИИ собирает черновик, который можно править.</p>
         </div>
 
@@ -5010,12 +5107,12 @@ function AdminDashboardView({ dashboard }) {
             <Sparkles size={17} /> Создать базу
           </button>
           <span className={`chip ${knowledgeCreated ? 'mint' : 'butter'}`}>
-            <Settings size={14} /> {knowledgeCreated ? 'База создана, можно смотреть preview' : 'Можно заполнить все вручную'}
+            <Settings size={14} /> {knowledgeCreated ? 'База создана' : 'Можно заполнить все вручную'}
           </span>
         </div>
       </section>
 
-      <section className="corporate-panel">
+      <section className="corporate-panel scenario-builder-panel">
         <div className="panel-heading inline">
           <div>
             <span className="chip sky"><ShieldCheck size={14} /> Конструктор</span>
@@ -5061,60 +5158,6 @@ function AdminDashboardView({ dashboard }) {
     </>
   );
 
-  const renderPreview = () => (
-    <section className="corporate-panel">
-      <div className="panel-heading inline">
-        <div>
-          <span className="chip sky"><FileText size={14} /> Preview</span>
-          <h3>Проверь базу перед заданиями</h3>
-        </div>
-        <span className={`chip ${knowledgeCreated ? 'mint' : 'butter'}`}>
-          {knowledgeCreated ? 'База готова' : 'Черновик'}
-        </span>
-      </div>
-
-      <div className="admin-preview-grid">
-        <article>
-          <span>Суть компании</span>
-          <p>{companyBrief}</p>
-        </article>
-        <article>
-          <span>Правила</span>
-          <p>{rulesBrief}</p>
-        </article>
-        <article>
-          <span>Типы клиентов</span>
-          <p>{clientType}</p>
-        </article>
-        <article>
-          <span>Критерии проверки</span>
-          <p>{scoringRules}</p>
-        </article>
-      </div>
-
-      <div className="admin-toggle-grid">
-        {[
-          ['companyRules', 'Включить правила компании'],
-          ['aiPolicy', 'Включить ограничения ИИ'],
-          ['clientTypes', 'Включить типы клиентов'],
-          ['scoring', 'Включить критерии оценки'],
-        ].map(([id, label]) => (
-          <label key={id} className="toggle-row">
-            <input type="checkbox" checked={enabledSettings[id]} onChange={() => toggleSetting(id)} />
-            <span>{label}</span>
-          </label>
-        ))}
-      </div>
-
-      <div className="admin-action-row">
-        <span className="chip mint">{enabledCount} настройки включены</span>
-        <button type="button" className="btn-plush primary" onClick={createAssignments}>
-          <Target size={16} /> Создать задания под эти настройки
-        </button>
-      </div>
-    </section>
-  );
-
   const renderAssignments = () => (
     <section className="corporate-panel">
       <div className="panel-heading inline">
@@ -5139,9 +5182,6 @@ function AdminDashboardView({ dashboard }) {
       </div>
 
       <div className="admin-action-row">
-        <span className={`chip ${assignmentsCreated ? 'mint' : 'butter'}`}>
-          {assignmentsCreated ? 'Задания созданы' : 'Ждет создания из preview'}
-        </span>
         <span className="chip sky">
           {employeeMode === 'same' ? 'Сотрудникам уйдут одинаковые проблемы' : 'Сотрудникам уйдут персональные варианты'}
         </span>
@@ -5202,34 +5242,82 @@ function AdminDashboardView({ dashboard }) {
 
   const renderActivePage = () => {
     if (activeAdminPage === 'base') return renderBase();
-    if (activeAdminPage === 'preview') return renderPreview();
     if (activeAdminPage === 'assignments') return renderAssignments();
     if (activeAdminPage === 'prizes') return renderPrizes();
     return renderDashboard();
   };
 
+  if (!activeAdminPage) {
+    return <Navigate to="/home" replace />;
+  }
+
+  const isAdminHome = activeAdminPage === 'home';
+  const isDashboardPage = activeAdminPage === 'dashboard';
+  const currentPage = adminPages.find((page) => page.id === activeAdminPage);
+
+  if (isAdminHome) {
+    return (
+      <>
+        {heading}
+        {error ? <div className="toast-alert warning">{error}</div> : null}
+
+        <nav className="admin-mode-cards mode-cards-grid admin-mode-cards-standalone" aria-label="Admin sections">
+          {adminPages.map((page) => (
+            <Link
+              key={page.id}
+              to={page.route}
+              className="admin-mode-card tap popin"
+            >
+              <span className="admin-mode-badge" style={{ background: page.badgeBg }}>{page.badge}</span>
+              <span className="admin-mode-emoji" style={{ background: page.accent }}>{page.emoji}</span>
+              <span className="admin-mode-copy">
+                <strong>{page.label}</strong>
+                <small>{page.desc}</small>
+              </span>
+              <span className="admin-mode-cta">Открыть →</span>
+            </Link>
+          ))}
+        </nav>
+      </>
+    );
+  }
+
+  if (isDashboardPage) {
+    return (
+      <section className="dashboard-shell plush-lg paper popin dashboard-shell-content admin-section-page">
+        <div className="admin-section-topbar">
+          <Link to="/home" className="btn-plush sm admin-section-back">
+            <ArrowLeft size={16} /> К home
+          </Link>
+          {currentPage ? (
+            <div className="admin-section-heading">
+              <span className="admin-mode-badge" style={{ background: currentPage.badgeBg }}>{currentPage.badge}</span>
+              <strong>{currentPage.label}</strong>
+            </div>
+          ) : null}
+        </div>
+        {error ? <div className="toast-alert warning">{error}</div> : null}
+        <div className="corporate-dashboard">{renderDashboard()}</div>
+      </section>
+    );
+  }
+
   return (
-    <div className="corporate-dashboard">
-      <nav className="admin-mode-cards mode-cards-grid" aria-label="Admin sections">
-        {adminPages.map((page) => (
-          <button
-            key={page.id}
-            type="button"
-            className={`admin-mode-card tap popin ${activeAdminPage === page.id ? 'is-active' : ''}`}
-            onClick={() => setActiveAdminPage(page.id)}
-          >
-            <span className="admin-mode-badge" style={{ background: page.badgeBg }}>{page.badge}</span>
-            <span className="admin-mode-emoji" style={{ background: page.accent }}>{page.emoji}</span>
-            <span className="admin-mode-copy">
-              <strong>{page.label}</strong>
-              <small>{page.desc}</small>
-            </span>
-            <span className="admin-mode-cta">{activeAdminPage === page.id ? 'Открыто' : 'Открыть'} →</span>
-          </button>
-        ))}
-      </nav>
-      {renderActivePage()}
-    </div>
+    <section className="dashboard-shell plush-lg paper popin dashboard-shell-content admin-section-page">
+      <div className="admin-section-topbar">
+        <Link to="/home" className="btn-plush sm admin-section-back">
+          <ArrowLeft size={16} /> К home
+        </Link>
+        {currentPage ? (
+          <div className="admin-section-heading">
+            <span className="admin-mode-badge" style={{ background: currentPage.badgeBg }}>{currentPage.badge}</span>
+            <strong>{currentPage.label}</strong>
+          </div>
+        ) : null}
+      </div>
+      {error ? <div className="toast-alert warning">{error}</div> : null}
+      <div className="corporate-dashboard">{renderActivePage()}</div>
+    </section>
   );
 }
 
@@ -5366,7 +5454,7 @@ function RootRedirect() {
   return <Navigate to="/signin" replace />;
 }
 
-function TrainerSessionGate() {
+function HomeGate() {
   const user = getMockUser();
   if (!hasMockSession() || !user) {
     return <Navigate to="/signin" replace />;
@@ -5375,6 +5463,20 @@ function TrainerSessionGate() {
     return <Navigate to="/onboarding" replace />;
   }
   return user.role === 'admin' ? <DashboardPage /> : <CommTrainerExperience />;
+}
+
+function TrainerSessionGate() {
+  const user = getMockUser();
+  if (!hasMockSession() || !user) {
+    return <Navigate to="/signin" replace />;
+  }
+  if (!hasCompletedOnboarding(user)) {
+    return <Navigate to="/onboarding" replace />;
+  }
+  if (user.role === 'admin') {
+    return <Navigate to="/home" replace />;
+  }
+  return <CommTrainerExperience />;
 }
 
 function CorporateHomeGate() {
@@ -5407,7 +5509,9 @@ export default function App() {
         <Route path="/signin" element={<LoginPage />} />
         <Route path="/signup" element={<RegisterPage />} />
         <Route path="/onboarding" element={<OnboardingPage />} />
-        <Route path="/dashboard" element={<CorporateHomeGate />} />
+        <Route path="/home" element={<HomeGate />} />
+        <Route path="/home/profile" element={<HomeGate />} />
+        <Route path="/dashboard/*" element={<CorporateHomeGate />} />
         <Route path="/simulation" element={<SimulationGate />} />
         <Route path="*" element={<TrainerSessionGate />} />
       </Routes>
