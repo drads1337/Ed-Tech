@@ -10,7 +10,9 @@
     "cli:play": "node cli play",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "check:pose": "node scripts/check-pose-config.mjs"
+    "check:pose": "node scripts/check-pose-config.mjs",
+    "check:trainer-routes": "node scripts/check-trainer-routes.mjs",
+    "check": "npm run check:trainer-routes && npm run check:pose"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",

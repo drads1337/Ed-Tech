@@ -2,10 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BrowserRouter,
   Link,
+  matchPath,
   Navigate,
   NavLink,
-  Route,
-  Routes,
   useLocation,
   useNavigate,
   useParams,
@@ -756,13 +755,27 @@ function getText(langCode) {
   return { ...text.ru, ...text[safeLang] };
 }
 
+/** Canonical solo/employee trainer URLs — keep in sync with TrainerMainRoutes + check-trainer-routes.mjs */
+export const TRAINER_ROUTE_PATHS = {
+  home: '/home',
+  plan: '/plan',
+  library: '/library',
+  company: '/company',
+  leaderboard: '/leaderboard',
+  progress: '/results-page',
+  practice: '/practice',
+  profile: '/profile',
+  scenario: '/scenario/:id',
+  results: '/results/:id',
+};
+
 const navItems = [
-  { to: '/home', labelKey: 'navHome', icon: '🏠' },
-  { to: '/plan', labelKey: 'navPlan', icon: '🗺️' },
-  { to: '/library', labelKey: 'navLibrary', icon: '📚' },
-  { to: '/results-page', labelKey: 'navProgress', icon: '📊' },
-  { to: '/practice', labelKey: 'navPractice', icon: '🎮' },
-  { to: '/profile', labelKey: 'navProfile', icon: '👤' },
+  { to: TRAINER_ROUTE_PATHS.home, labelKey: 'navHome', icon: '🏠' },
+  { to: TRAINER_ROUTE_PATHS.plan, labelKey: 'navPlan', icon: '🗺️' },
+  { to: TRAINER_ROUTE_PATHS.library, labelKey: 'navLibrary', icon: '📚' },
+  { to: TRAINER_ROUTE_PATHS.progress, labelKey: 'navProgress', icon: '📊' },
+  { to: TRAINER_ROUTE_PATHS.practice, labelKey: 'navPractice', icon: '🎮' },
+  { to: TRAINER_ROUTE_PATHS.profile, labelKey: 'navProfile', icon: '👤' },
 ];
 
 /* ── Background Music ── */
@@ -1741,8 +1754,9 @@ function PlanPage({ progress, t, apiScenarios, planGenerating }) {
   );
 }
 
-function ScenarioPage({ progress, t, apiScenarios }) {
-  const { id } = useParams();
+function ScenarioPage({ progress, t, apiScenarios, scenarioId }) {
+  const { id: routeId } = useParams();
+  const id = scenarioId ?? routeId;
   const navigate = useNavigate();
   const scenario = findScenarioById(id, progress, apiScenarios);
 
@@ -1812,8 +1826,9 @@ function ScenarioPreview({ scenario, onStart, t }) {
   );
 }
 
-function ResultsPage({ progress, t, apiScenarios }) {
-  const { id } = useParams();
+function ResultsPage({ progress, t, apiScenarios, scenarioId }) {
+  const { id: routeId } = useParams();
+  const id = scenarioId ?? routeId;
   const location = useLocation();
   const navigate = useNavigate();
   const scenario = findScenarioById(id, progress, apiScenarios);
@@ -3036,6 +3051,106 @@ function ProfilePage({ progress, setProgress, t }) {
   );
 }
 
+/**
+ * Resolves trainer screens from the full URL pathname.
+ * Do NOT use nested <Routes> here — React Router v7 descendant matching breaks when
+ * CommTrainerExperience is mounted under App routes like /home/* (empty <main> bug).
+ */
+function TrainerMainRoutes({
+  progress,
+  setProgress,
+  t,
+  quest,
+  apiScenarios,
+  dailySuggestions,
+  industries,
+  planGenerating,
+}) {
+  const { pathname } = useLocation();
+
+  if (pathname === '/' || pathname === TRAINER_ROUTE_PATHS.home) {
+    return (
+      <HomePage
+        progress={progress}
+        setProgress={setProgress}
+        t={t}
+        quest={quest}
+        apiScenarios={apiScenarios}
+      />
+    );
+  }
+
+  if (pathname === TRAINER_ROUTE_PATHS.plan) {
+    return (
+      <PlanPage
+        progress={progress}
+        t={t}
+        apiScenarios={apiScenarios}
+        planGenerating={planGenerating}
+      />
+    );
+  }
+
+  const scenarioMatch = matchPath({ path: TRAINER_ROUTE_PATHS.scenario, end: true }, pathname);
+  if (scenarioMatch?.params.id) {
+    return (
+      <ScenarioPage
+        progress={progress}
+        t={t}
+        apiScenarios={apiScenarios}
+        scenarioId={scenarioMatch.params.id}
+      />
+    );
+  }
+
+  const resultsMatch = matchPath({ path: TRAINER_ROUTE_PATHS.results, end: true }, pathname);
+  if (resultsMatch?.params.id) {
+    return (
+      <ResultsPage
+        progress={progress}
+        t={t}
+        apiScenarios={apiScenarios}
+        scenarioId={resultsMatch.params.id}
+      />
+    );
+  }
+
+  if (pathname === TRAINER_ROUTE_PATHS.library) {
+    return (
+      <LibraryPage
+        progress={progress}
+        setProgress={setProgress}
+        t={t}
+        dailySuggestions={dailySuggestions}
+        apiScenarios={apiScenarios}
+        industries={industries}
+      />
+    );
+  }
+
+  if (pathname === TRAINER_ROUTE_PATHS.company) {
+    return <CompanyAssignmentsPage progress={progress} t={t} />;
+  }
+
+  if (pathname === TRAINER_ROUTE_PATHS.leaderboard) {
+    return <EmployeeLeaderboardPage progress={progress} t={t} />;
+  }
+
+  if (pathname === TRAINER_ROUTE_PATHS.progress) {
+    return <ProgressPage progress={progress} t={t} apiScenarios={apiScenarios} />;
+  }
+
+  if (pathname === TRAINER_ROUTE_PATHS.practice) {
+    return <PracticePage progress={progress} setProgress={setProgress} t={t} />;
+  }
+
+  if (pathname === TRAINER_ROUTE_PATHS.profile) {
+    return <ProfilePage progress={progress} setProgress={setProgress} t={t} />;
+  }
+
+  return <Navigate to={TRAINER_ROUTE_PATHS.home} replace />;
+}
+
 export function CommTrainerExperience() {
   const [progress, setProgressState] = useState(loadProgress);
   const [lang, setLang] = useInterfaceLanguage();
@@ -3186,20 +3301,16 @@ export function CommTrainerExperience() {
       </div>
       <TrainerToolbar progress={progress} lang={lang} setLang={setLang} t={t} onLogout={handleLogout} />
       <main className="trainer-main">
-        <Routes>
-          <Route path="/" element={<Navigate to="/home" replace />} />
-          <Route path="/home" element={<HomePage progress={progress} setProgress={setProgress} t={t} quest={dailyQuest} apiScenarios={apiScenarios} />} />
-          <Route path="/plan" element={<PlanPage progress={progress} t={t} apiScenarios={apiScenarios} planGenerating={planGenerating} />} />
-          <Route path="/scenario/:id" element={<ScenarioPage progress={progress} t={t} apiScenarios={apiScenarios} />} />
-          <Route path="/results/:id" element={<ResultsPage progress={progress} t={t} apiScenarios={apiScenarios} />} />
-          <Route path="/library" element={<LibraryPage progress={progress} setProgress={setProgress} t={t} dailySuggestions={dailySuggestions} apiScenarios={apiScenarios} industries={industries} />} />
-          <Route path="/company" element={<CompanyAssignmentsPage progress={progress} t={t} />} />
-          <Route path="/leaderboard" element={<EmployeeLeaderboardPage progress={progress} t={t} />} />
-          <Route path="/results-page" element={<ProgressPage progress={progress} t={t} apiScenarios={apiScenarios} />} />
-          <Route path="/practice" element={<PracticePage progress={progress} setProgress={setProgress} t={t} />} />
-          <Route path="/profile" element={<ProfilePage progress={progress} setProgress={setProgress} t={t} />} />
-          <Route path="*" element={<Navigate to="/home" replace />} />
-        </Routes>
+        <TrainerMainRoutes
+          progress={progress}
+          setProgress={setProgress}
+          t={t}
+          quest={dailyQuest}
+          apiScenarios={apiScenarios}
+          dailySuggestions={dailySuggestions}
+          industries={industries}
+          planGenerating={planGenerating}
+        />
       </main>
     </div>
   );
