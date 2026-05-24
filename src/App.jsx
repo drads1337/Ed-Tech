@@ -1332,13 +1332,25 @@ function ParkBenchProp() {
 function OfficeRoomProp() {
   return (
     <group>
+      <mesh position={[0, 0.015, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[6.2, 5.2]} />
+        <meshStandardMaterial color="#9a8068" roughness={0.86} />
+      </mesh>
       <mesh position={[0, 1.35, -2.55]} receiveShadow>
         <boxGeometry args={[6.1, 5, 0.08]} />
-        <meshStandardMaterial color="#ece5d8" roughness={0.9} />
+        <meshStandardMaterial color="#c7cec2" roughness={0.9} />
       </mesh>
       <mesh position={[-3.05, 1.35, 0]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
         <boxGeometry args={[5.1, 5, 0.08]} />
-        <meshStandardMaterial color="#e3ddd3" roughness={0.92} />
+        <meshStandardMaterial color="#b8b9a7" roughness={0.92} />
+      </mesh>
+      <mesh position={[0, 0.08, -2.48]} castShadow receiveShadow>
+        <boxGeometry args={[6.1, 0.12, 0.08]} />
+        <meshStandardMaterial color="#75604d" roughness={0.78} />
+      </mesh>
+      <mesh position={[-2.98, 0.08, 0]} rotation={[0, Math.PI / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[5.1, 0.12, 0.08]} />
+        <meshStandardMaterial color="#75604d" roughness={0.78} />
       </mesh>
       <mesh position={[1.55, 1.25, -2.49]} castShadow receiveShadow>
         <boxGeometry args={[1.2, 0.85, 0.05]} />
@@ -1449,14 +1461,14 @@ function SceneDressing({ propsLayout }) {
 }
 
 const SPEECH_BUBBLE_ANCHORS = {
-  chaise: { offset: [-3.65, 4.85, -0.2], distanceFactor: 8.8, className: 'chaise' },
-  standing: { offset: [0, 1.34, 0], distanceFactor: 6.6, className: 'standing' },
-  desk: { offset: [0.06, 1.48, 0], distanceFactor: 6.8, className: 'desk' },
+  chaise: { offset: [-3.65, 4.85, -0.2], distanceFactor: 5.98, className: 'chaise' },
+  standing: { offset: [-0.5, 0.7, -3.39], distanceFactor: 6.82, className: 'standing' },
+  desk: { offset: [-0.39, 3.47, -0.92], distanceFactor: 5.03, className: 'desk' },
 };
 
-function ModelSpeechBubble({ activeCase, modelTransform, liveMotion, emotionMode }) {
+function ModelSpeechBubble({ activeCase, modelTransform, liveMotion, emotionMode, bubbleAnchor }) {
   const text = getSpeechBubbleText(liveMotion, emotionMode);
-  const anchor = SPEECH_BUBBLE_ANCHORS[activeCase.scene] || SPEECH_BUBBLE_ANCHORS.chaise;
+  const anchor = bubbleAnchor || SPEECH_BUBBLE_ANCHORS[activeCase.scene] || SPEECH_BUBBLE_ANCHORS.chaise;
   const bubblePosition = [
     modelTransform.x + anchor.offset[0],
     modelTransform.y + anchor.offset[1],
@@ -1496,6 +1508,7 @@ function StoneChaise({
   resetToken,
   liveMotion,
   emotionMode,
+  bubbleAnchor,
   onBonesReady,
 }) {
   const geometry = useMemo(() => createChaiseGeometry(chaiseShape), [chaiseShape]);
@@ -1547,6 +1560,7 @@ function StoneChaise({
           modelTransform={modelTransform}
           liveMotion={liveMotion}
           emotionMode={emotionMode}
+          bubbleAnchor={bubbleAnchor}
         />
       </Suspense>
     </group>
@@ -1750,6 +1764,14 @@ function Room() {
 function SceneCameraControls({ settings }) {
   const { camera } = useThree();
   const controlsRef = useRef(null);
+  const dx = settings.position.x - settings.target.x;
+  const dz = settings.position.z - settings.target.z;
+  const baseAzimuth = Math.atan2(dx, dz);
+  const basePolar = Math.atan2(Math.sqrt(dx * dx + dz * dz), settings.position.y - settings.target.y);
+  const azimuthSlack = THREE.MathUtils.degToRad(26);
+  const polarSlack = THREE.MathUtils.degToRad(14);
+  const minPolarAngle = Math.max(THREE.MathUtils.degToRad(28), basePolar - polarSlack);
+  const maxPolarAngle = Math.min(THREE.MathUtils.degToRad(78), basePolar + polarSlack);
 
   useEffect(() => {
     camera.position.set(settings.position.x, settings.position.y, settings.position.z);
@@ -1768,10 +1790,13 @@ function SceneCameraControls({ settings }) {
       enablePan={false}
       enableZoom
       zoomSpeed={0.35}
+      rotateSpeed={0.28}
       minDistance={settings.minDistance}
       maxDistance={settings.maxDistance}
-      minPolarAngle={THREE.MathUtils.degToRad(Math.min(settings.minPolarAngle, settings.maxPolarAngle))}
-      maxPolarAngle={THREE.MathUtils.degToRad(Math.max(settings.maxPolarAngle, settings.minPolarAngle))}
+      minAzimuthAngle={baseAzimuth - azimuthSlack}
+      maxAzimuthAngle={baseAzimuth + azimuthSlack}
+      minPolarAngle={minPolarAngle}
+      maxPolarAngle={maxPolarAngle}
     />
   );
 }
@@ -2400,6 +2425,7 @@ function SimulationScene({
           resetToken={resetToken}
           liveMotion={liveMotion}
           emotionMode={emotionMode}
+          bubbleAnchor={SPEECH_BUBBLE_ANCHORS[activeCase.scene]}
           onBonesReady={handleBonesReady}
         />
         <ContactShadows position={[0, -1.16, 0]} opacity={0.34} blur={2.8} scale={7} far={3} />

@@ -1450,7 +1450,7 @@ function HomePage({ progress, setProgress, t, quest: questProp, apiScenarios }) 
         {modeCards.map((mode, i) => (
           <div
             key={i}
-            className="tap hover-scale popin"
+            className="home-mode-card tap hover-scale popin"
             onClick={() => {
               if (mode.quickStart) {
                 startQuickPractice(progress, setProgress, navigate, t);
@@ -1459,7 +1459,6 @@ function HomePage({ progress, setProgress, t, quest: questProp, apiScenarios }) 
               navigate(mode.path);
             }}
             style={{
-              width: '100%',
               background: 'white',
               border: '3.5px solid var(--line)',
               borderRadius: 24,
