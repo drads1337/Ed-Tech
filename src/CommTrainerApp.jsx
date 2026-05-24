@@ -1117,13 +1117,16 @@ function startQuickPractice(progress, setProgress, navigate, t) {
   });
 }
 
-function buildSimulationState(scenario, caseId, { quickPractice = false } = {}) {
+function buildSimulationState(scenario, caseId, { quickPractice = false, dailyQuest = null } = {}) {
   const industry = getIndustry(scenario.industry);
 
   return {
     caseId,
     scenarioId: scenario.id,
     scenarioTitle: scenario.title,
+    scenarioXpReward: scenario.xpReward || 30,
+    scenarioCoinReward: scenario.coinReward || 6,
+    dailyQuest,
     industryName: industry.name,
     industryIcon: industry.icon,
     quickPractice,
@@ -1134,10 +1137,10 @@ function buildSimulationState(scenario, caseId, { quickPractice = false } = {}) 
   };
 }
 
-function startScenarioSimulation(scenario, navigate) {
+function startScenarioSimulation(scenario, navigate, options = {}) {
   const caseId = pickQuickCaseId(scenario);
   navigate('/simulation', {
-    state: buildSimulationState(scenario, caseId),
+    state: buildSimulationState(scenario, caseId, options),
   });
 }
 
@@ -1180,6 +1183,54 @@ function suggestionToScenario(offer) {
       improve: ['Попробуйте уточнить факты перед выводами'],
     },
     _offerEmoji: offer.emoji,
+  };
+}
+
+function scenarioToDailyOffer(scenario, index) {
+  return {
+    id: `daily_${scenario.id}`,
+    industry: scenario.industry,
+    skill: scenario.skill || 'Коммуникация',
+    title: scenario.title,
+    description: scenario.goal || scenario.aiPersona || 'Короткий сценарий для дневной практики.',
+    price: index % 3 === 0 ? 0 : Math.min(10, 2 + Number(scenario.difficulty || 1) * 2),
+    emoji: scenario.emoji || '✨',
+    difficulty: Number(scenario.difficulty) || 1,
+    durationMin: scenario.durationMin || 5,
+    patientType: scenario.patientType || 'neutral',
+  };
+}
+
+function buildGeneratedScenario(rawCase, selectedIndustry, userWish) {
+  const fallbackTitle = userWish?.trim() || 'AI-кейс для тренировки';
+  const difficulty = Math.max(1, Math.min(3, Number(rawCase?.difficulty) || 2));
+  return {
+    id: `ai_${Date.now()}`,
+    industry: rawCase?.industry || selectedIndustry,
+    skill: rawCase?.skill || 'AI Генерация',
+    title: rawCase?.title || fallbackTitle,
+    goal: rawCase?.goal || 'Отработка навыков в свободной форме',
+    difficulty,
+    durationMin: Number(rawCase?.durationMin) || 5,
+    xpReward: Number(rawCase?.xpReward) || difficulty * 10,
+    coinReward: Number(rawCase?.coinReward) || difficulty * 4,
+    aiPersona: rawCase?.aiPersona || 'Сгенерированный собеседник с реалистичным возражением.',
+    patientType: rawCase?.patientType || 'neutral',
+    emoji: rawCase?.emoji || '✨',
+    isAiGenerated: true,
+    script: Array.isArray(rawCase?.script) ? rawCase.script : [
+      { role: 'ai', text: 'Здравствуйте. Мне нужна помощь, но я пока не уверен, что мне предлагают правильное решение.', delay: 1000 },
+      {
+        role: 'user',
+        expected: ['эмпатия', 'уточнение', 'следующий шаг'],
+        hint: 'Признайте эмоцию, уточните детали и предложите следующий шаг.',
+        quickReplies: ['Понимаю ваше сомнение. Давайте уточним детали.', 'Сначала разберём, что именно вызывает тревогу.'],
+      },
+    ],
+    feedback: rawCase?.feedback || {
+      good: ['Кейс создан под ваш запрос'],
+      improve: ['После диалога AI даст точный brief по ответам'],
+    },
   };
 }
 
@@ -1445,7 +1496,16 @@ function HomePage({ progress, setProgress, t, quest: questProp, apiScenarios }) 
               <button
                 className="btn-plush primary"
                 type="button"
-                onClick={() => navigate(`/scenario/${questTarget.id}`)}
+                onClick={() => navigate(`/scenario/${questTarget.id}`, {
+                  state: {
+                    dailyQuest: {
+                      id: quest.id || 'daily-quest',
+                      text: dailyQuestText,
+                      reward: Number(quest.reward) || 20,
+                      targetSkill: quest.targetSkill || questTarget.skill,
+                    },
+                  },
+                })}
                 disabled={questDone}
               >
                 <Play size={15} aria-hidden="true" />
@@ -1758,7 +1818,9 @@ function ScenarioPage({ progress, t, apiScenarios, scenarioId }) {
   const { id: routeId } = useParams();
   const id = scenarioId ?? routeId;
   const navigate = useNavigate();
+  const location = useLocation();
   const scenario = findScenarioById(id, progress, apiScenarios);
+  const dailyQuest = location.state?.dailyQuest || null;
 
   if (!scenario) {
     return <Navigate to="/home" replace />;
@@ -1766,17 +1828,26 @@ function ScenarioPage({ progress, t, apiScenarios, scenarioId }) {
 
   return (
     <section className="screen scenario-screen">
-      <ScenarioPreview scenario={scenario} onStart={() => startScenarioSimulation(scenario, navigate)} t={t} />
+      <ScenarioPreview
+        scenario={scenario}
+        onStart={() => startScenarioSimulation(scenario, navigate, { dailyQuest })}
+        t={t}
+      />
     </section>
   );
 }
 
 function ScenarioPreview({ scenario, onStart, t }) {
   const industry = getIndustry(scenario.industry);
+  const openingLine =
+    scenario.script?.find((turn) => turn.role === 'ai')?.text ||
+    scenario.openingMessage ||
+    scenario.aiPersona ||
+    t.readyForDialog;
 
   return (
     <>
-      <PageTop title={scenario.title} subtitle={scenario.aiPersona} backTo="/home" t={t} />
+      <PageTop title={scenario.title} subtitle={scenario.skill} backTo="/home" t={t} />
       <div className="scenario-preview plush-lg">
         <div className="scenario-art" aria-hidden="true">
           <div className="preview-window" />
@@ -1790,31 +1861,31 @@ function ScenarioPreview({ scenario, onStart, t }) {
             <span />
             <i />
           </div>
-          <div className="speech-chip">{t.readyForDialog}</div>
+          <div className="speech-chip">{openingLine}</div>
         </div>
 
         <div className="preview-copy">
           <span className="chip peach">
             {industry.icon} {industry.name}
           </span>
-          <h2>{scenario.goal}</h2>
-          <p>{scenario.aiPersona}</p>
+          <h2>{scenario.goal || scenario.title}</h2>
+          <p>{scenario.aiPersona || openingLine}</p>
           <div className="preview-stats">
             <div>
               <span>{t.durationLabel}</span>
-              <strong>{scenario.durationMin} {t.minUnit}</strong>
+              <strong>{scenario.durationMin || 5} {t.minUnit}</strong>
             </div>
             <div>
               <span>{t.difficultyLabel}</span>
-              <strong>{getDifficultyLabel(scenario.difficulty, t)}</strong>
+              <strong>{getDifficultyLabel(scenario.difficulty || 2, t)}</strong>
             </div>
             <div>
               <span>{t.rewardLabel}</span>
-              <strong>+{scenario.xpReward} XP</strong>
+              <strong>+{scenario.xpReward || 20} XP</strong>
             </div>
             <div>
               <span>{t.skillLabel}</span>
-              <strong>{scenario.skill}</strong>
+              <strong>{scenario.skill || t.scenarioFallback}</strong>
             </div>
           </div>
           <button className="btn-plush primary start-button" type="button" onClick={onStart}>
@@ -1910,11 +1981,20 @@ function LibraryPage({ progress, setProgress, t = getText('ru'), dailySuggestion
     [myIndustryIds, industriesList],
   );
 
-  const dailyOffers = dailySuggestionsProp?.length ? dailySuggestionsProp : [];
-
   const purchasedIds = progress.purchasedSuggestionIds || [];
 
   const scenariosCatalog = apiScenarios?.length ? apiScenarios : mockScenarios;
+  const dailyOffers = useMemo(() => {
+    if (dailySuggestionsProp?.length) {
+      return dailySuggestionsProp;
+    }
+
+    return scenariosCatalog
+      .filter((scenario) => myIndustryIds.includes(scenario.industry))
+      .slice(0, 10)
+      .map(scenarioToDailyOffer);
+  }, [dailySuggestionsProp, myIndustryIds, scenariosCatalog]);
+
   const myScenarios = useMemo(() => {
     const catalog = scenariosCatalog.filter((scenario) => myIndustryIds.includes(scenario.industry));
     const custom = (progress.aiGeneratedScenarios || []).filter((scenario) =>
@@ -1954,55 +2034,52 @@ function LibraryPage({ progress, setProgress, t = getText('ru'), dailySuggestion
     }
   }
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (progress.coins < 5) {
       alert(`${t.notEnoughCoins} 5 🪙`);
       return;
     }
 
     setIsGenerating(true);
-    setTimeout(() => {
-      const selectedIndustry = genIndustry || myIndustryIds[0];
-      const ind = getIndustry(selectedIndustry);
+    const selectedIndustry = genIndustry || myIndustryIds[0] || progress.primaryIndustry;
+    const selectedIndustryInfo = getIndustry(selectedIndustry);
 
-      const newScenario = {
-        id: `ai_${Date.now()}`,
-        industry: selectedIndustry,
-        skill: 'AI Генерация',
-        title: userWish || `Кейс: ${ind.name}`,
-        goal: 'Отработка навыков в свободной форме',
-        difficulty: Math.floor(Math.random() * 3) + 1,
-        durationMin: 5,
-        xpReward: 20,
-        coinReward: 10,
-        aiPersona: 'Сгенерированный персонаж',
-        patientType: 'neutral',
-        isAiGenerated: true,
-        script: [
-          { role: 'ai', text: 'Здравствуйте! Я готов к общению. С чего начнем?', delay: 1000 },
-          {
-            role: 'user',
-            expected: ['приветствие'],
-            hint: 'Поприветствуйте собеседника',
-            quickReplies: ['Добрый день!', 'Здравствуйте, чем могу помочь?'],
-          },
-        ],
-        feedback: {
-          good: ['ИИ сгенерировал этот кейс специально для вас'],
-          improve: ['Вы можете настроить пожелания при следующей генерации'],
+    try {
+      const generatedCases = await apiRequest('/api/solo/generate-plan', {
+        method: 'POST',
+        body: {
+          industry: selectedIndustry,
+          role: progress.role || 'professional',
+          goal: userWish || progress.goal || `Создать практический кейс для сферы ${selectedIndustryInfo.name}`,
+          experience: 'custom',
+          language: window.localStorage.getItem(LANG_KEY) || 'ru',
         },
-      };
-
+      });
+      const rawCase = Array.isArray(generatedCases) ? generatedCases[0] : null;
+      const newScenario = buildGeneratedScenario(rawCase, selectedIndustry, userWish);
       setProgress((curr) => ({
         ...curr,
         coins: curr.coins - 5,
         aiGeneratedScenarios: [newScenario, ...(curr.aiGeneratedScenarios || [])],
       }));
-      setIsGenerating(false);
       setShowGenModal(false);
       setUserWish('');
       setLibraryTab('mine');
-    }, 2000);
+      navigate(`/scenario/${newScenario.id}`);
+    } catch {
+      const newScenario = buildGeneratedScenario(null, selectedIndustry, userWish || `Кейс: ${selectedIndustryInfo.name}`);
+      setProgress((curr) => ({
+        ...curr,
+        coins: curr.coins - 5,
+        aiGeneratedScenarios: [newScenario, ...(curr.aiGeneratedScenarios || [])],
+      }));
+      setShowGenModal(false);
+      setUserWish('');
+      setLibraryTab('mine');
+      navigate(`/scenario/${newScenario.id}`);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   function handleBuyOffer(offer) {
@@ -2053,8 +2130,8 @@ function LibraryPage({ progress, setProgress, t = getText('ru'), dailySuggestion
           className={`library-tab tap ${libraryTab === 'offers' ? 'is-active' : ''}`}
           onClick={() => setLibraryTab('offers')}
         >
-          ✨ {t.libraryTabOffers}
-          <span className="library-tab-count">10</span>
+        ✨ {t.libraryTabOffers}
+          <span className="library-tab-count">{dailyOffers.length}</span>
         </button>
       </div>
 
@@ -3167,6 +3244,22 @@ export function CommTrainerExperience() {
   useEffect(() => {
     window.localStorage.setItem(getStorageKey(), JSON.stringify(progress));
   }, [progress]);
+
+  useEffect(() => {
+    const refreshProgress = () => {
+      setProgressState((current) => {
+        const latest = loadProgress();
+        return JSON.stringify(latest) === JSON.stringify(current) ? current : latest;
+      });
+    };
+
+    window.addEventListener('focus', refreshProgress);
+    window.addEventListener('storage', refreshProgress);
+    return () => {
+      window.removeEventListener('focus', refreshProgress);
+      window.removeEventListener('storage', refreshProgress);
+    };
+  }, []);
 
   // Load API data on mount
   useEffect(() => {

@@ -1,5 +1,6 @@
 """Live simulation: LLM character roleplay + Deepgram TTS."""
 import base64
+import json
 import re
 import struct
 
@@ -23,6 +24,8 @@ Rules:
 - If they are rude or dismissive, push back naturally as this character would.
 - Stay in character throughout.
 - After your reply, on a new line write exactly: EMOTION: <neutral|happy|angry|sad>
+- After that, on a new line write exactly: MOTION: <idle|listening|thinking|talking|gesture>[,<idle|listening|thinking|talking|gesture>]
+- Use MOTION to match the reply. You may combine 2-3 modes when natural, for example talking,gesture or thinking,talking.
 """.strip()
 
 EMOTION_DESCS = {
@@ -36,6 +39,24 @@ EMOTION_DESCS = {
 LANGUAGE_NAMES = {"en": "English", "ru": "Russian", "uz": "Uzbek"}
 TTS_MODEL = "openai/gpt-4o-mini-tts-2025-12-15"
 TTS_VOICE = "nova"  # OpenAI voice: alloy | echo | fable | onyx | nova | shimmer
+ALLOWED_EMOTIONS = {"neutral", "happy", "angry", "sad"}
+ALLOWED_MOTIONS = {"idle", "listening", "thinking", "talking", "gesture"}
+
+BRIEF_SYSTEM_PROMPT = """You are an expert communication coach.
+
+Evaluate the trainee's live roleplay dialogue. Use the full transcript and scenario context.
+Return ONLY valid JSON with this exact shape:
+{
+  "score": 1-100,
+  "rating": 1-3,
+  "summary": "short summary",
+  "positives": ["3 concrete strengths"],
+  "negatives": ["3 concrete improvements"],
+  "next_steps": ["2 short next practice actions"]
+}
+Write all text fields in {language_name}.
+Do not include markdown.
+""".strip()
 
 
 def build_system_prompt(title: str, goal: str, ai_persona: str, patient_type: str, language: str) -> str:
@@ -48,12 +69,26 @@ def build_system_prompt(title: str, goal: str, ai_persona: str, patient_type: st
     )
 
 
-def _parse_llm_response(content: str) -> tuple[str, str]:
-    """Split the model output into (message, emotion)."""
+def _parse_motions(raw: str | None, fallback: list[str] | None = None) -> list[str]:
+    motions: list[str] = []
+    for item in (raw or "").split(","):
+        motion = item.strip().lower()
+        if motion in ALLOWED_MOTIONS and motion not in motions:
+            motions.append(motion)
+    return motions[:3] or fallback or ["talking"]
+
+
+def _parse_llm_response(content: str) -> tuple[str, str, list[str]]:
+    """Split the model output into (message, emotion, motions)."""
     match = re.search(r"EMOTION:\s*(neutral|happy|angry|sad)", content, re.IGNORECASE)
+    motion_match = re.search(r"MOTION:\s*([a-z,\s]+)", content, re.IGNORECASE)
     emotion = match.group(1).lower() if match else "neutral"
-    text = content[: match.start()].strip() if match else content.strip()
-    return text, emotion
+    if emotion not in ALLOWED_EMOTIONS:
+        emotion = "neutral"
+    cut_points = [m.start() for m in (match, motion_match) if m]
+    text = content[: min(cut_points)].strip() if cut_points else content.strip()
+    motions = _parse_motions(motion_match.group(1) if motion_match else None)
+    return text, emotion, motions
 
 
 def get_ai_response(
@@ -61,10 +96,10 @@ def get_ai_response(
     transcript: list[dict],
     user_message: str,
     settings: Settings,
-) -> tuple[str, str]:
-    """Call OpenRouter and return (reply_text, emotion)."""
+) -> tuple[str, str, list[str]]:
+    """Call OpenRouter and return (reply_text, emotion, motions)."""
     if not settings.openrouter_api_key:
-        return "I understand. Please continue.", "neutral"
+        return "I understand. Please continue.", "neutral", ["talking", "listening"]
 
     messages: list[dict] = [{"role": "system", "content": system_prompt}]
     for turn in transcript:
@@ -103,7 +138,128 @@ def get_ai_response(
         content = resp.json()["choices"][0]["message"]["content"]
         return _parse_llm_response(content)
     except Exception:
-        return "I see. Please go on.", "neutral"
+        return "I see. Please go on.", "neutral", ["talking"]
+
+
+def _fallback_brief(title: str, goal: str, transcript: list[dict]) -> dict:
+    user_messages = [
+        (turn.get("text") or turn.get("content") or turn.get("message") or "")
+        for turn in transcript
+        if turn.get("role") == "user"
+    ]
+    has_user_input = any(message.strip() for message in user_messages)
+    return {
+        "score": 62 if has_user_input else 35,
+        "rating": 2 if has_user_input else 1,
+        "summary": f"Диалог по сценарию «{title or 'Live simulation'}» завершён. Цель: {goal or 'тренировка коммуникации'}.",
+        "positives": [
+            "Вы довели тренировку до завершения.",
+            "В диалоге был сохранён профессиональный контекст.",
+            "Ответы можно использовать как основу для дальнейшей практики.",
+        ],
+        "negatives": [
+            "Добавьте больше явной эмпатии в начале ответа.",
+            "Формулируйте следующий шаг конкретнее: действие, срок, ответственный.",
+            "Подкрепляйте позицию фактами и ограничениями, чтобы не звучать голословно.",
+        ],
+        "next_steps": [
+            "Повторите сценарий и начните с признания эмоции клиента.",
+            "Закрывайте каждый ответ понятным следующим шагом.",
+        ],
+    }
+
+
+def _clean_brief_payload(raw: dict, fallback: dict) -> dict:
+    def list_of_strings(value, fallback_value, limit):
+        if not isinstance(value, list):
+            return fallback_value
+        cleaned = [str(item).strip() for item in value if str(item).strip()]
+        return (cleaned or fallback_value)[:limit]
+
+    score = raw.get("score", fallback["score"])
+    rating = raw.get("rating", fallback["rating"])
+    try:
+        score = max(1, min(100, int(score)))
+    except (TypeError, ValueError):
+        score = fallback["score"]
+    try:
+        rating = max(1, min(3, int(rating)))
+    except (TypeError, ValueError):
+        rating = fallback["rating"]
+
+    return {
+        "score": score,
+        "rating": rating,
+        "summary": str(raw.get("summary") or fallback["summary"]).strip(),
+        "positives": list_of_strings(raw.get("positives"), fallback["positives"], 4),
+        "negatives": list_of_strings(raw.get("negatives"), fallback["negatives"], 4),
+        "next_steps": list_of_strings(raw.get("next_steps"), fallback["next_steps"], 3),
+    }
+
+
+def evaluate_live_brief(
+    title: str,
+    goal: str,
+    transcript: list[dict],
+    emotion_log: list[dict],
+    motion_log: list[dict],
+    language: str,
+    settings: Settings,
+) -> dict:
+    """Ask the LLM to evaluate the full live dialogue and return a brief."""
+    fallback = _fallback_brief(title, goal, transcript)
+    if not settings.openrouter_api_key:
+        return fallback
+
+    language_name = LANGUAGE_NAMES.get(language, "Russian")
+    compact_transcript = [
+        {
+            "role": turn.get("role", "user"),
+            "text": turn.get("text") or turn.get("content") or turn.get("message") or "",
+        }
+        for turn in transcript
+    ]
+    content = json.dumps(
+        {
+            "scenario_title": title,
+            "scenario_goal": goal,
+            "transcript": compact_transcript,
+            "emotion_log": emotion_log,
+            "motion_log": motion_log,
+        },
+        ensure_ascii=False,
+    )
+
+    headers = {
+        "Authorization": f"Bearer {settings.openrouter_api_key}",
+        "Content-Type": "application/json",
+        "X-Title": settings.openrouter_app_name,
+    }
+    if settings.openrouter_app_url:
+        headers["HTTP-Referer"] = settings.openrouter_app_url
+
+    try:
+        resp = httpx.post(
+            f"{settings.openrouter_base_url.rstrip('/')}/chat/completions",
+            headers=headers,
+            json={
+                "model": settings.openrouter_model,
+                "messages": [
+                    {"role": "system", "content": BRIEF_SYSTEM_PROMPT.format(language_name=language_name)},
+                    {"role": "user", "content": content},
+                ],
+                "temperature": 0.35,
+                "max_tokens": 500,
+            },
+            timeout=35,
+        )
+        resp.raise_for_status()
+        raw_content = resp.json()["choices"][0]["message"]["content"].strip()
+        if raw_content.startswith("```"):
+            raw_content = re.sub(r"^```(?:json)?|```$", "", raw_content, flags=re.IGNORECASE).strip()
+        return _clean_brief_payload(json.loads(raw_content), fallback)
+    except Exception:
+        return fallback
 
 
 def _pcm_to_wav(pcm_data: bytes, sample_rate: int = 24000, channels: int = 1, bit_depth: int = 16) -> bytes:

@@ -72,10 +72,17 @@ export function getEmotionStatus(emotionMode) {
 }
 
 export function getSpeechBubbleText(liveMotion, emotionMode) {
-  return 'Вы отвечайте';
+  const motions = Array.isArray(liveMotion) ? liveMotion : [liveMotion];
+  if (motions.includes('starting')) return 'Starting...';
+  if (motions.includes('listening')) return 'Понимаю, продолжайте.';
+  if (motions.includes('thinking')) return 'Секунду, я думаю...';
+  if (motions.includes('talking')) return 'Давайте разберем это.';
+  return 'Готов к диалогу.';
 }
 
 export function LiveMotionPanel({ activeMode, activeEmotion, onChangeMode, onChangeEmotion }) {
+  const activeModes = Array.isArray(activeMode) ? activeMode : [activeMode];
+
   return (
     <aside className="motion-panel" aria-label="Live motion controls">
       <div className="panel-heading">
@@ -87,7 +94,7 @@ export function LiveMotionPanel({ activeMode, activeEmotion, onChangeMode, onCha
           <button
             key={mode.id}
             type="button"
-            className={`motion-button ${activeMode === mode.id ? 'is-active' : ''}`}
+            className={`motion-button ${activeModes.includes(mode.id) ? 'is-active' : ''}`}
             onClick={() => onChangeMode(mode.id)}
           >
             {mode.label}

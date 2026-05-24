@@ -30,11 +30,11 @@ import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { apiRequest, getSessionToken, supabase } from './backendApi.js';
 import { BackgroundMusic, CommTrainerExperience, TrainerFloatingDecor } from './CommTrainerApp.jsx';
 import {
-  EmotionStatusPanel,
   getEmotionAdjustments,
+  getEmotionStatus,
   getSpeechBubbleText,
   getLiveMotionAdjustments,
-  LiveMotionPanel,
+  LIVE_MOTION_MODES,
 } from './LiveMotion.jsx';
 import { QUICK_CASE_IDS } from './quickPractice.js';
 import { assignments as mockAssignments, organization as mockOrganization, scenarios as mockScenarios } from './mockData.js';
@@ -1467,8 +1467,8 @@ const SPEECH_BUBBLE_ANCHORS = {
   desk: { offset: [-0.39, 3.47, -0.92], distanceFactor: 5.03, className: 'desk' },
 };
 
-function ModelSpeechBubble({ activeCase, modelTransform, liveMotion, emotionMode, bubbleAnchor }) {
-  const text = getSpeechBubbleText(liveMotion, emotionMode);
+function ModelSpeechBubble({ activeCase, modelTransform, liveMotion, emotionMode, bubbleAnchor, speechText }) {
+  const text = speechText || getSpeechBubbleText(liveMotion, emotionMode);
   const anchor = bubbleAnchor || SPEECH_BUBBLE_ANCHORS[activeCase.scene] || SPEECH_BUBBLE_ANCHORS.chaise;
   const bubblePosition = [
     modelTransform.x + anchor.offset[0],
@@ -1499,6 +1499,27 @@ function CountdownTimerPanel({ secondsLeft }) {
   );
 }
 
+function AiStatePanel({ emotionMode, liveMotion }) {
+  const status = getEmotionStatus(emotionMode);
+  const motions = normalizeLiveMotions(liveMotion, ['idle']);
+  const motionLabels = motions.map((motion) => (
+    LIVE_MOTION_MODES.find((mode) => mode.id === motion)?.label || motion
+  ));
+
+  return (
+    <aside className="ai-state-panel" aria-label="AI character state">
+      <span>AI состояние</span>
+      <strong>{status.title}</strong>
+      <p>{status.summary}</p>
+      <div className="ai-state-motions">
+        {motionLabels.map((label) => (
+          <i key={label}>{label}</i>
+        ))}
+      </div>
+    </aside>
+  );
+}
+
 function StoneChaise({
   activeCase,
   modelTransform,
@@ -1510,6 +1531,7 @@ function StoneChaise({
   liveMotion,
   emotionMode,
   bubbleAnchor,
+  speechText,
   onBonesReady,
 }) {
   const geometry = useMemo(() => createChaiseGeometry(chaiseShape), [chaiseShape]);
@@ -1562,6 +1584,7 @@ function StoneChaise({
           liveMotion={liveMotion}
           emotionMode={emotionMode}
           bubbleAnchor={bubbleAnchor}
+          speechText={speechText}
         />
       </Suspense>
     </group>
@@ -1714,12 +1737,14 @@ function RigModel({
         object.rotation.z += THREE.MathUtils.degToRad(userRotation.z);
       }
 
-      const liveAdjustment = getLiveMotionAdjustments(object.name, liveMotion, time);
-      if (liveAdjustment) {
-        object.rotation.x += liveAdjustment.x || 0;
-        object.rotation.y += liveAdjustment.y || 0;
-        object.rotation.z += liveAdjustment.z || 0;
-      }
+      normalizeLiveMotions(liveMotion).forEach((motionMode) => {
+        const liveAdjustment = getLiveMotionAdjustments(object.name, motionMode, time);
+        if (liveAdjustment) {
+          object.rotation.x += liveAdjustment.x || 0;
+          object.rotation.y += liveAdjustment.y || 0;
+          object.rotation.z += liveAdjustment.z || 0;
+        }
+      });
 
       const emotionAdjustment = getEmotionAdjustments(object.name, emotionMode, time);
       if (emotionAdjustment) {
@@ -2314,25 +2339,81 @@ function resolveInitialCaseId(caseId) {
 const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL)
   ? import.meta.env.VITE_API_BASE_URL
   : 'http://localhost:3001';
+const LIVE_DIALOG_HISTORY_KEY = 'ilm-ai-live-dialog-history';
+const ALLOWED_LIVE_MOTIONS = new Set(['starting', 'idle', 'listening', 'thinking', 'talking', 'gesture']);
+const ALLOWED_EMOTION_MODES = new Set(['neutral', 'happy', 'angry', 'sad']);
+
+function normalizeEmotionMode(emotion) {
+  const value = String(emotion || '').toLowerCase();
+  return ALLOWED_EMOTION_MODES.has(value) ? value : 'neutral';
+}
+
+function normalizeLiveMotions(motions, fallback = ['idle']) {
+  const source = Array.isArray(motions) ? motions : [motions];
+  const next = source
+    .map((motion) => String(motion || '').toLowerCase())
+    .filter((motion, index, list) => ALLOWED_LIVE_MOTIONS.has(motion) && list.indexOf(motion) === index)
+    .slice(0, 3);
+  return next.length ? next : fallback;
+}
 
 function useAudioPlayer() {
   const audioRef = useRef(null);
 
-  const play = useCallback((base64Audio, text, lang, mime) => {
+  const play = useCallback((base64Audio, text, lang, mime, onSpeechProgress) => {
     return new Promise((resolve) => {
+      let progressTimer = null;
+      let settled = false;
+      const stopProgress = () => {
+        if (progressTimer) {
+          window.clearInterval(progressTimer);
+          progressTimer = null;
+        }
+      };
+      const done = () => {
+        if (settled) return;
+        settled = true;
+        stopProgress();
+        onSpeechProgress?.(text || '');
+        clearTimeout(timer);
+        resolve();
+      };
       // Safety timeout: always resolve within 12s so the UI doesn't hang
-      const timer = setTimeout(resolve, 12000);
-      const done = () => { clearTimeout(timer); resolve(); };
+      const timer = setTimeout(done, 12000);
 
       if (base64Audio) {
         const mimeType = mime || 'audio/mpeg';
         const audio = new Audio(`data:${mimeType};base64,${base64Audio}`);
         audioRef.current = audio;
+        const updateProgress = () => {
+          const duration = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 0;
+          if (duration) {
+            onSpeechProgress?.(getSpeechProgressText(text, audio.currentTime / duration));
+          }
+        };
+        audio.onloadedmetadata = updateProgress;
+        audio.ontimeupdate = updateProgress;
         audio.onended = done;
-        audio.onerror = () => speakFallback(text, lang, done);
-        audio.play().catch(() => speakFallback(text, lang, done));
+        audio.onerror = () => {
+          stopProgress();
+          speakFallback(text, lang, done, onSpeechProgress);
+        };
+        audio.play()
+          .then(() => {
+            const startedAt = Date.now();
+            progressTimer = window.setInterval(() => {
+              if (Number.isFinite(audio.duration) && audio.duration > 0) {
+                updateProgress();
+                return;
+              }
+
+              const estimatedDuration = estimateSpeechDuration(text);
+              onSpeechProgress?.(getSpeechProgressText(text, (Date.now() - startedAt) / estimatedDuration));
+            }, 120);
+          })
+          .catch(() => speakFallback(text, lang, done, onSpeechProgress));
       } else {
-        speakFallback(text, lang, done);
+        speakFallback(text, lang, done, onSpeechProgress);
       }
     });
   }, []);
@@ -2348,14 +2429,193 @@ function useAudioPlayer() {
   return { play, stop };
 }
 
-function speakFallback(text, lang, onEnd) {
+function estimateSpeechDuration(text) {
+  const wordCount = String(text || '').trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(1600, (wordCount / 2.4) * 1000);
+}
+
+function getSpeechProgressText(text, progress) {
+  const safeText = String(text || '').trim();
+  if (!safeText) return '';
+  const ratio = Math.max(0, Math.min(1, Number(progress) || 0));
+  const visibleLength = Math.max(1, Math.ceil(safeText.length * ratio));
+  return safeText.slice(0, visibleLength);
+}
+
+function getSpeechBubbleWindow(text, maxLength = 112) {
+  const safeText = String(text || '').replace(/\s+/g, ' ').trim();
+  if (safeText.length <= maxLength) return safeText;
+
+  const tail = safeText.slice(-maxLength);
+  const firstSpace = tail.indexOf(' ');
+  return `...${firstSpace > 0 ? tail.slice(firstSpace + 1) : tail}`;
+}
+
+function composeLiveDialogBrief({
+  scenarioId,
+  scenarioTitle,
+  scenarioGoal,
+  scenarioXpReward,
+  scenarioCoinReward,
+  dailyQuest,
+  transcript,
+  emotionLog,
+  motionLog,
+  aiBrief,
+}) {
+  const usedEmotions = [...new Set(emotionLog.map((item) => item.emotion).filter(Boolean))];
+  const usedMotions = [...new Set(motionLog.flatMap((item) => item.motions || []).filter(Boolean))];
+
+  return {
+    id: `live-dialog-${Date.now()}`,
+    scenarioId: scenarioId || 'live-dialog',
+    scenarioTitle: scenarioTitle || 'Live simulation',
+    scenarioGoal: scenarioGoal || '',
+    scenarioXpReward: Number(scenarioXpReward) || 30,
+    scenarioCoinReward: Number(scenarioCoinReward) || 6,
+    dailyQuest: dailyQuest || null,
+    createdAt: new Date().toISOString(),
+    score: aiBrief?.score || 0,
+    rating: aiBrief?.rating || 1,
+    summary: aiBrief?.summary || '',
+    positives: Array.isArray(aiBrief?.positives) ? aiBrief.positives : [],
+    negatives: Array.isArray(aiBrief?.negatives) ? aiBrief.negatives : [],
+    nextSteps: Array.isArray(aiBrief?.next_steps) ? aiBrief.next_steps : [],
+    usedEmotions,
+    usedMotions,
+    transcript,
+    emotionLog,
+    motionLog,
+  };
+}
+
+async function requestLiveDialogBrief({ scenarioTitle, scenarioGoal, transcript, emotionLog, motionLog, language }) {
+  const resp = await fetch(`${API_BASE}/api/live-sim/brief`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: scenarioTitle || 'Live simulation',
+      goal: scenarioGoal || '',
+      transcript,
+      emotion_log: emotionLog,
+      motion_log: motionLog,
+      language: language || 'ru',
+    }),
+  });
+
+  if (!resp.ok) {
+    throw new Error('Could not evaluate live dialog');
+  }
+
+  return resp.json();
+}
+
+function saveLiveDialogBrief(brief) {
+  if (typeof window === 'undefined' || !brief) return;
+  try {
+    const current = JSON.parse(window.localStorage.getItem(LIVE_DIALOG_HISTORY_KEY) || '[]');
+    const next = [brief, ...(Array.isArray(current) ? current : [])].slice(0, 30);
+    window.localStorage.setItem(LIVE_DIALOG_HISTORY_KEY, JSON.stringify(next));
+    saveBriefToTrainerDialogs(brief);
+  } catch {}
+}
+
+function getTrainerProgressStorageKey() {
+  try {
+    const memory = JSON.parse(window.localStorage.getItem('training_loop_onboarding_memory') || 'null');
+    return memory?.userId ? `pro-communication-trainer:v1:${memory.userId}` : 'pro-communication-trainer:v1';
+  } catch {
+    return 'pro-communication-trainer:v1';
+  }
+}
+
+function saveBriefToTrainerDialogs(brief) {
+  try {
+    const storageKey = getTrainerProgressStorageKey();
+    const current = JSON.parse(window.localStorage.getItem(storageKey) || '{}');
+    const attempts = Array.isArray(current.attempts) ? current.attempts : [];
+    const rating = Math.max(1, Math.min(3, Number(brief.rating) || 1));
+    const score = Number(brief.score) || 0;
+    const isSolved = score >= 60 || rating >= 2;
+    const scenarioId = brief.scenarioId || 'live-dialog';
+    const today = new Date(brief.createdAt).toISOString().slice(0, 10);
+    const dailyQuestReward = isSolved && brief.dailyQuest && current.questDoneDate !== today
+      ? Number(brief.dailyQuest.reward) || 0
+      : 0;
+    const xpGained = isSolved
+      ? Math.max(Number(brief.scenarioXpReward) || 0, Math.max(20, Math.round(score / 2))) + dailyQuestReward
+      : 0;
+    const coinsGained = isSolved ? Math.max(Number(brief.scenarioCoinReward) || 0, 4 + rating) : 0;
+    const completed = {
+      ...(current.completed || {}),
+      ...(isSolved ? {
+        [scenarioId]: {
+          rating,
+          score,
+          date: today,
+          attemptId: brief.id,
+        },
+      } : {}),
+    };
+    const attempt = {
+      id: brief.id,
+      scenarioId,
+      date: new Date(brief.createdAt).toISOString().slice(0, 10),
+      xpGained,
+      coinsGained,
+      rating,
+      score,
+      solved: isSolved,
+      dailyQuestCompleted: Boolean(dailyQuestReward),
+      skillRatings: {
+        empathy: brief.negatives.some((item) => item.includes('эмпат')) ? 1 : 3,
+        structure: brief.negatives.some((item) => item.includes('действием')) ? 1 : 3,
+        clarity: brief.negatives.some((item) => item.includes('короткие')) ? 1 : 3,
+      },
+      checks: [
+        { label: 'AI brief', matched: brief.positives, missing: brief.negatives },
+      ],
+      transcript: brief.transcript,
+      brief,
+    };
+
+    window.localStorage.setItem(storageKey, JSON.stringify({
+      ...current,
+      xp: (Number(current.xp) || 0) + xpGained,
+      coins: (Number(current.coins) || 0) + coinsGained,
+      questDoneDate: dailyQuestReward ? today : current.questDoneDate,
+      completed,
+      attempts: [attempt, ...attempts.filter((item) => item.id !== brief.id)].slice(0, 50),
+    }));
+  } catch {}
+}
+
+function speakFallback(text, lang, onEnd, onSpeechProgress) {
   if (!text || !window.speechSynthesis) { onEnd?.(); return; }
   window.speechSynthesis.cancel();
   const utt = new SpeechSynthesisUtterance(text);
   utt.lang = lang === 'ru' ? 'ru-RU' : lang === 'uz' ? 'uz-UZ' : 'en-US';
   utt.rate = 0.95;
-  utt.onend = onEnd;
-  utt.onerror = onEnd;
+  let progressTimer = null;
+  let startedAt = 0;
+  utt.onstart = () => {
+    startedAt = Date.now();
+    progressTimer = window.setInterval(() => {
+      onSpeechProgress?.(getSpeechProgressText(text, (Date.now() - startedAt) / estimateSpeechDuration(text)));
+    }, 120);
+  };
+  utt.onboundary = (event) => {
+    if (typeof event.charIndex === 'number') {
+      onSpeechProgress?.(text.slice(0, event.charIndex + Math.max(1, event.charLength || 1)));
+    }
+  };
+  const finish = () => {
+    if (progressTimer) window.clearInterval(progressTimer);
+    onSpeechProgress?.(text);
+    onEnd?.();
+  };
+  utt.onend = finish;
+  utt.onerror = finish;
   window.speechSynthesis.speak(utt);
 }
 
@@ -2367,25 +2627,46 @@ const FALLBACK_PERSONAS = {
   neutral: 'Professional client',
 };
 
-function VoiceChat({ scenarioTitle, scenarioGoal, aiPersona, patientType, language, onMotionChange, onEmotionChange }) {
+function VoiceChat({
+  scenarioId,
+  scenarioTitle,
+  scenarioGoal,
+  scenarioXpReward,
+  scenarioCoinReward,
+  dailyQuest,
+  aiPersona,
+  patientType,
+  language,
+  onMotionChange,
+  onEmotionChange,
+  onBubbleTextChange,
+  onBriefReady,
+  finishToken,
+  onReadyChange,
+}) {
   const effectivePersona = aiPersona || FALLBACK_PERSONAS[patientType] || 'Professional client';
   const [status, setStatus] = useState('idle'); // idle | loading | listening | thinking | playing
   const [messages, setMessages] = useState([]);
   const [liveText, setLiveText] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
+  const [isEvaluatingBrief, setIsEvaluatingBrief] = useState(false);
   const transcriptRef = useRef([]);
+  const emotionLogRef = useRef([]);
+  const motionLogRef = useRef([]);
+  const finishedRef = useRef(false);
   const systemPromptRef = useRef('');   // always-current ref so WS closure isn't stale
   const deepgramKeyRef = useRef('');    // populated async — WS reads from ref, not state
   const wsRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const streamRef = useRef(null);
   const sendMessageRef = useRef(null);  // always-current sendUserMessage for WS handler
-  const { play } = useAudioPlayer();
+  const { play, stop } = useAudioPlayer();
 
   // Load Deepgram key and start simulation
   useEffect(() => {
     const ac = new AbortController();
 
+    onReadyChange?.(false);
     fetch(`${API_BASE}/api/live-sim/config`, { signal: ac.signal })
       .then((r) => r.json())
       .then((cfg) => { deepgramKeyRef.current = cfg.deepgramApiKey || ''; })
@@ -2413,19 +2694,30 @@ function VoiceChat({ scenarioTitle, scenarioGoal, aiPersona, patientType, langua
         const aiMsg = { role: 'ai', text: data.message };
         setMessages([aiMsg]);
         transcriptRef.current = [aiMsg];
-        onEmotionChange?.(data.emotion || 'neutral');
-        onMotionChange?.('talking');
+        const nextEmotion = normalizeEmotionMode(data.emotion);
+        const nextMotions = normalizeLiveMotions(data.motions, ['talking']);
+        emotionLogRef.current = [{ role: 'ai', emotion: nextEmotion, text: data.message }];
+        motionLogRef.current = [{ role: 'ai', motions: nextMotions, text: data.message }];
+        onEmotionChange?.(nextEmotion);
+        onMotionChange?.(nextMotions);
+        onBubbleTextChange?.('');
         setStatus('playing');
         const audioData = data.audioBase64 || data.audio_base64;
         const audioMime = data.audioMime || data.audio_mime || 'audio/mpeg';
-        await play(audioData, data.message, language, audioMime);
+        await play(audioData, data.message, language, audioMime, (progressText) => {
+          onBubbleTextChange?.(getSpeechBubbleWindow(progressText));
+        });
         if (!ac.signal.aborted) {
           onMotionChange?.('idle');
           setStatus('idle');
+          onReadyChange?.(true);
         }
       })
       .catch((err) => {
-        if (err.name !== 'AbortError') setStatus('idle');
+        if (err.name !== 'AbortError') {
+          setStatus('idle');
+          onReadyChange?.(true);
+        }
       });
 
     return () => ac.abort();
@@ -2453,7 +2745,7 @@ function VoiceChat({ scenarioTitle, scenarioGoal, aiPersona, patientType, langua
     transcriptRef.current = [...transcriptRef.current, userMsg];
     setLiveText('');
 
-    onMotionChange?.('thinking');
+    onMotionChange?.(['thinking', 'listening']);
     setStatus('thinking');
 
     try {
@@ -2471,19 +2763,26 @@ function VoiceChat({ scenarioTitle, scenarioGoal, aiPersona, patientType, langua
       const aiMsg = { role: 'ai', text: data.message };
       setMessages((prev) => [...prev, aiMsg]);
       transcriptRef.current = [...transcriptRef.current, aiMsg];
-      onEmotionChange?.(data.emotion || 'neutral');
-      onMotionChange?.('talking');
+      const nextEmotion = normalizeEmotionMode(data.emotion);
+      const nextMotions = normalizeLiveMotions(data.motions, ['talking']);
+      emotionLogRef.current = [...emotionLogRef.current, { role: 'ai', emotion: nextEmotion, text: data.message }];
+      motionLogRef.current = [...motionLogRef.current, { role: 'ai', motions: nextMotions, text: data.message }];
+      onEmotionChange?.(nextEmotion);
+      onMotionChange?.(nextMotions);
+      onBubbleTextChange?.('');
       setStatus('playing');
       const audioData = data.audioBase64 || data.audio_base64;
       const audioMime = data.audioMime || data.audio_mime || 'audio/mpeg';
-      await play(audioData, data.message, language, audioMime);
+      await play(audioData, data.message, language, audioMime, (progressText) => {
+        onBubbleTextChange?.(getSpeechBubbleWindow(progressText));
+      });
       onMotionChange?.('idle');
       setStatus('idle');
     } catch {
       setStatus('idle');
       onMotionChange?.('idle');
     }
-  }, [language, play, onMotionChange, onEmotionChange]);
+  }, [language, play, onMotionChange, onEmotionChange, onBubbleTextChange]);
 
   // Keep sendMessageRef current so the WebSocket handler always calls the latest version
   sendMessageRef.current = sendUserMessage;
@@ -2563,6 +2862,65 @@ function VoiceChat({ scenarioTitle, scenarioGoal, aiPersona, patientType, langua
     }
   }, [status, liveText, startListening, stopListening, onMotionChange]);
 
+  const finishDialog = useCallback(async () => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    await stopListening();
+    stop();
+    onMotionChange?.('idle');
+    setStatus('thinking');
+    setIsEvaluatingBrief(true);
+    try {
+      const transcript = transcriptRef.current;
+      const emotionLog = emotionLogRef.current;
+      const motionLog = motionLogRef.current;
+      const aiBrief = await requestLiveDialogBrief({
+        scenarioTitle,
+        scenarioGoal,
+        transcript,
+        emotionLog,
+        motionLog,
+        language,
+      });
+      const brief = composeLiveDialogBrief({
+        scenarioId,
+        scenarioTitle,
+        scenarioGoal,
+        scenarioXpReward,
+        scenarioCoinReward,
+        dailyQuest,
+        transcript,
+        emotionLog,
+        motionLog,
+        aiBrief,
+      });
+      saveLiveDialogBrief(brief);
+      onBriefReady?.(brief);
+    } catch {
+      finishedRef.current = false;
+    } finally {
+      setIsEvaluatingBrief(false);
+      setStatus('idle');
+    }
+  }, [
+    language,
+    dailyQuest,
+    onBriefReady,
+    onMotionChange,
+    scenarioCoinReward,
+    scenarioGoal,
+    scenarioId,
+    scenarioTitle,
+    scenarioXpReward,
+    stop,
+    stopListening,
+  ]);
+
+  useEffect(() => {
+    if (!finishToken) return;
+    finishDialog();
+  }, [finishDialog, finishToken]);
+
   return (
     <div className="voice-chat-panel" style={{
       position: 'absolute',
@@ -2577,7 +2935,7 @@ function VoiceChat({ scenarioTitle, scenarioGoal, aiPersona, patientType, langua
     }}>
       {/* Message bubbles — last 3 */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {messages.slice(-3).map((msg, i) => (
+        {messages.filter((msg) => msg.role === 'user').slice(-2).map((msg, i) => (
           <div key={i} style={{
             alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
             maxWidth: '80%',
@@ -2615,7 +2973,7 @@ function VoiceChat({ scenarioTitle, scenarioGoal, aiPersona, patientType, langua
           <span style={{ fontSize: 13, opacity: 0.7 }}>⏳ Starting…</span>
         )}
         {status === 'thinking' && (
-          <span style={{ fontSize: 13, opacity: 0.7 }}>💭 Thinking…</span>
+          <span style={{ fontSize: 13, opacity: 0.7 }}>{isEvaluatingBrief ? 'AI оценивает диалог…' : '💭 Thinking…'}</span>
         )}
         {status === 'playing' && (
           <span style={{ fontSize: 13, opacity: 0.7 }}>🔊 Speaking…</span>
@@ -2644,7 +3002,65 @@ function VoiceChat({ scenarioTitle, scenarioGoal, aiPersona, patientType, langua
             {status === 'listening' ? '⏹' : '🎤'}
           </button>
         )}
+        <button
+          type="button"
+          className="live-finish-button"
+          onClick={finishDialog}
+          disabled={!messages.length}
+        >
+          Завершить
+        </button>
       </div>
+    </div>
+  );
+}
+
+function LiveBriefModal({ brief, onClose, onBackToDashboard }) {
+  if (!brief) return null;
+
+  return (
+    <div className="live-brief-overlay" role="presentation">
+      <section className="live-brief-modal plush-lg popin" role="dialog" aria-modal="true" aria-labelledby="live-brief-title">
+        <header className="live-brief-head">
+          <span>Brief сохранён в диалогах</span>
+          <h2 id="live-brief-title">{brief.scenarioTitle}</h2>
+          <p>{brief.summary || brief.scenarioGoal || 'Короткий разбор живой тренировки.'}</p>
+        </header>
+        <div className="live-brief-grid">
+          <article className="live-brief-column live-brief-column--good">
+            <h3>Что хорошо</h3>
+            {brief.positives.map((item) => (
+              <p key={item}>{item}</p>
+            ))}
+          </article>
+          <article className="live-brief-column live-brief-column--bad">
+            <h3>Что улучшить</h3>
+            {brief.negatives.map((item) => (
+              <p key={item}>{item}</p>
+            ))}
+          </article>
+        </div>
+        <div className="live-brief-meta">
+          <span>Оценка: {brief.score || 0}/100</span>
+          <span>Эмоции: {brief.usedEmotions.length ? brief.usedEmotions.join(', ') : 'neutral'}</span>
+          <span>Движения: {brief.usedMotions.length ? brief.usedMotions.join(', ') : 'idle'}</span>
+          <span>Реплик: {brief.transcript.length}</span>
+        </div>
+        {brief.nextSteps?.length ? (
+          <article className="live-brief-next">
+            <h3>Следующий шаг</h3>
+            {brief.nextSteps.map((item) => (
+              <p key={item}>{item}</p>
+            ))}
+          </article>
+        ) : null}
+        <footer className="live-brief-actions">
+          <button type="button" className="btn-plush" onClick={onClose}>Продолжить сцену</button>
+          {onBackToDashboard ? (
+            <button type="button" className="btn-plush primary" onClick={onBackToDashboard}>В меню</button>
+          ) : null}
+        </footer>
+      </section>
     </div>
   );
 }
@@ -2652,7 +3068,11 @@ function VoiceChat({ scenarioTitle, scenarioGoal, aiPersona, patientType, langua
 function SimulationScene({
   onBackToDashboard,
   initialCaseId,
+  scenarioId,
   scenarioTitle,
+  scenarioXpReward,
+  scenarioCoinReward,
+  dailyQuest,
   industryName,
   industryIcon,
   quickPractice,
@@ -2668,9 +3088,13 @@ function SimulationScene({
   const [chaiseShape, setChaiseShape] = useState(() => sanitizeChaiseShape(CHAISE_POSE.chaiseShape));
   const [deskTransform, setDeskTransform] = useState(() => ({ ...DEFAULT_DESK_TRANSFORM }));
   const [boneRotations, setBoneRotations] = useState(() => cloneBoneRotations(CHAISE_POSE.boneRotations));
-  const [liveMotion, setLiveMotion] = useState('idle');
+  const [liveMotion, setLiveMotion] = useState(() => ['starting']);
   const [emotionMode, setEmotionMode] = useState('neutral');
+  const [speechBubbleText, setSpeechBubbleText] = useState('Starting...');
+  const [liveBrief, setLiveBrief] = useState(null);
+  const [finishToken, setFinishToken] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(180);
+  const [isAiReady, setIsAiReady] = useState(false);
   const [resetToken, setResetToken] = useState(0);
   const pendingCaseRef = useRef(null);
   const activeCase = useMemo(
@@ -2718,15 +3142,27 @@ function SimulationScene({
 
   useEffect(() => {
     setSecondsLeft(180);
+    setIsAiReady(false);
+    setLiveMotion(['starting']);
+    setSpeechBubbleText('Starting...');
   }, [activeCase.id]);
 
   useEffect(() => {
     const timerId = window.setInterval(() => {
+      if (!isAiReady) {
+        return;
+      }
       setSecondsLeft((current) => Math.max(0, current - 1));
     }, 1000);
 
     return () => window.clearInterval(timerId);
-  }, []);
+  }, [isAiReady]);
+
+  useEffect(() => {
+    if (secondsLeft === 0) {
+      setFinishToken((token) => token + 1);
+    }
+  }, [secondsLeft]);
 
   const emotionTone = EMOTION_TONES[activeCase.scene] || EMOTION_TONES.chaise;
 
@@ -2769,20 +3205,15 @@ function SimulationScene({
           liveMotion={liveMotion}
           emotionMode={emotionMode}
           bubbleAnchor={SPEECH_BUBBLE_ANCHORS[activeCase.scene]}
+          speechText={speechBubbleText}
           onBonesReady={handleBonesReady}
         />
         <ContactShadows position={[0, -1.16, 0]} opacity={0.34} blur={2.8} scale={7} far={3} />
         <Environment preset="apartment" />
         <SceneCameraControls settings={activeCameraSettings} />
       </Canvas>
-      <LiveMotionPanel
-        activeMode={liveMotion}
-        activeEmotion={emotionMode}
-        onChangeMode={setLiveMotion}
-        onChangeEmotion={setEmotionMode}
-      />
       <div className="simulation-bottom-bar">
-        <EmotionStatusPanel emotionMode={emotionMode} />
+        <AiStatePanel emotionMode={emotionMode} liveMotion={liveMotion} />
         <div className="simulation-bottom-center">
           {scenarioTitle || industryName ? (
             <div className="simulation-context-banner">
@@ -2813,13 +3244,26 @@ function SimulationScene({
         )}
       </div>
       <VoiceChat
+        scenarioId={scenarioId}
         scenarioTitle={scenarioTitle}
         scenarioGoal={scenarioGoal}
+        scenarioXpReward={scenarioXpReward}
+        scenarioCoinReward={scenarioCoinReward}
+        dailyQuest={dailyQuest}
         aiPersona={aiPersona}
         patientType={patientType}
         language={language}
         onMotionChange={setLiveMotion}
         onEmotionChange={setEmotionMode}
+        onBubbleTextChange={setSpeechBubbleText}
+        onBriefReady={setLiveBrief}
+        finishToken={finishToken}
+        onReadyChange={setIsAiReady}
+      />
+      <LiveBriefModal
+        brief={liveBrief}
+        onClose={() => setLiveBrief(null)}
+        onBackToDashboard={onBackToDashboard}
       />
     </main>
   );
@@ -5452,13 +5896,30 @@ function EmployeeDashboardView({ dashboard }) {
 function SimulationPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { caseId, scenarioTitle, industryName, industryIcon, quickPractice, scenarioGoal, aiPersona, patientType } = location.state || {};
+  const {
+    caseId,
+    scenarioId,
+    scenarioTitle,
+    scenarioXpReward,
+    scenarioCoinReward,
+    dailyQuest,
+    industryName,
+    industryIcon,
+    quickPractice,
+    scenarioGoal,
+    aiPersona,
+    patientType,
+  } = location.state || {};
   const lang = localStorage.getItem('app_lang') || 'ru';
 
   return (
     <SimulationScene
       initialCaseId={caseId}
+      scenarioId={scenarioId}
       scenarioTitle={scenarioTitle}
+      scenarioXpReward={scenarioXpReward}
+      scenarioCoinReward={scenarioCoinReward}
+      dailyQuest={dailyQuest}
       industryName={industryName}
       industryIcon={industryIcon}
       quickPractice={quickPractice}
