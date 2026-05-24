@@ -1,9 +1,9 @@
 """Live simulation endpoints — no auth required (demo phase)."""
-from fastapi import APIRouter
-from pydantic import BaseModel
+from fastapi import APIRouter, File, Form, UploadFile
 
 from ..config import get_settings
-from ..services.live_sim import build_system_prompt, get_ai_response, synthesize_speech
+from ..services.live_sim import build_system_prompt, get_ai_response, synthesize_speech, transcribe_audio
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/live-sim", tags=["live-sim"])
 
@@ -64,8 +64,18 @@ def chat(payload: ChatRequest) -> LiveSimResponse:
     )
 
 
-@router.get("/config")
-def get_live_sim_config() -> dict:
-    """Return Deepgram API key for frontend STT."""
+@router.post("/transcribe")
+async def transcribe(
+    file: UploadFile = File(...),
+    language: str = Form(default="en"),
+) -> dict:
     settings = get_settings()
-    return {"deepgramApiKey": settings.deepgram_api_key or ""}
+    audio_bytes = await file.read()
+    text = transcribe_audio(
+        audio_bytes,
+        filename=file.filename or "audio.webm",
+        content_type=file.content_type or "audio/webm",
+        language=language,
+        settings=settings,
+    )
+    return {"text": text}
