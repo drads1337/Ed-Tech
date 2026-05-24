@@ -2477,6 +2477,7 @@ function composeLiveDialogBrief({
     createdAt: new Date().toISOString(),
     score: aiBrief?.score || 0,
     rating: aiBrief?.rating || 1,
+    goalAchieved: Boolean(aiBrief?.goal_achieved),
     summary: aiBrief?.summary || '',
     positives: Array.isArray(aiBrief?.positives) ? aiBrief.positives : [],
     negatives: Array.isArray(aiBrief?.negatives) ? aiBrief.negatives : [],
@@ -2536,7 +2537,7 @@ function saveBriefToTrainerDialogs(brief) {
     const attempts = Array.isArray(current.attempts) ? current.attempts : [];
     const rating = Math.max(1, Math.min(3, Number(brief.rating) || 1));
     const score = Number(brief.score) || 0;
-    const isSolved = score >= 60 || rating >= 2;
+    const isSolved = Boolean(brief.goalAchieved) || score >= 60 || rating >= 2;
     const scenarioId = brief.scenarioId || 'live-dialog';
     const today = new Date(brief.createdAt).toISOString().slice(0, 10);
     const dailyQuestReward = isSolved && brief.dailyQuest && current.questDoneDate !== today
@@ -2565,6 +2566,7 @@ function saveBriefToTrainerDialogs(brief) {
       coinsGained,
       rating,
       score,
+      goalAchieved: Boolean(brief.goalAchieved),
       solved: isSolved,
       dailyQuestCompleted: Boolean(dailyQuestReward),
       skillRatings: {
@@ -2865,6 +2867,13 @@ function VoiceChat({
   const finishDialog = useCallback(async () => {
     if (finishedRef.current) return;
     finishedRef.current = true;
+    const capturedLiveText = liveText.trim();
+    if (capturedLiveText) {
+      const liveUserMsg = { role: 'user', text: capturedLiveText };
+      transcriptRef.current = [...transcriptRef.current, liveUserMsg];
+      setMessages((prev) => [...prev, liveUserMsg]);
+      setLiveText('');
+    }
     await stopListening();
     stop();
     onMotionChange?.('idle');
@@ -2905,6 +2914,7 @@ function VoiceChat({
   }, [
     language,
     dailyQuest,
+    liveText,
     onBriefReady,
     onMotionChange,
     scenarioCoinReward,
@@ -3042,6 +3052,7 @@ function LiveBriefModal({ brief, onClose, onBackToDashboard }) {
         </div>
         <div className="live-brief-meta">
           <span>Оценка: {brief.score || 0}/100</span>
+          <span>{brief.goalAchieved ? 'Цель достигнута' : 'Цель не достигнута'}</span>
           <span>Эмоции: {brief.usedEmotions.length ? brief.usedEmotions.join(', ') : 'neutral'}</span>
           <span>Движения: {brief.usedMotions.length ? brief.usedMotions.join(', ') : 'idle'}</span>
           <span>Реплик: {brief.transcript.length}</span>
@@ -3055,10 +3066,7 @@ function LiveBriefModal({ brief, onClose, onBackToDashboard }) {
           </article>
         ) : null}
         <footer className="live-brief-actions">
-          <button type="button" className="btn-plush" onClick={onClose}>Продолжить сцену</button>
-          {onBackToDashboard ? (
-            <button type="button" className="btn-plush primary" onClick={onBackToDashboard}>В меню</button>
-          ) : null}
+          <button type="button" className="btn-plush primary" onClick={onBackToDashboard || onClose}>В меню</button>
         </footer>
       </section>
     </div>

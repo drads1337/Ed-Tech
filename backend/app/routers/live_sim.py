@@ -44,6 +44,7 @@ class LiveSimResponse(BaseModel):
 class LiveBriefResponse(BaseModel):
     score: int
     rating: int
+    goal_achieved: bool
     summary: str
     positives: list[str]
     negatives: list[str]
