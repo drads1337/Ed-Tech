@@ -6376,18 +6376,8 @@ function RootRedirect() {
   return <Navigate to="/signin" replace />;
 }
 
-function HomeGate() {
-  const user = getMockUser();
-  if (!hasMockSession() || !user) {
-    return <Navigate to="/signin" replace />;
-  }
-  if (!hasCompletedOnboarding(user)) {
-    return <Navigate to="/onboarding" replace />;
-  }
-  return user.role === 'admin' ? <DashboardPage /> : <CommTrainerExperience />;
-}
-
 function TrainerSessionGate() {
+  const location = useLocation();
   const user = getMockUser();
   if (!hasMockSession() || !user) {
     return <Navigate to="/signin" replace />;
@@ -6396,6 +6386,9 @@ function TrainerSessionGate() {
     return <Navigate to="/onboarding" replace />;
   }
   if (user.role === 'admin') {
+    if (location.pathname === '/home' || location.pathname.startsWith('/home/')) {
+      return <DashboardPage />;
+    }
     return <Navigate to="/home" replace />;
   }
   return <CommTrainerExperience />;
@@ -6431,8 +6424,6 @@ export default function App() {
         <Route path="/signin" element={<LoginPage />} />
         <Route path="/signup" element={<RegisterPage />} />
         <Route path="/onboarding" element={<OnboardingPage />} />
-        <Route path="/home" element={<HomeGate />} />
-        <Route path="/home/profile" element={<HomeGate />} />
         <Route path="/dashboard/*" element={<CorporateHomeGate />} />
         <Route path="/simulation" element={<SimulationGate />} />
         <Route path="*" element={<TrainerSessionGate />} />

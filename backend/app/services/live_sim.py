@@ -35,7 +35,7 @@ EMOTION_DESCS = {
 
 LANGUAGE_NAMES = {"en": "English", "ru": "Russian", "uz": "Uzbek"}
 TTS_MODEL = "openai/gpt-4o-mini-tts-2025-12-15"
-TTS_VOICE = "nova"  # OpenAI voice: alloy | echo | fable | onyx | nova | shimmer
+TTS_VOICE = "onyx"  # OpenAI voice: alloy | echo | fable | onyx | nova | shimmer
 
 
 def build_system_prompt(title: str, goal: str, ai_persona: str, patient_type: str, language: str) -> str:
