@@ -11,8 +11,11 @@ import {
   useParams,
 } from 'react-router-dom';
 import { ArrowLeft, BarChart3, BookOpen, ChevronRight, Clock, Languages, LogOut, Play, Plus, RefreshCw, Smile, Sparkles, Target, Trash2, User, UserCheck, UserMinus, UserPlus, X, Zap } from 'lucide-react';
-import { supabase } from './backendApi.js';
-import { achievements, getDailySuggestions, industries, mockXpHistory, quests, scenarios } from './data/mockData.js';
+import { apiRequest, getSessionToken, supabase } from './backendApi.js';
+import { achievements, industries, mockXpHistory, scenarios } from './data/mockData.js';
+// Aliases used by components that receive live API data via props
+const mockScenarios = scenarios;
+const mockIndustries = industries;
 import {
   buildQuickScenario,
   consumeQuickPractice,
@@ -1095,9 +1098,10 @@ function startScenarioSimulation(scenario, navigate) {
   });
 }
 
-function findScenarioById(id, progress) {
+function findScenarioById(id, progress, apiScenarios) {
+  const catalog = apiScenarios?.length ? apiScenarios : scenarios;
   return (
-    scenarios.find((item) => item.id === id) ||
+    catalog.find((item) => item.id === id) ||
     (progress.aiGeneratedScenarios || []).find((item) => item.id === id)
   );
 }
@@ -1240,15 +1244,16 @@ function PageTop({ title, subtitle, backTo, t = text.ru }) {
   );
 }
 
-function LearningPathMap({ progress, t }) {
+function LearningPathMap({ progress, t, scenarios: scenariosProp }) {
   const navigate = useNavigate();
+  const mapScenarios = scenariosProp?.length ? scenariosProp : mockScenarios;
 
   return (
     <div className="snake-map">
       <svg className="snake-route" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
         <path d="M 62 5 C 76 9, 78 12, 58 14 S 28 19, 46 23 S 58 29, 38 32 S 38 38, 62 41 S 56 47, 33 50 S 30 56, 48 59 S 82 65, 70 68 S 28 74, 42 77 S 72 83, 60 86 S 18 91, 31 93 S 66 96, 50 98 S 68 100, 34 103" />
       </svg>
-      {scenarios.map((scenario, index) => {
+      {mapScenarios.map((scenario, index) => {
         const status = getScenarioStatus(scenario, index, progress);
         const industry = getIndustry(scenario.industry);
         const disabled = status.label === 'locked';
@@ -1320,12 +1325,13 @@ function TrainerToolbar({ progress, lang, setLang, t, onLogout }) {
   );
 }
 
-function HomePage({ progress, setProgress, t }) {
+function HomePage({ progress, setProgress, t, quest: questProp, apiScenarios }) {
   const navigate = useNavigate();
   const quickUsage = getQuickPracticeUsage(progress);
-  const quest = quests[0];
+  const quest = questProp || { id: 'q1', text: 'Пройти 1 сценарий на стрессоустойчивость', reward: 20, type: 'communication', targetSkill: 'Стрессоустойчивость' };
   const questDone = progress.questDoneDate === todayKey();
   const focusDone = progress.focusDoneDate === todayKey();
+  const scenarios = apiScenarios?.length ? apiScenarios : mockScenarios;
   const questTarget = scenarios.find((scenario) => scenario.skill === quest.targetSkill) || scenarios[0];
   const dailyQuestText = quest.text === 'Пройти 1 сценарий на стрессоустойчивость' ? t.questText : quest.text;
   const showCompanyTrack = isEmployeeUser();
@@ -1564,14 +1570,17 @@ function HomePage({ progress, setProgress, t }) {
   );
 }
 
-function PlanPage({ progress, t }) {
+const DEFAULT_QUEST = { id: 'q1', text: 'Пройти 1 сценарий на стрессоустойчивость', reward: 20, type: 'communication', targetSkill: 'Стрессоустойчивость' };
+
+function PlanPage({ progress, t, apiScenarios }) {
+  const planScenarios = apiScenarios?.length ? apiScenarios : scenarios;
   const navigate = useNavigate();
   const completedCount = Object.keys(progress.completed).length;
-  const completion = Math.round((completedCount / scenarios.length) * 100);
+  const completion = Math.round((completedCount / planScenarios.length) * 100);
   const nextScenario =
-    scenarios.find((scenario, index) => getScenarioStatus(scenario, index, progress).label === 'open') || scenarios[0];
+    planScenarios.find((scenario, index) => getScenarioStatus(scenario, index, progress).label === 'open') || planScenarios[0];
   const recentAttempts = progress.attempts.slice(0, 3);
-  const skillRows = buildSkillRows(progress);
+  const skillRows = buildSkillRows(progress, planScenarios);
   const questDone = progress.questDoneDate === todayKey();
 
   return (
@@ -1629,7 +1638,7 @@ function PlanPage({ progress, t }) {
               </div>
             </div>
           </div>
-          <LearningPathMap progress={progress} t={t} />
+          <LearningPathMap progress={progress} t={t} scenarios={planScenarios} />
         </section>
 
         <aside className="plan-sidebar">
@@ -1649,8 +1658,8 @@ function PlanPage({ progress, t }) {
           <article className="plan-side-card plush">
             <span className="path-kicker">{t.dailyQuest}</span>
             <h2>{questDone ? t.planQuestDoneStatus : t.planQuestActiveStatus}</h2>
-            <p>{quests[0].text === 'Пройти 1 сценарий на стрессоустойчивость' ? t.questText : quests[0].text}</p>
-            <span className="reward-badge">+{quests[0].reward} XP</span>
+            <p>{DEFAULT_QUEST.text === 'Пройти 1 сценарий на стрессоустойчивость' ? t.questText : DEFAULT_QUEST.text}</p>
+            <span className="reward-badge">+{DEFAULT_QUEST.reward} XP</span>
           </article>
 
           <article className="plan-side-card plush">
@@ -1658,7 +1667,7 @@ function PlanPage({ progress, t }) {
             {recentAttempts.length ? (
               <div className="plan-change-list">
                 {recentAttempts.map((attempt) => {
-                  const scenario = scenarios.find((item) => item.id === attempt.scenarioId);
+                  const scenario = planScenarios.find((item) => item.id === attempt.scenarioId);
 
                   return (
                     <div key={attempt.id} className="plan-change-row">
@@ -1692,10 +1701,10 @@ function PlanPage({ progress, t }) {
   );
 }
 
-function ScenarioPage({ progress, t }) {
+function ScenarioPage({ progress, t, apiScenarios }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const scenario = findScenarioById(id, progress);
+  const scenario = findScenarioById(id, progress, apiScenarios);
 
   if (!scenario) {
     return <Navigate to="/home" replace />;
@@ -1763,11 +1772,11 @@ function ScenarioPreview({ scenario, onStart, t }) {
   );
 }
 
-function ResultsPage({ progress, t }) {
+function ResultsPage({ progress, t, apiScenarios }) {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const scenario = findScenarioById(id, progress);
+  const scenario = findScenarioById(id, progress, apiScenarios);
 
   if (!scenario) {
     return <Navigate to="/home" replace />;
@@ -1824,7 +1833,7 @@ function ResultsPage({ progress, t }) {
   );
 }
 
-function LibraryPage({ progress, setProgress, t = getText('ru') }) {
+function LibraryPage({ progress, setProgress, t = getText('ru'), dailySuggestions: dailySuggestionsProp, apiScenarios, industries: industriesProp }) {
   const navigate = useNavigate();
   const [libraryTab, setLibraryTab] = useState('mine');
   const [industryFilter, setIndustryFilter] = useState('all');
@@ -1839,27 +1848,27 @@ function LibraryPage({ progress, setProgress, t = getText('ru') }) {
     ...progress.additionalIndustries,
   ], [progress.primaryIndustry, progress.additionalIndustries]);
 
+  const industriesList = industriesProp?.length ? industriesProp : mockIndustries;
+
   const myIndustries = useMemo(
-    () => industries.filter((ind) => myIndustryIds.includes(ind.id)),
-    [myIndustryIds],
+    () => industriesList.filter((ind) => myIndustryIds.includes(ind.id)),
+    [myIndustryIds, industriesList],
   );
 
-  const dailyOffers = useMemo(
-    () => getDailySuggestions(myIndustryIds, todayKey()),
-    [myIndustryIds],
-  );
+  const dailyOffers = dailySuggestionsProp?.length ? dailySuggestionsProp : [];
 
   const purchasedIds = progress.purchasedSuggestionIds || [];
 
+  const scenariosCatalog = apiScenarios?.length ? apiScenarios : mockScenarios;
   const myScenarios = useMemo(() => {
-    const catalog = scenarios.filter((scenario) => myIndustryIds.includes(scenario.industry));
+    const catalog = scenariosCatalog.filter((scenario) => myIndustryIds.includes(scenario.industry));
     const custom = (progress.aiGeneratedScenarios || []).filter((scenario) =>
       myIndustryIds.includes(scenario.industry),
     );
     const byId = new Map();
     [...catalog, ...custom].forEach((scenario) => byId.set(scenario.id, scenario));
     return Array.from(byId.values());
-  }, [myIndustryIds, progress.aiGeneratedScenarios]);
+  }, [myIndustryIds, scenariosCatalog, progress.aiGeneratedScenarios]);
 
   const filteredScenarios = myScenarios.filter((scenario) => {
     const matchesIndustry = industryFilter === 'all' || scenario.industry === industryFilter;
@@ -2359,16 +2368,17 @@ function EmployeeLeaderboardPage({ progress, t }) {
   );
 }
 
-function ProgressPage({ progress, t }) {
+function ProgressPage({ progress, t, apiScenarios }) {
+  const scenariosCatalog = apiScenarios?.length ? apiScenarios : scenarios;
   const completedCount = Object.keys(progress.completed).length;
   const attempts = progress.attempts || [];
-  
+
   // Stats
   const scenariosCompleted = completedCount;
   const totalRating = Object.values(progress.completed).reduce((sum, c) => sum + c.rating, 0);
   const accuracy = Math.round((totalRating / (completedCount * 3 || 1)) * 100);
   const practiceMinutes = Object.keys(progress.completed).reduce((sum, id) => {
-    const scenario = scenarios.find(s => s.id === id);
+    const scenario = scenariosCatalog.find(s => s.id === id);
     return sum + (scenario?.durationMin || 0);
   }, 0);
 
@@ -2401,7 +2411,7 @@ function ProgressPage({ progress, t }) {
     const scores = { empathy: [], clarity: [], resilience: [], honesty: [] };
     
     attemptsList.forEach(a => {
-      const s = scenarios.find(sc => sc.id === a.scenarioId);
+      const s = scenariosCatalog.find(sc => sc.id === a.scenarioId);
       if (!s) return;
       
       const rating = (a.rating / 3) * 100;
@@ -2456,7 +2466,7 @@ function ProgressPage({ progress, t }) {
     { id: 'first', title: t.achievementFirst, icon: '🌱', unlocked: completedCount >= 1 },
     { id: 'master', title: t.achievementMaster, icon: '🏆', unlocked: completedCount >= 5 },
     { id: 'stress', title: t.achievementStress, icon: '🧘', unlocked: attempts.some(a => {
-      const s = scenarios.find(sc => sc.id === a.scenarioId);
+      const s = scenariosCatalog.find(sc => sc.id === a.scenarioId);
       return s?.skill === 'Стрессоустойчивость' && a.rating === 3;
     })},
     { id: 'streak', title: t.achievementStreak, icon: '🔥', unlocked: progress.streak >= 3 },
@@ -2596,7 +2606,7 @@ function ProgressPage({ progress, t }) {
         <div className="history-list">
           {recentHistory.length > 0 ? (
             recentHistory.map((attempt, idx) => {
-              const scenario = scenarios.find(s => s.id === attempt.scenarioId);
+              const scenario = scenariosCatalog.find(s => s.id === attempt.scenarioId);
               const prevAttempt = attempts[idx + 1];
               const ratingDiff = prevAttempt ? attempt.rating - prevAttempt.rating : 0;
               const xpDiff = prevAttempt ? attempt.xpGained - prevAttempt.xpGained : 0;
@@ -2690,8 +2700,9 @@ function buildXpHistory(attempts) {
   return days.every((item) => item.xp === 0) ? mockXpHistory : days;
 }
 
-function buildSkillRows(progress) {
-  const rows = scenarios.map((scenario) => ({
+function buildSkillRows(progress, scenariosList) {
+  const catalog = scenariosList?.length ? scenariosList : scenarios;
+  const rows = catalog.map((scenario) => ({
     skill: scenario.skill,
     rating: progress.completed[scenario.id]?.rating || (scenario.difficulty === 1 ? 2 : 1),
   }));
@@ -2988,12 +2999,75 @@ function ProfilePage({ progress, setProgress, t }) {
 export function CommTrainerExperience() {
   const [progress, setProgressState] = useState(loadProgress);
   const [lang, setLang] = useInterfaceLanguage();
+  const [dailySuggestions, setDailySuggestions] = useState([]);
+  const [dailyQuest, setDailyQuest] = useState(null);
+  const [apiScenarios, setApiScenarios] = useState(mockScenarios);
+  const [industries, setIndustries] = useState(mockIndustries);
   const navigate = useNavigate();
   const t = getText(lang);
+  const progressSyncTimer = useRef(null);
 
+  // Persist progress to localStorage
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
   }, [progress]);
+
+  // Load API data on mount
+  useEffect(() => {
+    const industryIds = [progress.primaryIndustry, ...(progress.additionalIndustries || [])].filter(Boolean).join(',');
+    Promise.allSettled([
+      apiRequest(`/api/solo/daily-suggestions?industryIds=${industryIds}`),
+      apiRequest('/api/solo/quest/daily'),
+      apiRequest(`/api/solo/scenarios?industryIds=${industryIds}`),
+      apiRequest('/api/solo/industries'),
+    ]).then(([suggestions, quest, scenarios, inds]) => {
+      if (suggestions.status === 'fulfilled' && suggestions.value?.length) setDailySuggestions(suggestions.value);
+      if (quest.status === 'fulfilled' && quest.value) setDailyQuest(quest.value);
+      if (scenarios.status === 'fulfilled' && scenarios.value?.length) setApiScenarios(scenarios.value);
+      if (inds.status === 'fulfilled' && inds.value?.length) setIndustries(inds.value);
+    });
+    // Load progress from backend and merge if backend is more recent
+    getSessionToken().then((token) => {
+      apiRequest('/api/solo/progress', { token: token || undefined }).then((remoteProgress) => {
+        if (remoteProgress?.updatedAt) {
+          setProgressState((local) => ({
+            ...local,
+            xp: remoteProgress.xp ?? local.xp,
+            streak: remoteProgress.streak ?? local.streak,
+            coins: remoteProgress.coins ?? local.coins,
+            questDoneDate: remoteProgress.questDoneDate ?? local.questDoneDate,
+            focusDoneDate: remoteProgress.focusDoneDate ?? local.focusDoneDate,
+            completed: { ...(remoteProgress.completed || {}), ...(local.completed || {}) },
+          }));
+        }
+      }).catch(() => {});
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync progress to backend (debounced 3 s)
+  useEffect(() => {
+    if (progressSyncTimer.current) clearTimeout(progressSyncTimer.current);
+    progressSyncTimer.current = setTimeout(async () => {
+      try {
+        const token = await getSessionToken();
+        await apiRequest('/api/solo/progress', {
+          token: token || undefined,
+          method: 'POST',
+          body: {
+            xp: progress.xp,
+            streak: progress.streak,
+            coins: progress.coins,
+            primaryIndustry: progress.primaryIndustry,
+            additionalIndustries: progress.additionalIndustries,
+            questDoneDate: progress.questDoneDate,
+            focusDoneDate: progress.focusDoneDate,
+            completed: progress.completed,
+          },
+        });
+      } catch { /* offline / unauthenticated — localStorage is the fallback */ }
+    }, 3000);
+    return () => clearTimeout(progressSyncTimer.current);
+  }, [progress.xp, progress.streak, progress.coins, progress.questDoneDate, progress.focusDoneDate]);
 
   function setProgress(updater) {
     setProgressState((current) => (typeof updater === 'function' ? updater(current) : { ...current, ...updater }));
@@ -3025,14 +3099,14 @@ export function CommTrainerExperience() {
       <main className="trainer-main">
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />
-          <Route path="/home" element={<HomePage progress={progress} setProgress={setProgress} t={t} />} />
-          <Route path="/plan" element={<PlanPage progress={progress} t={t} />} />
-          <Route path="/scenario/:id" element={<ScenarioPage progress={progress} t={t} />} />
-          <Route path="/results/:id" element={<ResultsPage progress={progress} t={t} />} />
-          <Route path="/library" element={<LibraryPage progress={progress} setProgress={setProgress} t={t} />} />
+          <Route path="/home" element={<HomePage progress={progress} setProgress={setProgress} t={t} quest={dailyQuest} apiScenarios={apiScenarios} />} />
+          <Route path="/plan" element={<PlanPage progress={progress} t={t} apiScenarios={apiScenarios} />} />
+          <Route path="/scenario/:id" element={<ScenarioPage progress={progress} t={t} apiScenarios={apiScenarios} />} />
+          <Route path="/results/:id" element={<ResultsPage progress={progress} t={t} apiScenarios={apiScenarios} />} />
+          <Route path="/library" element={<LibraryPage progress={progress} setProgress={setProgress} t={t} dailySuggestions={dailySuggestions} apiScenarios={apiScenarios} industries={industries} />} />
           <Route path="/company" element={<CompanyAssignmentsPage progress={progress} t={t} />} />
           <Route path="/leaderboard" element={<EmployeeLeaderboardPage progress={progress} t={t} />} />
-          <Route path="/results-page" element={<ProgressPage progress={progress} t={t} />} />
+          <Route path="/results-page" element={<ProgressPage progress={progress} t={t} apiScenarios={apiScenarios} />} />
           <Route path="/practice" element={<PracticePage progress={progress} setProgress={setProgress} t={t} />} />
           <Route path="/profile" element={<ProfilePage progress={progress} setProgress={setProgress} t={t} />} />
           <Route path="*" element={<Navigate to="/home" replace />} />

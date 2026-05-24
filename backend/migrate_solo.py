@@ -1,338 +1,12 @@
-from abc import ABC, abstractmethod
-from datetime import datetime, timezone
-from uuid import uuid4
+"""One-shot migration: creates and seeds all solo/CommTrainer tables in Supabase."""
+import json
+import os
+import sys
 
-from .config import get_settings
-from .supabase_client import get_supabase_client
+import psycopg2
+from psycopg2.extras import Json
 
-
-DEMO_ORG_ID = "00000000-0000-0000-0000-000000000001"
-DEMO_ADMIN_ID = "00000000-0000-0000-0000-000000000010"
-DEMO_EMPLOYEE_ID = "00000000-0000-0000-0000-000000000011"
-
-
-class Repository(ABC):
-    @abstractmethod
-    def create_organization(self, name: str) -> dict:
-        raise NotImplementedError
-
-    @abstractmethod
-    def create_session(self, payload: dict) -> dict:
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_session(self, session_id: str) -> dict | None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def update_session_transcript(self, session_id: str, transcript: list[dict]) -> dict:
-        raise NotImplementedError
-
-    @abstractmethod
-    def upsert_profile(self, payload: dict) -> dict:
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_profile(self, user_id: str) -> dict | None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def create_material(self, payload: dict) -> dict:
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_material(self, material_id: str, organization_id: str) -> dict | None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def create_scenario(self, payload: dict) -> dict:
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_scenario(self, scenario_id: str, organization_id: str) -> dict | None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def create_assignment(self, payload: dict, employee_ids: list[str]) -> dict:
-        raise NotImplementedError
-
-    @abstractmethod
-    def list_employee_assignments(self, user_id: str, organization_id: str) -> list[dict]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def create_attempt(self, payload: dict) -> dict:
-        raise NotImplementedError
-
-    @abstractmethod
-    def list_attempts_for_user(self, user_id: str, organization_id: str) -> list[dict]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def list_admin_dashboard_rows(self, organization_id: str) -> dict:
-        raise NotImplementedError
-
-    # ── Solo / CommTrainer ────────────────────────────────────────────────────
-
-    @abstractmethod
-    def list_industries(self) -> list[dict]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def list_solo_scenarios(self, industry_ids: list[str] | None = None) -> list[dict]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_solo_scenario(self, scenario_id: str) -> dict | None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def list_daily_suggestions(self, industry_ids: list[str] | None = None) -> list[dict]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_daily_quest(self) -> dict | None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_user_progress(self, user_id: str) -> dict | None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def upsert_user_progress(self, user_id: str, payload: dict) -> dict:
-        raise NotImplementedError
-
-    @abstractmethod
-    def create_solo_attempt(self, payload: dict) -> dict:
-        raise NotImplementedError
-
-
-class SupabaseRepository(Repository):
-    def __init__(self) -> None:
-        self.client = get_supabase_client()
-
-    def create_organization(self, name: str) -> dict:
-        result = self.client.table("organizations").insert({"name": name}).execute()
-        return result.data[0]
-
-    def upsert_profile(self, payload: dict) -> dict:
-        result = self.client.table("profiles").upsert(payload).execute()
-        return result.data[0]
-
-    # Hardcoded demo profiles so X-Demo-User works even against real Supabase
-    _DEMO_PROFILES: dict[str, dict] = {
-        DEMO_ADMIN_ID: {"id": DEMO_ADMIN_ID, "email": "admin@demo.com", "name": "Demo Admin", "role": "admin", "organization_id": DEMO_ORG_ID, "xp": 0, "streak": 0},
-        DEMO_EMPLOYEE_ID: {"id": DEMO_EMPLOYEE_ID, "email": "employee1@demo.com", "name": "Employee One", "role": "employee", "organization_id": DEMO_ORG_ID, "xp": 120, "streak": 3},
-    }
-
-    def get_profile(self, user_id: str) -> dict | None:
-        if user_id in self._DEMO_PROFILES:
-            return self._DEMO_PROFILES[user_id]
-        result = self.client.table("profiles").select("*").eq("id", user_id).maybe_single().execute()
-        return result.data if result else None
-
-    def create_material(self, payload: dict) -> dict:
-        result = self.client.table("training_materials").insert(payload).execute()
-        return result.data[0]
-
-    def get_material(self, material_id: str, organization_id: str) -> dict | None:
-        result = (
-            self.client.table("training_materials")
-            .select("*")
-            .eq("id", material_id)
-            .eq("organization_id", organization_id)
-            .maybe_single()
-            .execute()
-        )
-        return result.data if result else None
-
-    def create_scenario(self, payload: dict) -> dict:
-        result = self.client.table("scenarios").insert(payload).execute()
-        return result.data[0]
-
-    def get_scenario(self, scenario_id: str, organization_id: str) -> dict | None:
-        result = (
-            self.client.table("scenarios")
-            .select("*")
-            .eq("id", scenario_id)
-            .eq("organization_id", organization_id)
-            .maybe_single()
-            .execute()
-        )
-        return result.data if result else None
-
-    def create_assignment(self, payload: dict, employee_ids: list[str]) -> dict:
-        assignment = self.client.table("assignments").insert(payload).execute().data[0]
-        rows = [
-            {"assignment_id": assignment["id"], "employee_id": employee_id}
-            for employee_id in employee_ids
-        ]
-        if rows:
-            self.client.table("assignment_employees").insert(rows).execute()
-        assignment["employee_ids"] = employee_ids
-        return assignment
-
-    def list_employee_assignments(self, user_id: str, organization_id: str) -> list[dict]:
-        result = (
-            self.client.table("assignment_employees")
-            .select("assignment:assignments(*, scenario:scenarios(*))")
-            .eq("employee_id", user_id)
-            .execute()
-        )
-        assignments = [row["assignment"] for row in result.data if row.get("assignment")]
-        return [row for row in assignments if row.get("organization_id") == organization_id]
-
-    def create_attempt(self, payload: dict) -> dict:
-        result = self.client.table("attempts").insert(payload).execute()
-        return result.data[0]
-
-    def list_attempts_for_user(self, user_id: str, organization_id: str) -> list[dict]:
-        result = (
-            self.client.table("attempts")
-            .select("*, scenario:scenarios(organization_id)")
-            .eq("user_id", user_id)
-            .order("created_at", desc=True)
-            .execute()
-        )
-        return [
-            row
-            for row in result.data
-            if row.get("scenario", {}).get("organization_id") == organization_id
-        ]
-
-    def list_admin_dashboard_rows(self, organization_id: str) -> dict:
-        assignments = (
-            self.client.table("assignments")
-            .select("*, scenario:scenarios(*), assignment_employees(employee_id, profile:profiles(*))")
-            .eq("organization_id", organization_id)
-            .execute()
-            .data
-        )
-        attempts = (
-            self.client.table("attempts")
-            .select("*, scenario:scenarios(organization_id)")
-            .execute()
-            .data
-        )
-        attempts = [
-            row
-            for row in attempts
-            if row.get("scenario", {}).get("organization_id") == organization_id
-        ]
-        return {"assignments": assignments, "attempts": attempts}
-
-    def create_session(self, payload: dict) -> dict:
-        result = self.client.table("simulation_sessions").insert(payload).execute()
-        return result.data[0]
-
-    def get_session(self, session_id: str) -> dict | None:
-        result = (
-            self.client.table("simulation_sessions")
-            .select("*, scenario:scenarios(*)")
-            .eq("id", session_id)
-            .maybe_single()
-            .execute()
-        )
-        return result.data if result else None
-
-    def update_session_transcript(self, session_id: str, transcript: list[dict]) -> dict:
-        result = (
-            self.client.table("simulation_sessions")
-            .update({"transcript": transcript})
-            .eq("id", session_id)
-            .execute()
-        )
-        return result.data[0]
-
-    def list_industries(self) -> list[dict]:
-        try:
-            return self.client.table("solo_industries").select("*").execute().data
-        except Exception:
-            return list(_INDUSTRIES)
-
-    def list_solo_scenarios(self, industry_ids: list[str] | None = None) -> list[dict]:
-        try:
-            q = self.client.table("solo_scenarios").select("*")
-            if industry_ids:
-                q = q.in_("industry", industry_ids)
-            return q.execute().data
-        except Exception:
-            if not industry_ids:
-                return list(_SOLO_SCENARIOS)
-            return [s for s in _SOLO_SCENARIOS if s["industry"] in industry_ids]
-
-    def get_solo_scenario(self, scenario_id: str) -> dict | None:
-        try:
-            result = (
-                self.client.table("solo_scenarios")
-                .select("*")
-                .eq("id", scenario_id)
-                .maybe_single()
-                .execute()
-            )
-            return result.data if result else None
-        except Exception:
-            return next((s for s in _SOLO_SCENARIOS if s["id"] == scenario_id), None)
-
-    def list_daily_suggestions(self, industry_ids: list[str] | None = None) -> list[dict]:
-        try:
-            q = self.client.table("daily_suggestions").select("*")
-            if industry_ids:
-                q = q.in_("industry", industry_ids)
-            data = q.execute().data
-            # apply the same daily-rotation logic
-            from datetime import date
-            return _pick_daily_suggestions(data, industry_ids or ["medicine"], date.today().isoformat())
-        except Exception:
-            from datetime import date
-            return _pick_daily_suggestions(_DAILY_SUGGESTIONS, industry_ids or ["medicine"], date.today().isoformat())
-
-    def get_daily_quest(self) -> dict | None:
-        try:
-            result = self.client.table("solo_quests").select("*").limit(1).maybe_single().execute()
-            return result.data or (_SOLO_QUESTS[0] if _SOLO_QUESTS else None)
-        except Exception:
-            return _SOLO_QUESTS[0] if _SOLO_QUESTS else None
-
-    def get_user_progress(self, user_id: str) -> dict | None:
-        try:
-            result = (
-                self.client.table("user_progress")
-                .select("*")
-                .eq("user_id", user_id)
-                .maybe_single()
-                .execute()
-            )
-            return result.data if result else None
-        except Exception:
-            return None
-
-    def upsert_user_progress(self, user_id: str, payload: dict) -> dict:
-        try:
-            data = {**payload, "user_id": user_id, "updated_at": datetime.now(timezone.utc).isoformat()}
-            result = self.client.table("user_progress").upsert(data, on_conflict="user_id").execute()
-            return result.data[0]
-        except Exception:
-            return {**payload, "user_id": user_id}
-
-    def create_solo_attempt(self, payload: dict) -> dict:
-        try:
-            result = self.client.table("solo_attempts").insert(payload).execute()
-            return result.data[0]
-        except Exception:
-            return {"id": str(uuid4()), **payload, "created_at": datetime.now(timezone.utc).isoformat()}
-
-
-_INDUSTRIES = [
-    {"id": "medicine", "name": "Медицина", "icon": "🏥", "roles": ["Врач", "Медсестра", "Диспетчер"]},
-    {"id": "psychology", "name": "Психология", "icon": "🧠", "roles": ["Психолог", "Соцработник"]},
-    {"id": "education", "name": "Образование", "icon": "🎓", "roles": ["Преподаватель", "Куратор", "Методист"]},
-    {"id": "finance", "name": "Финансы", "icon": "🏦", "roles": ["Менеджер банка", "Финансовый консультант"]},
-    {"id": "hospitality", "name": "Сервис", "icon": "🛎️", "roles": ["Администратор", "Менеджер смены", "Саппорт"]},
-    {"id": "public_service", "name": "Госуслуги", "icon": "🏛️", "roles": ["Оператор МФЦ", "Инспектор", "Координатор"]},
-]
-
-_SOLO_SCENARIOS = [
+SOLO_SCENARIOS = [
     {"id": "med_01", "industry": "medicine", "skill": "Сбор анамнеза", "title": "Пациент с болью в груди", "goal": "Сбор анамнеза", "difficulty": 2, "duration_min": 4, "xp_reward": 15, "coin_reward": 8, "ai_persona": "Тревожный пациент 55 лет", "patient_type": "angry", "script": [{"role": "ai", "text": "У меня здесь колет... уже третий день. Что это может быть?", "delay": 1200}, {"role": "user", "expected": ["локализация", "характер боли", "иррадиация"], "hint": "Начните с места боли, характера ощущений и отдаёт ли боль куда-то.", "quickReplies": ["Покажите, где именно болит, какая боль по характеру и отдаёт ли она куда-то?", "Сколько вам лет и принимали ли вы таблетки?"]}, {"role": "ai", "text": "Больше слева. Иногда будто жжёт и уходит в плечо.", "delay": 1400}, {"role": "user", "expected": ["одышка", "тошнота", "пот"], "hint": "Проверьте красные флаги: одышка, тошнота, холодный пот.", "quickReplies": ["Есть ли одышка, тошнота или холодный пот?", "Попробуйте глубоко вдохнуть, стало легче?"]}, {"role": "ai", "text": "Да, сегодня немного тошнило, и я вспотел, когда поднимался по лестнице.", "delay": 1700}, {"role": "user", "expected": ["скорая", "безопасность", "спокойно"], "hint": "Нужно спокойно объяснить срочность и предложить безопасный следующий шаг.", "quickReplies": ["Симптомы требуют срочной оценки. Давайте вызовем скорую, а вы пока сядьте и не нагружайтесь.", "Понаблюдайте до завтра, возможно, пройдёт."]}], "feedback": {"good": ["Чётко спросили про локализацию", "Использовали эмпатию", "Отследили красные флаги"], "improve": ["Пропущен вопрос про аллергию", "Слишком быстрый темп"]}},
     {"id": "med_02", "industry": "medicine", "skill": "Эмпатия", "title": "Родитель в приёмном покое", "goal": "Снизить тревогу и собрать симптомы", "difficulty": 2, "duration_min": 5, "xp_reward": 16, "coin_reward": 9, "ai_persona": "Мама ребёнка с высокой температурой", "patient_type": "sad", "script": [{"role": "ai", "text": "У ребёнка 39,5, я уже не знаю, что делать. Почему нас не принимают сразу?", "delay": 1100}, {"role": "user", "expected": ["понимаю", "тревогу", "осмотр"], "hint": "Сначала признайте эмоцию, затем объясните ближайшее действие.", "quickReplies": ["Понимаю вашу тревогу. Сейчас уточню симптомы и помогу ускорить осмотр по приоритету.", "Все ждут, вам нужно успокоиться."]}, {"role": "ai", "text": "Он вялый, почти не пьёт. Я боюсь, что станет хуже.", "delay": 1500}, {"role": "user", "expected": ["пьёт", "мочился", "сыпь"], "hint": "Уточните признаки обезвоживания и опасные симптомы.", "quickReplies": ["Когда он пил последний раз, мочился ли сегодня, есть ли сыпь или судороги?", "Какая температура была утром?"]}, {"role": "ai", "text": "Пил пару глотков, подгузник почти сухой. Сыпи нет.", "delay": 1500}, {"role": "user", "expected": ["передам", "врач", "рядом"], "hint": "Завершите поддержкой и понятным обещанием без ложной гарантии.", "quickReplies": ["Я передам врачу эти признаки прямо сейчас. Оставайтесь рядом, мы не оставим вас без внимания.", "Тогда это не срочно, ждите вызова."]}], "feedback": {"good": ["Назвали тревогу родителя", "Собрали признаки обезвоживания", "Дали понятный следующий шаг"], "improve": ["Можно было уточнить вес ребёнка", "Не хватает проверки лекарств и дозировок"]}},
     {"id": "psy_01", "industry": "psychology", "skill": "Активное слушание", "title": "Клиент после конфликта", "goal": "Отразить эмоции и уточнить запрос", "difficulty": 1, "duration_min": 4, "xp_reward": 12, "coin_reward": 7, "ai_persona": "Клиент, обиженный на коллегу", "patient_type": "neutral", "script": [{"role": "ai", "text": "Я сорвался на коллегу. Теперь стыдно, но он тоже перегнул.", "delay": 1200}, {"role": "user", "expected": ["стыд", "злость", "слышится"], "hint": "Отразите две эмоции без оценки.", "quickReplies": ["Слышится, что вам одновременно стыдно и злитесь из-за того, как всё произошло.", "Вы оба виноваты, надо просто извиниться."]}, {"role": "ai", "text": "Да. И я боюсь, что теперь на работе все будут смотреть косо.", "delay": 1300}, {"role": "user", "expected": ["страх", "последствия", "важно"], "hint": "Уточните, какие последствия для клиента самые значимые.", "quickReplies": ["Похоже, вас пугают последствия. Что сейчас для вас самое важное сохранить на работе?", "Почему вас так волнует мнение других?"]}, {"role": "ai", "text": "Хочу восстановить контакт и не выглядеть слабым.", "delay": 1500}, {"role": "user", "expected": ["варианты", "контакт", "границы"], "hint": "Предложите исследовать варианты с учётом контакта и границ.", "quickReplies": ["Давайте рассмотрим варианты, как восстановить контакт и одновременно обозначить границы.", "Лучше сделать вид, что ничего не было."]}], "feedback": {"good": ["Отражали чувства без давления", "Уточнили значимый результат", "Сохранили нейтральность"], "improve": ["Можно мягче проверить телесные реакции", "Не стоит торопиться с советами"]}},
@@ -349,7 +23,7 @@ _SOLO_SCENARIOS = [
     {"id": "cross_02", "industry": "education", "skill": "Переговоры", "title": "Руководитель просит невозможное", "goal": "Согласовать реалистичный объём", "difficulty": 3, "duration_min": 6, "xp_reward": 22, "coin_reward": 12, "ai_persona": "Руководитель с срочной задачей", "patient_type": "vip", "script": [{"role": "ai", "text": "Нужно подготовить полный отчёт к вечеру. Это приоритет номер один.", "delay": 1000}, {"role": "user", "expected": ["приоритет", "объём", "срок"], "hint": "Подтвердите приоритет и уточните объём результата к сроку.", "quickReplies": ["Понимаю, это приоритет. Уточню объём: какой результат к вечеру нужен обязательно?", "Это невозможно сделать к вечеру."]}, {"role": "ai", "text": "Мне нужны выводы, таблицы и презентация для совета.", "delay": 1300}, {"role": "user", "expected": ["варианты", "минимум", "качество"], "hint": "Предложите варианты с компромиссом по объёму и качеству.", "quickReplies": ["Есть варианты: к вечеру минимум с выводами и ключевыми таблицами, презентацию доработать утром.", "Если хотите качество, ждите неделю."]}, {"role": "ai", "text": "Хорошо, но выводы должны быть точными.", "delay": 1200}, {"role": "user", "expected": ["данные", "проверка", "согласуем"], "hint": "Закройте договорённость через источник данных и проверку.", "quickReplies": ["Тогда согласуем источники данных и одну проверку в 18:00, чтобы выводы были точными.", "Точность зависит от того, что успею найти."]}], "feedback": {"good": ["Не отказались резко", "Предложили реалистичный минимум", "Согласовали проверку качества"], "improve": ["Можно уточнить, что снять с текущих задач", "Не хватает письменного подтверждения договорённости"]}},
 ]
 
-_DAILY_SUGGESTIONS = [
+DAILY_SUGGESTIONS = [
     {"id": "offer_med_conflict", "industry": "medicine", "skill": "Деэскалация", "title": "Сложный конфликт в приёмной", "description": "Пациент отказывается ждать и требует немедленного приёма. Отработайте спокойный тон и границы.", "price": 0, "emoji": "⚡", "difficulty": 2, "duration_min": 5, "patient_type": "angry"},
     {"id": "offer_med_chest", "industry": "medicine", "skill": "Сбор анамнеза", "title": "Боль в груди под давлением", "description": "Срочный сбор симптомов при тревоге пациента. Уточните красные флаги и следующий шаг.", "price": 5, "emoji": "🫀", "difficulty": 2, "duration_min": 4, "patient_type": "vip"},
     {"id": "offer_med_parent", "industry": "medicine", "skill": "Эмпатия", "title": "Родитель в панике", "description": "Мама ребёнка с высокой температурой. Снизьте тревогу и соберите ключевые симптомы.", "price": 3, "emoji": "👶", "difficulty": 2, "duration_min": 5, "patient_type": "sad"},
@@ -366,254 +40,152 @@ _DAILY_SUGGESTIONS = [
     {"id": "offer_psy_silence", "industry": "psychology", "skill": "Активное слушание", "title": "Долгое молчание клиента", "description": "Клиент не отвечает на вопросы. Мягко вовлеките без давления и уточняющих «почему».", "price": 4, "emoji": "🤫", "difficulty": 2, "duration_min": 5, "patient_type": "neutral"},
 ]
 
-_SOLO_QUESTS = [
+INDUSTRIES = [
+    {"id": "medicine", "name": "Медицина", "icon": "🏥", "roles": ["Врач", "Медсестра", "Диспетчер"]},
+    {"id": "psychology", "name": "Психология", "icon": "🧠", "roles": ["Психолог", "Соцработник"]},
+    {"id": "education", "name": "Образование", "icon": "🎓", "roles": ["Преподаватель", "Куратор", "Методист"]},
+    {"id": "finance", "name": "Финансы", "icon": "🏦", "roles": ["Менеджер банка", "Финансовый консультант"]},
+    {"id": "hospitality", "name": "Сервис", "icon": "🛎️", "roles": ["Администратор", "Менеджер смены", "Саппорт"]},
+    {"id": "public_service", "name": "Госуслуги", "icon": "🏛️", "roles": ["Оператор МФЦ", "Инспектор", "Координатор"]},
+]
+
+QUESTS = [
     {"id": "q1", "text": "Пройти 1 сценарий на стрессоустойчивость", "reward": 20, "type": "communication", "target_skill": "Стрессоустойчивость"},
 ]
 
+DDL = """
+CREATE TABLE IF NOT EXISTS solo_industries (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    icon TEXT NOT NULL DEFAULT '',
+    roles JSONB NOT NULL DEFAULT '[]'
+);
 
-def _hash_seed(s: str) -> int:
-    h = 0
-    for ch in s:
-        h = ((h << 5) - h + ord(ch)) & 0xFFFFFFFF
-        if h >= 0x80000000:
-            h -= 0x100000000
-    return abs(h)
+CREATE TABLE IF NOT EXISTS solo_scenarios (
+    id TEXT PRIMARY KEY,
+    industry TEXT NOT NULL REFERENCES solo_industries(id) ON DELETE CASCADE,
+    skill TEXT NOT NULL,
+    title TEXT NOT NULL,
+    goal TEXT NOT NULL DEFAULT '',
+    difficulty INTEGER NOT NULL DEFAULT 2,
+    duration_min INTEGER NOT NULL DEFAULT 5,
+    xp_reward INTEGER NOT NULL DEFAULT 10,
+    coin_reward INTEGER NOT NULL DEFAULT 5,
+    ai_persona TEXT NOT NULL DEFAULT '',
+    patient_type TEXT,
+    emoji TEXT,
+    script JSONB NOT NULL DEFAULT '[]',
+    feedback JSONB NOT NULL DEFAULT '{}'
+);
+
+CREATE TABLE IF NOT EXISTS daily_suggestions (
+    id TEXT PRIMARY KEY,
+    industry TEXT NOT NULL REFERENCES solo_industries(id) ON DELETE CASCADE,
+    skill TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    price INTEGER NOT NULL DEFAULT 0,
+    emoji TEXT NOT NULL DEFAULT '⭐',
+    difficulty INTEGER NOT NULL DEFAULT 2,
+    duration_min INTEGER NOT NULL DEFAULT 5,
+    patient_type TEXT
+);
+
+CREATE TABLE IF NOT EXISTS solo_quests (
+    id TEXT PRIMARY KEY,
+    text TEXT NOT NULL,
+    reward INTEGER NOT NULL DEFAULT 10,
+    type TEXT NOT NULL DEFAULT 'communication',
+    target_skill TEXT
+);
+
+CREATE TABLE IF NOT EXISTS user_progress (
+    user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL DEFAULT '',
+    primary_industry TEXT NOT NULL DEFAULT 'medicine',
+    role TEXT NOT NULL DEFAULT '',
+    goal TEXT NOT NULL DEFAULT '',
+    additional_industries JSONB NOT NULL DEFAULT '[]',
+    streak INTEGER NOT NULL DEFAULT 0,
+    xp INTEGER NOT NULL DEFAULT 0,
+    coins INTEGER NOT NULL DEFAULT 0,
+    notifications INTEGER NOT NULL DEFAULT 0,
+    mode TEXT NOT NULL DEFAULT 'keyboard',
+    quest_done_date TEXT NOT NULL DEFAULT '',
+    focus_done_date TEXT NOT NULL DEFAULT '',
+    purchased_suggestion_ids JSONB NOT NULL DEFAULT '[]',
+    completed JSONB NOT NULL DEFAULT '{}',
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS solo_attempts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    scenario_id TEXT NOT NULL REFERENCES solo_scenarios(id) ON DELETE CASCADE,
+    rating INTEGER NOT NULL DEFAULT 0,
+    xp_gained INTEGER NOT NULL DEFAULT 0,
+    coins_gained INTEGER NOT NULL DEFAULT 0,
+    transcript JSONB NOT NULL DEFAULT '[]',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+"""
 
 
-def _pick_daily_suggestions(pool: list[dict], industry_ids: list[str], date_key: str, count: int = 10) -> list[dict]:
-    ids = industry_ids if industry_ids else ["medicine"]
-    relevant = [item for item in pool if item["industry"] in ids]
-    rest = [item for item in pool if item["industry"] not in ids]
-    combined = relevant + rest if len(relevant) < count else relevant
+def main() -> None:
+    host = os.environ.get("POSTGRES_HOST", "localhost")
+    port = int(os.environ.get("POSTGRES_PORT", "5432"))
+    dbname = os.environ.get("POSTGRES_DB", "postgres")
+    user = os.environ.get("POSTGRES_USER", "postgres")
+    password = os.environ.get("POSTGRES_PASSWORD", "")
 
-    seed = _hash_seed(f"{date_key}:{','.join(sorted(ids))}")
-    shuffled = sorted(combined, key=lambda item: _hash_seed(f"{seed}:{item['id']}"))
+    print(f"Connecting to {host}:{port}/{dbname} as {user}...")
+    conn = psycopg2.connect(host=host, port=port, dbname=dbname, user=user, password=password)
+    conn.autocommit = True
+    cur = conn.cursor()
 
-    seen: set[str] = set()
-    result: list[dict] = []
-    for item in shuffled:
-        if item["id"] not in seen:
-            seen.add(item["id"])
-            result.append(item)
-            if len(result) >= count:
-                break
-    return result
+    print("Running DDL...")
+    cur.execute(DDL)
 
-
-class InMemoryRepository(Repository):
-    def __init__(self, seed_demo: bool = False) -> None:
-        self.profiles: dict[str, dict] = {}
-        self.materials: dict[str, dict] = {}
-        self.scenarios: dict[str, dict] = {}
-        self.assignments: dict[str, dict] = {}
-        self.attempts: dict[str, dict] = {}
-        self.sessions: dict[str, dict] = {}
-        self.user_progress: dict[str, dict] = {}
-        self.solo_attempts: list[dict] = []
-
-        if seed_demo:
-            self._seed_demo()
-
-    def _seed_demo(self) -> None:
-        self.profiles[DEMO_ADMIN_ID] = {
-            "id": DEMO_ADMIN_ID,
-            "email": "admin@demo.com",
-            "name": "Demo Admin",
-            "role": "admin",
-            "organization_id": DEMO_ORG_ID,
-            "xp": 0,
-            "streak": 0,
-        }
-        self.profiles[DEMO_EMPLOYEE_ID] = {
-            "id": DEMO_EMPLOYEE_ID,
-            "email": "employee1@demo.com",
-            "name": "Employee One",
-            "role": "employee",
-            "organization_id": DEMO_ORG_ID,
-            "xp": 120,
-            "streak": 3,
-        }
-        material = self.create_material(
-            {
-                "organization_id": DEMO_ORG_ID,
-                "title": "Enterprise Sales FAQ",
-                "type": "text",
-                "content": (
-                    "Enterprise customers ask about security, procurement, implementation value, "
-                    "contract guarantees, and operational savings."
-                ),
-            }
-        )
-        scenario = self.create_scenario(
-            {
-                "organization_id": DEMO_ORG_ID,
-                "material_id": material["id"],
-                "title": "Handle enterprise objections: Enterprise Sales FAQ",
-                "goal": "Handle enterprise objections",
-                "difficulty": "medium",
-                "persona": "Skeptical enterprise customer",
-                "opening_message": (
-                    "I don't see why we need this product. We already have a solution, "
-                    "and every vendor claims they can save us money."
-                ),
-                "evaluation_skills": [
-                    "knowledge accuracy",
-                    "objection handling",
-                    "confidence",
-                    "structure",
-                    "policy adherence",
-                ],
-                "rubric": {
-                    "accuracy": "Did the employee use correct product facts?",
-                    "objectionHandling": "Did they handle resistance clearly?",
-                    "confidence": "Did they sound confident?",
-                    "structure": "Did they organize the answer in a clear sequence?",
-                    "policyAdherence": "Did they stay within the training material and company policy?",
-                },
-            }
-        )
-        self.create_assignment(
-            {
-                "organization_id": DEMO_ORG_ID,
-                "scenario_id": scenario["id"],
-                "due_date": None,
-                "required_score": 75,
-            },
-            [DEMO_EMPLOYEE_ID],
+    print("Seeding industries...")
+    for row in INDUSTRIES:
+        cur.execute(
+            "INSERT INTO solo_industries (id, name, icon, roles) VALUES (%s,%s,%s,%s) ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, icon=EXCLUDED.icon, roles=EXCLUDED.roles",
+            (row["id"], row["name"], row["icon"], Json(row["roles"])),
         )
 
-    def create_organization(self, name: str) -> dict:
-        row = {"id": str(uuid4()), "name": name}
-        return row
+    print("Seeding solo_scenarios...")
+    for row in SOLO_SCENARIOS:
+        cur.execute(
+            "INSERT INTO solo_scenarios (id,industry,skill,title,goal,difficulty,duration_min,xp_reward,coin_reward,ai_persona,patient_type,emoji,script,feedback) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (id) DO UPDATE SET title=EXCLUDED.title,script=EXCLUDED.script,feedback=EXCLUDED.feedback",
+            (row["id"], row["industry"], row["skill"], row["title"], row["goal"], row["difficulty"], row["duration_min"], row["xp_reward"], row["coin_reward"], row["ai_persona"], row.get("patient_type"), row.get("emoji"), Json(row["script"]), Json(row["feedback"])),
+        )
 
-    def upsert_profile(self, payload: dict) -> dict:
-        self.profiles[payload["id"]] = payload
-        return payload
+    print("Seeding daily_suggestions...")
+    for row in DAILY_SUGGESTIONS:
+        cur.execute(
+            "INSERT INTO daily_suggestions (id,industry,skill,title,description,price,emoji,difficulty,duration_min,patient_type) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (id) DO UPDATE SET title=EXCLUDED.title,description=EXCLUDED.description",
+            (row["id"], row["industry"], row["skill"], row["title"], row["description"], row["price"], row["emoji"], row["difficulty"], row["duration_min"], row.get("patient_type")),
+        )
 
-    def get_profile(self, user_id: str) -> dict | None:
-        return self.profiles.get(user_id)
+    print("Seeding solo_quests...")
+    for row in QUESTS:
+        cur.execute(
+            "INSERT INTO solo_quests (id,text,reward,type,target_skill) VALUES (%s,%s,%s,%s,%s) ON CONFLICT (id) DO UPDATE SET text=EXCLUDED.text,reward=EXCLUDED.reward",
+            (row["id"], row["text"], row["reward"], row["type"], row.get("target_skill")),
+        )
 
-    def create_material(self, payload: dict) -> dict:
-        row = {"id": str(uuid4()), **payload}
-        self.materials[row["id"]] = row
-        return row
-
-    def get_material(self, material_id: str, organization_id: str) -> dict | None:
-        row = self.materials.get(material_id)
-        return row if row and row["organization_id"] == organization_id else None
-
-    def create_scenario(self, payload: dict) -> dict:
-        row = {"id": str(uuid4()), **payload}
-        self.scenarios[row["id"]] = row
-        return row
-
-    def get_scenario(self, scenario_id: str, organization_id: str) -> dict | None:
-        row = self.scenarios.get(scenario_id)
-        return row if row and row["organization_id"] == organization_id else None
-
-    def create_assignment(self, payload: dict, employee_ids: list[str]) -> dict:
-        row = {"id": str(uuid4()), **payload, "employee_ids": employee_ids}
-        self.assignments[row["id"]] = row
-        return row
-
-    def list_employee_assignments(self, user_id: str, organization_id: str) -> list[dict]:
-        return [
-            {**row, "scenario": self.scenarios[row["scenario_id"]]}
-            for row in self.assignments.values()
-            if user_id in row["employee_ids"] and row["organization_id"] == organization_id
-        ]
-
-    def create_attempt(self, payload: dict) -> dict:
-        row = {"id": str(uuid4()), **payload}
-        self.attempts[row["id"]] = row
-        return row
-
-    def list_attempts_for_user(self, user_id: str, organization_id: str) -> list[dict]:
-        return [
-            row
-            for row in self.attempts.values()
-            if row["user_id"] == user_id
-            and self.scenarios[row["scenario_id"]]["organization_id"] == organization_id
-        ]
-
-    def list_admin_dashboard_rows(self, organization_id: str) -> dict:
-        assignments = [
-            {
-                **row,
-                "scenario": self.scenarios[row["scenario_id"]],
-                "assignment_employees": [
-                    {"employee_id": user_id, "profile": self.profiles.get(user_id)}
-                    for user_id in row["employee_ids"]
-                ],
-            }
-            for row in self.assignments.values()
-            if row["organization_id"] == organization_id
-        ]
-        attempts = [
-            row
-            for row in self.attempts.values()
-            if self.scenarios[row["scenario_id"]]["organization_id"] == organization_id
-        ]
-        return {"assignments": assignments, "attempts": attempts}
-
-    def create_session(self, payload: dict) -> dict:
-        row = {"id": str(uuid4()), **payload}
-        if "transcript" not in row:
-            row["transcript"] = []
-        self.sessions[row["id"]] = row
-        return row
-
-    def get_session(self, session_id: str) -> dict | None:
-        row = self.sessions.get(session_id)
-        if row:
-            scenario = self.scenarios.get(row["scenario_id"])
-            if scenario:
-                row = {**row, "scenario": scenario}
-        return row
-
-    def update_session_transcript(self, session_id: str, transcript: list[dict]) -> dict:
-        self.sessions[session_id]["transcript"] = transcript
-        return self.sessions[session_id]
-
-    def list_industries(self) -> list[dict]:
-        return list(_INDUSTRIES)
-
-    def list_solo_scenarios(self, industry_ids: list[str] | None = None) -> list[dict]:
-        if not industry_ids:
-            return list(_SOLO_SCENARIOS)
-        return [s for s in _SOLO_SCENARIOS if s["industry"] in industry_ids]
-
-    def get_solo_scenario(self, scenario_id: str) -> dict | None:
-        return next((s for s in _SOLO_SCENARIOS if s["id"] == scenario_id), None)
-
-    def list_daily_suggestions(self, industry_ids: list[str] | None = None) -> list[dict]:
-        from datetime import date
-        date_key = date.today().isoformat()
-        return _pick_daily_suggestions(_DAILY_SUGGESTIONS, industry_ids or ["medicine"], date_key)
-
-    def get_daily_quest(self) -> dict | None:
-        return _SOLO_QUESTS[0] if _SOLO_QUESTS else None
-
-    def get_user_progress(self, user_id: str) -> dict | None:
-        return self.user_progress.get(user_id)
-
-    def upsert_user_progress(self, user_id: str, payload: dict) -> dict:
-        existing = self.user_progress.get(user_id, {"user_id": user_id})
-        merged = {**existing, **payload, "user_id": user_id, "updated_at": datetime.now(timezone.utc).isoformat()}
-        self.user_progress[user_id] = merged
-        return merged
-
-    def create_solo_attempt(self, payload: dict) -> dict:
-        row = {"id": str(uuid4()), **payload, "created_at": datetime.now(timezone.utc).isoformat()}
-        self.solo_attempts.append(row)
-        return row
+    cur.close()
+    conn.close()
+    print("Migration complete.")
 
 
-_demo_repository = InMemoryRepository(seed_demo=True)
-
-
-def get_repository() -> Repository:
-    settings = get_settings()
-    if not settings.supabase_url or not settings.supabase_service_role_key:
-        return _demo_repository
-    return SupabaseRepository()
+if __name__ == "__main__":
+    # Load .env from backend/
+    env_path = os.path.join(os.path.dirname(__file__), ".env")
+    if os.path.exists(env_path):
+        for line in open(env_path):
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                os.environ.setdefault(k.strip(), v.strip())
+    main()

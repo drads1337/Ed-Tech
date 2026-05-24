@@ -224,3 +224,105 @@ class AdminDashboard(ApiModel):
     completion_rate: float = 0.0
     average_score: float | None = None
     totals: DashboardTotals = Field(default_factory=DashboardTotals)
+
+
+# ── Solo / CommTrainer schemas ────────────────────────────────────────────────
+
+class Industry(ApiModel):
+    id: str
+    name: str
+    icon: str
+    roles: list[str]
+
+
+class SoloScenario(ApiModel):
+    id: str
+    industry: str
+    skill: str
+    title: str
+    goal: str
+    difficulty: int
+    duration_min: int
+    xp_reward: int
+    coin_reward: int
+    ai_persona: str
+    patient_type: str | None = None
+    emoji: str | None = None
+    script: list[dict] = Field(default_factory=list)
+    feedback: dict[str, list[str]] = Field(default_factory=dict)
+
+
+class DailySuggestion(ApiModel):
+    id: str
+    industry: str
+    skill: str
+    title: str
+    description: str
+    price: int = 0
+    emoji: str = "⭐"
+    difficulty: int = 2
+    duration_min: int = 5
+    patient_type: str | None = None
+
+
+class SoloQuest(ApiModel):
+    id: str
+    text: str
+    reward: int
+    type: str
+    target_skill: str | None = None
+
+
+class UserProgress(ApiModel):
+    user_id: str
+    name: str = ""
+    primary_industry: str = "medicine"
+    role: str = ""
+    goal: str = ""
+    additional_industries: list[str] = Field(default_factory=list)
+    streak: int = 0
+    xp: int = 0
+    coins: int = 0
+    notifications: int = 0
+    mode: str = "keyboard"
+    quest_done_date: str = ""
+    focus_done_date: str = ""
+    purchased_suggestion_ids: list[str] = Field(default_factory=list)
+    completed: dict[str, Any] = Field(default_factory=dict)
+    updated_at: datetime | None = None
+
+
+class UserProgressUpdate(ApiModel):
+    name: str | None = None
+    primary_industry: str | None = None
+    role: str | None = None
+    goal: str | None = None
+    additional_industries: list[str] | None = None
+    streak: int | None = None
+    xp: int | None = None
+    coins: int | None = None
+    notifications: int | None = None
+    mode: str | None = None
+    quest_done_date: str | None = None
+    focus_done_date: str | None = None
+    purchased_suggestion_ids: list[str] | None = None
+    completed: dict[str, Any] | None = None
+
+
+class SoloAttemptCreate(ApiModel):
+    scenario_id: str
+    rating: int
+    xp_gained: int
+    coins_gained: int
+    transcript: list[dict] = Field(default_factory=list)
+
+
+class SoloAttempt(ApiModel):
+    id: str
+    user_id: str
+    scenario_id: str
+    rating: int
+    xp_gained: int
+    coins_gained: int
+    transcript: list[dict] = Field(default_factory=list)
+    created_at: datetime | None = None
