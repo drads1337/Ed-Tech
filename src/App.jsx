@@ -5841,15 +5841,12 @@ function DashboardPage() {
 
       try {
         const token = await getSessionToken();
-        if (!token) {
-          throw new Error('No active Supabase session.');
-        }
         if (isActive) {
-          setAuthToken(token);
+          setAuthToken(token || '');
         }
 
         const demoUser = demoUserForRole(localProfile.role);
-        const backendProfile = await apiRequest('/api/me', { token, demoUser });
+        const backendProfile = await apiRequest('/api/me', { token: token || undefined, demoUser });
         const userProfile = mergeBackendProfileWithLocalState(backendProfile, localProfile);
         saveMockUser(userProfile);
 
@@ -5859,13 +5856,13 @@ function DashboardPage() {
         }
 
         const dashboardPath = userProfile.role === 'admin' ? '/api/admin/dashboard' : '/api/employee/dashboard';
-        const dashboardPayload = await apiRequest(dashboardPath, { token, demoUser: demoUserForRole(userProfile.role) });
+        const dashboardPayload = await apiRequest(dashboardPath, { token: token || undefined, demoUser: demoUserForRole(userProfile.role) });
         let corporateData = null;
         const adminPage = getAdminPageFromPath(location.pathname);
 
         if (userProfile.role === 'admin' && adminPage && adminPage !== 'home' && !isProfileView) {
           try {
-            corporateData = await fetchCorporateAdminPayload(token);
+            corporateData = await fetchCorporateAdminPayload(token || undefined);
           } catch {
             corporateData = { error: true };
           }
@@ -6135,12 +6132,6 @@ function AdminDashboardView({ dashboard, heading, error, token = '', organizatio
     async function loadCorporateAdmin() {
       if (prefetchedCorporateData) {
         applyCorporatePayload(prefetchedCorporateData);
-        setIsCorporateLoading(false);
-        return;
-      }
-
-      if (!token) {
-        setCorporateWarning(corporateCopy.backendWarning);
         setIsCorporateLoading(false);
         return;
       }
