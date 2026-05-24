@@ -5756,10 +5756,9 @@ function CorporatePageSkeleton({ page = 'dashboard', lang = 'ru' }) {
 }
 
 async function fetchCorporateAdminPayload(token) {
-  const [docsPayload, knowledgePayload, draftsPayload, reviewPayload, prizesPayload] = await Promise.all([
+  const [docsPayload, knowledgePayload, reviewPayload, prizesPayload] = await Promise.all([
     apiRequest('/api/corporate/admin/documents', { token }),
     apiRequest('/api/corporate/admin/knowledge/current', { token }).catch(() => null),
-    apiRequest('/api/corporate/admin/task-drafts', { token }),
     apiRequest('/api/corporate/admin/review', { token }),
     apiRequest('/api/corporate/admin/prizes', { token }),
   ]);
@@ -5767,7 +5766,7 @@ async function fetchCorporateAdminPayload(token) {
   return {
     docsPayload,
     knowledgePayload,
-    draftsPayload,
+    draftsPayload: [],
     reviewPayload,
     prizesPayload,
   };
