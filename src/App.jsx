@@ -2656,24 +2656,16 @@ function VoiceChat({
   const emotionLogRef = useRef([]);
   const motionLogRef = useRef([]);
   const finishedRef = useRef(false);
-  const systemPromptRef = useRef('');   // always-current ref so WS closure isn't stale
-  const deepgramKeyRef = useRef('');    // populated async — WS reads from ref, not state
-  const wsRef = useRef(null);
+  const systemPromptRef = useRef('');
   const mediaRecorderRef = useRef(null);
   const streamRef = useRef(null);
-  const sendMessageRef = useRef(null);  // always-current sendUserMessage for WS handler
+  const sendMessageRef = useRef(null);
   const { play, stop } = useAudioPlayer();
 
-  // Load Deepgram key and start simulation
   useEffect(() => {
     const ac = new AbortController();
 
     onReadyChange?.(false);
-    fetch(`${API_BASE}/api/live-sim/config`, { signal: ac.signal })
-      .then((r) => r.json())
-      .then((cfg) => { deepgramKeyRef.current = cfg.deepgramApiKey || ''; })
-      .catch(() => {});
-
     setStatus('loading');
     fetch(`${API_BASE}/api/live-sim/start`, {
       method: 'POST',
@@ -2725,17 +2717,9 @@ function VoiceChat({
     return () => ac.abort();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const stopListening = useCallback(async () => {
+  const stopListening = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
     }
   }, []);
 
@@ -2786,83 +2770,88 @@ function VoiceChat({
     }
   }, [language, play, onMotionChange, onEmotionChange, onBubbleTextChange]);
 
-  // Keep sendMessageRef current so the WebSocket handler always calls the latest version
   sendMessageRef.current = sendUserMessage;
 
   const startListening = useCallback(async () => {
-    const key = deepgramKeyRef.current;
-    if (!key) {
-      // No Deepgram key yet — mic icon still shows so user knows to wait
-      setStatus('idle');
-      return;
-    }
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       streamRef.current = stream;
 
-      const dgLang = language === 'ru' ? 'ru' : language === 'uz' ? 'uz-IN' : 'en-US';
-      const ws = new WebSocket(
-        `wss://api.deepgram.com/v1/listen?model=nova-2&language=${dgLang}&punctuate=true&endpointing=1000&utterance_end_ms=1500`,
-        ['token', key],
-      );
-      wsRef.current = ws;
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm')
+        ? 'audio/webm'
+        : 'audio/mp4';
 
-      ws.onopen = () => {
-        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-          ? 'audio/webm;codecs=opus'
-          : 'audio/webm';
-        const recorder = new MediaRecorder(stream, { mimeType });
-        mediaRecorderRef.current = recorder;
-        recorder.ondataavailable = (e) => {
-          if (e.data.size > 0 && ws.readyState === WebSocket.OPEN) ws.send(e.data);
-        };
-        recorder.start(250);
-      };
+      const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+      const chunks = [];
+      const recorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = recorder;
 
-      let finalText = '';
-      ws.onmessage = (e) => {
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+
+      recorder.onstop = async () => {
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((t) => t.stop());
+          streamRef.current = null;
+        }
+        const blob = new Blob(chunks, { type: mimeType });
+        if (blob.size < 500) {
+          setStatus('idle');
+          onMotionChange?.('idle');
+          setLiveText('');
+          return;
+        }
+
+        setStatus('thinking');
+        setLiveText('⏳ Recognizing…');
+        onMotionChange?.(['thinking', 'listening']);
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 12000);
+
         try {
-          const msg = JSON.parse(e.data);
-          const alt = msg.channel?.alternatives?.[0];
-          if (!alt) return;
-
-          if (msg.type === 'Results' && msg.is_final && alt.transcript) {
-            finalText += (finalText ? ' ' : '') + alt.transcript;
-            setLiveText(finalText);
-          } else if (msg.type === 'UtteranceEnd') {
-            const captured = finalText;
-            finalText = '';
-            stopListening();
-            // Use ref so we always call the current sendUserMessage (no stale closure)
-            sendMessageRef.current?.(captured);
-          } else if (!msg.is_final && alt.transcript) {
-            setLiveText(finalText + (finalText ? ' ' : '') + alt.transcript);
+          const form = new FormData();
+          form.append('file', blob, `audio.${ext}`);
+          form.append('language', language || 'en');
+          const resp = await fetch(`${API_BASE}/api/live-sim/transcribe`, {
+            method: 'POST',
+            body: form,
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
+          const { text } = await resp.json();
+          setLiveText('');
+          if (text?.trim()) {
+            sendMessageRef.current?.(text.trim());
+          } else {
+            setStatus('idle');
+            onMotionChange?.('idle');
           }
-        } catch {}
+        } catch {
+          clearTimeout(timeout);
+          setStatus('idle');
+          onMotionChange?.('idle');
+          setLiveText('');
+        }
       };
 
-      ws.onerror = () => stopListening();
-
+      recorder.start();
       setStatus('listening');
+      setLiveText('🎤 Recording…');
       onMotionChange?.('listening');
     } catch {
       setStatus('idle');
     }
-  }, [language, stopListening, onMotionChange]);
+  }, [language, onMotionChange]);
 
   const handleMicButton = useCallback(() => {
     if (status === 'listening') {
       stopListening();
-      // liveText is shown in the bubble; send whatever was captured
-      const captured = liveText;
-      setLiveText('');
-      if (captured.trim()) sendMessageRef.current?.(captured);
-      else { setStatus('idle'); onMotionChange?.('idle'); }
     } else if (status === 'idle') {
       startListening();
     }
-  }, [status, liveText, startListening, stopListening, onMotionChange]);
+  }, [status, startListening, stopListening]);
 
   const finishDialog = useCallback(async () => {
     if (finishedRef.current) return;

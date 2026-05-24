@@ -324,3 +324,51 @@ def synthesize_speech(text: str, _language: str, settings: Settings) -> tuple[st
         return base64.b64encode(audio_bytes).decode(), mime
     except Exception:
         return None, None
+
+
+STT_MODEL = "openai/whisper-1"
+
+
+def transcribe_audio(audio_bytes: bytes, filename: str, content_type: str, language: str, settings: Settings) -> str:
+    """Transcribe via OpenRouter Whisper API (JSON + base64 audio)."""
+    if not settings.openrouter_api_key:
+        return ""
+
+    if "mp4" in content_type or filename.endswith(".mp4"):
+        fmt = "mp4"
+    elif "ogg" in content_type or filename.endswith(".ogg"):
+        fmt = "ogg"
+    elif "wav" in content_type or filename.endswith(".wav"):
+        fmt = "wav"
+    else:
+        fmt = "webm"
+
+    headers = {
+        "Authorization": f"Bearer {settings.openrouter_api_key}",
+        "Content-Type": "application/json",
+        "X-Title": settings.openrouter_app_name,
+    }
+    if settings.openrouter_app_url:
+        headers["HTTP-Referer"] = settings.openrouter_app_url
+
+    body: dict = {
+        "model": STT_MODEL,
+        "input_audio": {
+            "data": base64.b64encode(audio_bytes).decode(),
+            "format": fmt,
+        },
+    }
+    if language and language != "auto":
+        body["language"] = language
+
+    try:
+        resp = httpx.post(
+            f"{settings.openrouter_base_url.rstrip('/')}/audio/transcriptions",
+            headers=headers,
+            json=body,
+            timeout=20,
+        )
+        resp.raise_for_status()
+        return resp.json().get("text", "").strip()
+    except Exception:
+        return ""
